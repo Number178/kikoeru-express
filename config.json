@@ -8,6 +8,6 @@
   "retry": 5,
   "timeout": 2000,
   "retryDelay": 500,
-  "httpProxyHost": "",
+  "httpProxyHost": false,
   "httpProxyPort": 10809
 }
