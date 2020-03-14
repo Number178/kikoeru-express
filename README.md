@@ -1,14 +1,14 @@
 # kikoeru-express
 
-#### 下载 kikoeru
+### 下载 kikoeru
 
 下载 [kikoeru.rar](https://github.com/Watanuki-Kimihiro/kikoeru-express/releases) 并解压
 
-#### 下载并解压 dist 文件
+### 下载并解压 dist 文件
 
 下载 [spa.rar](https://github.com/Watanuki-Kimihiro/kikoeru-quasar/releases) 并在 kikoeru/dist 文件夹内解压
 
-#### 配置文件
+### 配置文件
 
 ```
 // config.json
@@ -37,24 +37,24 @@
 ```
 
 
-#### 安装依赖
+### 安装依赖
 
 ```
 npm install
 ```
 
-#### 扫描音声库
+### 扫描音声库
 
 ```
 npm run scan
 ```
 
-#### 启动服务
+### 启动服务
 
 ```
 npm start
 ```
 
-#### 访问 web 应用
+### 访问 web 应用
 
 [http://localhost:8888/](http://localhost:8888/)
