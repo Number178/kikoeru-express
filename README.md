@@ -10,7 +10,7 @@
 
 #### 配置文件
 
-```json
+```
 // config.json
 {
   "maxParallelism": 16, // 爬取元数据时并行任务数量
