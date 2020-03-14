@@ -1,6 +1,5 @@
 {
   "maxParallelism": 16,
-  "password": false,
   "rootDir": "G:/催眠音声",
   "scannerMaxRecursionDepth": 2,
   "worksPerPage": 12,
