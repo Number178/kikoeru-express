@@ -1,0 +1,26 @@
+{
+  "name": "kikoeru-express",
+  "version": "0.1.0",
+  "description": "server",
+  "main": "app.js",
+  "scripts": {
+    "start": "node app.js",
+    "dev": "nodemon app.js",
+    "scan": "node ./filesystem/scanner.js"
+  },
+  "author": "Watanuki-Kimihiro",
+  "license": "GPL-3.0-or-later",
+  "dependencies": {
+    "axios": "^0.19.2",
+    "cheerio": "^1.0.0-rc.3",
+    "connect-history-api-fallback": "^1.6.0",
+    "express": "^4.17.1",
+    "htmlparser2": "^4.1.0",
+    "knex": "^0.20.11",
+    "limit-promise": "^1.0.4",
+    "natural-orderby": "^2.0.3",
+    "recursive-readdir": "^2.2.2",
+    "sqlite3": "^4.1.1",
+    "tunnel-agent": "^0.6.0"
+  }
+}
