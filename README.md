@@ -58,3 +58,9 @@ npm start
 ### 访问 web 应用
 
 [http://localhost:8888/](http://localhost:8888/)
+
+### TODO
+
+* [ ] POST/DELETE api/me 用户登录/注销
+* [ ] GET api/playlist 获取当前用户的播放列表
+* [ ] POST api/playlist 创建一个新的播放列表
