@@ -5,16 +5,16 @@ const { hashNameIntoInt, insertStr, hasLetter } = require('./utils');
 const scrapeWorkMetadataFromHVDB = require('./hvdb');
 
 /**
- * Scrapes work metadata from public DLsite page HTML.
+ * Scrapes static work metadata from public DLsite page HTML.
  * @param {number} id Work id.
  * @param {String} language 标签语言，'ja-jp', 'zh-tw' or 'zh-cn'，默认'zh-cn'
  */
-const scrapeWorkMetadataFromDLsite = (id, language) => new Promise((resolve, reject) => {
+const scrapeStaticWorkMetadataFromDLsite = (id, language) => new Promise((resolve, reject) => {
   const rjcode = (`000000${id}`).slice(-6);
   const url = `https://www.dlsite.com/maniax/work/=/product_id/RJ${rjcode}.html`;
 
   const work = { id, tags: [], vas: [] };
-  let AGE_RATINGS, VA, GENRE, RELEASE, COOKIE_LOCALE;
+  let AGE_RATINGS, VA, GENRE, RELEASE, SERIES, COOKIE_LOCALE;
   switch(language) {
     case 'ja-jp':
       COOKIE_LOCALE = 'locale=ja-jp'
@@ -22,6 +22,7 @@ const scrapeWorkMetadataFromDLsite = (id, language) => new Promise((resolve, rej
       GENRE = 'ジャンル';
       VA = '声優';
       RELEASE = '販売日';
+      SERIES = 'シリーズ名';
       break;
     case 'zh-tw':
       COOKIE_LOCALE = 'locale=zh-tw'
@@ -29,6 +30,7 @@ const scrapeWorkMetadataFromDLsite = (id, language) => new Promise((resolve, rej
       GENRE = '分類';
       VA = '聲優';
       RELEASE = '販賣日';
+      SERIES = '系列名';
       break;
     default:
       COOKIE_LOCALE = 'locale=zh-cn'
@@ -36,6 +38,7 @@ const scrapeWorkMetadataFromDLsite = (id, language) => new Promise((resolve, rej
       GENRE = '分类';
       VA = '声优';
       RELEASE = '贩卖日';
+      SERIES = '系列名';
   }
 
   axios.get(url, {
@@ -50,8 +53,9 @@ const scrapeWorkMetadataFromDLsite = (id, language) => new Promise((resolve, rej
       work.title = $(`a[href="${url}"]`).text();
   
       // 社团
-      const circleUrl = $('span[class="maker_name"]').children('a').attr('href');
-      const circleName = $('span[class="maker_name"]').children('a').text();
+      const circleElement = $('span[class="maker_name"]').children('a');
+      const circleUrl = circleElement.attr('href');
+      const circleName = circleElement.text();
       work.circle = (circleUrl && circleName)
         ? { id: parseInt(circleUrl.substr(-10,5)), name: circleName }
         : {};
@@ -71,7 +75,20 @@ const scrapeWorkMetadataFromDLsite = (id, language) => new Promise((resolve, rej
       work.release = (release.length === 8)
         ? insertStr(insertStr(release, 4, '-'), 7, '-')
         : '';
-        
+
+      // 系列
+      const seriesElement = $('#work_outline').children('tbody').children('tr').children('th')
+        .filter(function() {
+          return $(this).text() === SERIES;
+        }).parent().children('td').children('a');
+      if (seriesElement.length) {
+        const seriesUrl = seriesElement.attr('href');
+        work.series = {
+          id: seriesUrl.match(/SRI(\d{10})/) ? parseInt(seriesUrl.match(/SRI(\d{10})/)[1]) : null,
+          name: seriesElement.text()
+        };
+      }
+      
       // 标签
       $('#work_outline').children('tbody').children('tr').children('th')
         .filter(function() {
@@ -132,10 +149,63 @@ const scrapeWorkMetadataFromDLsite = (id, language) => new Promise((resolve, rej
         // 请求已发出，但服务器响应的状态码不在 2xx 范围内
         reject(new Error(`Couldn't request work page HTML (${url}), received: ${error.response.status}.`));
       } else {
-        reject(new Error(error.message));
+        reject(new Error(error + rjcode));
       }
     });
 });
 
+/**
+ * Requests dynamic work metadata from public DLsite API.
+ * @param {number} id Work id.
+ */
+const scrapeDynamicWorkMetadataFromDLsite = id => new Promise((resolve, reject) => {
+  const rjcode = (`000000${id}`).slice(-6);
+  const url = `https://www.dlsite.com/maniax-touch/product/info/ajax?product_id=RJ${rjcode}`;
 
-module.exports = scrapeWorkMetadataFromDLsite;
+  axios.get(url)
+    .then(response => response.data[`RJ${rjcode}`])
+    .then((data) => {
+      const work = {};
+      work.dl_count = data.dl_count; // 售出数
+      work.rate_average_2dp = data.rate_average_2dp; // 平均评价
+      work.rate_count = data.rate_count; // 评价数量
+      work.rate_count_detail = data.rate_count_detail; // 评价分布明细
+      work.review_count = data.review_count; // 评论数量
+      work.price = data.price; // 价格
+      if (data.rank.length) {
+        work.rank = data.rank; // 成绩
+      }
+
+      resolve(work);
+    })
+    .catch((error) => {
+      if (error.response) {
+        // 请求已发出，但服务器响应的状态码不在 2xx 范围内
+        reject(new Error(`Couldn't request work page HTML (${url}), received: ${error.response.status}.`));
+      } else {
+        reject(new Error(error));
+      }
+    });
+});
+
+/**
+ * Scrapes work metadata from public DLsite page HTML.
+ * @param {number} id Work id.
+ * @param {String} language 标签语言，'ja-jp', 'zh-tw' or 'zh-cn'，默认'zh-cn'
+ */
+const scrapeWorkMetadataFromDLsite = (id, language) => {
+  return Promise.all([
+    scrapeStaticWorkMetadataFromDLsite(id, language),
+    scrapeDynamicWorkMetadataFromDLsite(id)
+  ])
+    .then((res) => {
+      const work = {};
+      return Object.assign(work, res[0], res[1]);
+    });
+};
+
+
+module.exports = {
+  scrapeWorkMetadataFromDLsite,
+  scrapeDynamicWorkMetadataFromDLsite
+};
