@@ -1,13 +1,16 @@
 {
   "maxParallelism": 16,
   "rootDir": "G:/催眠音声",
+  "md5secret": "oCq893j9heTfTX",
+  "jwtsecret": "r8eBXoZgRtU6EG",
+  "expiresIn": 2592000,
   "scannerMaxRecursionDepth": 2,
-  "worksPerPage": 12,
+  "pageSize": 12,
   "tagLanguage": "zh-cn",
   "coverSource": "DLite",
   "retry": 5,
   "timeout": 2000,
   "retryDelay": 500,
   "httpProxyHost": false,
-  "httpProxyPort": 10809
+  "httpProxyPort": false
 }
