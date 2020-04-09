@@ -149,7 +149,7 @@ const scrapeStaticWorkMetadataFromDLsite = (id, language) => new Promise((resolv
         // 请求已发出，但服务器响应的状态码不在 2xx 范围内
         reject(new Error(`Couldn't request work page HTML (${url}), received: ${error.response.status}.`));
       } else {
-        reject(new Error(error + rjcode));
+        reject(error);
       }
     });
 });
@@ -183,7 +183,7 @@ const scrapeDynamicWorkMetadataFromDLsite = id => new Promise((resolve, reject) 
         // 请求已发出，但服务器响应的状态码不在 2xx 范围内
         reject(new Error(`Couldn't request work page HTML (${url}), received: ${error.response.status}.`));
       } else {
-        reject(new Error(error));
+        reject(error);
       }
     });
 });
