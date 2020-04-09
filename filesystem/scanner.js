@@ -3,30 +3,12 @@ const path = require('path');
 const LimitPromise = require('limit-promise'); // 限制并发数量
 
 const axios = require('../scraper/axios'); // 数据请求
+const { scrapeWorkMetadataFromDLsite, scrapeDynamicWorkMetadataFromDLsite } = require('../scraper/dlsite');
 const db = require('../database/db');
-const { getFolderList, deleteCoverImageFromDisk, saveCoverImageToDisk } = require('./utils');
 const { createSchema } = require('../database/schema');
-const scrapeWorkMetadataFromHVDB = require('../scraper/hvdb');
-const scrapeWorkMetadataFromDLsite = require('../scraper/dlsite');
+const { getFolderList, deleteCoverImageFromDisk, saveCoverImageToDisk } = require('./utils');
 
 const config = require('../config.json');
-
-/**
- * 检查文件是否存在，
- * 返回一个 Promise 对象
- * @param {string} filePath 文件路径
- */
-const isFileExisted = (filePath) => {
-  return new Promise(function(resolve, reject) {
-    fs.exists(filePath, (exists) => {
-      if (exists) {
-        resolve(true);
-      } else {
-        resolve(false);
-      }
-    })
-  });
-};
 
 /**
  * 通过数组 arr 中每个对象的 id 属性来对数组去重
@@ -59,42 +41,36 @@ const uniqueArr = (arr) => {
 };
 
 /**
- * Scrapes work metadata.
- * @param {number} id Work id.
- * @param {String} tagLanguage 标签语言
- */
-const scrapeWorkMetadata = (id, tagLanguage) => {
-  if (tagLanguage === 'en-us') {
-    return scrapeWorkMetadataFromHVDB(id);
-  } else {
-    return scrapeWorkMetadataFromDLsite(id, tagLanguage);
-  }
-};
-
-/**
- * 从 DLsite 或 HVDB 抓取该作品的元数据，并保存到数据库，
+ * 从 DLsite 抓取该音声的元数据，并保存到数据库，
  * 返回一个 Promise 对象，处理结果: 'added' or 'failed'
  * @param {number} id work id
- * @param {string} folder 文件夹相对路径
+ * @param {string} rootFolderName 根文件夹别名
+ * @param {string} dir 音声文件夹相对路径
  * @param {string} tagLanguage 标签语言，'ja-jp', 'zh-tw' or 'zh-cn'，默认'zh-cn'
  */
-const getMetadata = (id, folder, tagLanguage) => {
+const getMetadata = (id, rootFolderName, dir, tagLanguage) => {
   const rjcode = (`000000${id}`).slice(-6); // zero-pad to 6 digits
-  return scrapeWorkMetadata(id, tagLanguage) // 抓取该作品的元数据
-      .then((metadata) => {
-        // 将抓取到的元数据插入到数据库
-        console.log(` -> [RJ${rjcode}] Fetched metadata! Adding to database...`);
-        metadata.dir = folder;
-        return db.insertWorkMetadata(metadata)
-          .then(() => {
-            console.log(` -> [RJ${rjcode}] Finished adding to the database!`);
-            return 'added';
-          });
-      })
-      .catch((err) => {
-        console.error(`  ! [RJ${rjcode}] Failed to fetch metadata: ${err.message}`);
-        return 'failed';
-      });
+  console.log(` -> [RJ${rjcode}] 从 DLSite 抓取元数据...`);
+  return scrapeWorkMetadataFromDLsite(id, tagLanguage) // 抓取该音声的元数据
+    .then((metadata) => {
+      // 将抓取到的元数据插入到数据库
+      console.log(` -> [RJ${rjcode}] 元数据抓取成功，准备添加到数据库...`);
+      metadata.rootFolderName = rootFolderName;
+      metadata.dir = dir;
+      return db.insertWorkMetadata(metadata)
+        .then(() => {
+          console.log(` -> [RJ${rjcode}] 元数据成功添加到数据库`);
+          return 'added';
+        })
+        .catch((err) => {
+          console.error(`  ! [RJ${rjcode}] 在插入元数据过程中出错: ${err.message}`);
+          return 'failed';
+        });
+    })
+    .catch((err) => {
+      console.error(`  ! [RJ${rjcode}] 在抓取元数据过程中出错: ${err.message}`);
+      return 'failed';
+    });
 };
 
 /**
@@ -121,67 +97,61 @@ const getCoverImage = (id, coverSource) => {
     .then((imageRes) => {
       return saveCoverImageToDisk(imageRes.data, rjcode)
         .then(() => {
-          console.log(` -> [RJ${rjcode}] Cover image downloaded!`);
+          console.log(` -> [RJ${rjcode}] 封面下载成功`);
           return 'added';
         });
     })
     .catch((err) => {
-      console.error(`  ! [RJ${rjcode}] Failed to download cover image: ${err.message}`);
+      console.error(`  ! [RJ${rjcode}] 在下载封面过程中出错: ${err.message}`);
       return 'failed';
     });
 };
 
 /**
- * 获取作品元数据，获取作品封面图片，
+ * 获取音声元数据，获取音声封面图片，
  * 返回一个 Promise 对象，处理结果: 'added', 'skipped' or 'failed'
- * @param {number} id work id
- * @param {string} folder 文件夹相对路径
- * @param {string} tagLanguage 标签语言，'ja-jp', 'zh-tw' or 'zh-cn'，默认'zh-cn'
- * @param {string} coverSource 封面图片源，'HVDB' or 'DLsite'，默认'DLsite'
+ * @param {string} folder 音声文件夹对象 { relativePath: '相对路径', rootFolderName: '根文件夹别名', id: '音声ID' }
  */
-const processFolder = (id, folder, tagLanguage, coverSource) => db.knex('t_work')
-  .where('id', '=', id) // select * from 't_work' where 'id' = id
+const processFolder = (folder) => db.knex('t_work')
+  .select('id')
+  .where('id', '=', folder.id)
   .count()
   .first()
   .then((res) => {
-    const rjcode = (`000000${id}`).slice(-6); // zero-pad to 6 digits
+    const rjcode = (`000000${folder.id}`).slice(-6); // zero-pad to 6 digits
     const processResult = {
       metadata: '', 
       coverImage: '' 
     };
     
     const count = res['count(*)'];
-    if (count) { // 查询数据库，检查是否已经写入该作品的元数据
+    if (count) { // 查询数据库，检查是否已经写入该音声的元数据
       // 已经成功写入元数据
       processResult.metadata = 'skipped';
    
-      // 检查作品封面图片是否缺失
-      coverPath = path.join(config.rootDir, 'Images', `RJ${rjcode}.jpg`);
-      return isFileExisted(coverPath)
-        .then((exists) => {
-          if (!exists) { // 封面图片缺失，重新下载封面图片
-            console.log(`  ! [RJ${rjcode}] Cover image missing.`);
-            return getCoverImage(id, coverSource)
-              .then((result) => {
-                processResult.coverImage = result;
-                return processResult;
-              });
-          } else { // 封面图片已存在，跳过下载
-            processResult.coverImage = 'skipped';
+      // 检查音声封面图片是否缺失
+      const coverPath = path.join(config.coverFolderDir, `RJ${rjcode}.jpg`);
+      if (!fs.existsSync(coverPath)) {
+        console.log(`  ! [RJ${rjcode}] 封面图片缺失，重新下载封面图片...`);
+        return getCoverImage(folder.id, config.coverSource)
+          .then((result) => {
+            processResult.coverImage = result;
             return processResult;
-          }
-        });
-    } else { // 发现新文件夹
-      console.log(` * Found new folder: ${folder}`);
-      console.log(` -> [RJ${rjcode}] Fetching metadata...`);
-      return getMetadata(id, folder, tagLanguage) // 获取元数据
+          });
+      } else { // 封面图片已存在，跳过下载
+        processResult.coverImage = 'skipped';
+        return processResult;
+      }
+    } else {
+      console.log(` * 在根文件夹 "${folder.rootFolderName}" 下发现新文件夹: "${folder.relativePath}"`);
+      return getMetadata(folder.id, folder.rootFolderName, folder.relativePath, config.tagLanguage) // 获取元数据
         .then((result) => {
           processResult.metadata = result;
           if (result === 'failed') { // 如果获取元数据失败，跳过封面图片下载
             processResult.coverImage = 'skipped';
             return processResult;
           } else { // 下载封面图片
-            return getCoverImage(id, coverSource)
+            return getCoverImage(folder.id, config.coverSource)
               .then((result) => {
                 processResult.coverImage = result;
                 return processResult;
@@ -196,31 +166,28 @@ const limitP = new LimitPromise(MAX); // 核心控制器
 /**
  * 限制 processFolder 并发数量，
  * 使用控制器包装 processFolder 方法，实际上是将请求函数递交给控制器处理
- * @param {number} id Work id.
- * @param {string} folder 文件夹相对路径
  */
-const processFolderLimited = (id, folder) => {
-  return limitP.call(processFolder, id, folder, config.tagLanguage, config.coverSource);
+const processFolderLimited = (folder) => {
+  return limitP.call(processFolder, folder);
 };
 
 /**
- * performCleanup()
  * 清理本地不再存在的音声: 将其元数据从数据库中移除，并删除其封面图片
  */
 const performCleanup = () => {
-  //console.log(' * Looking for folders to clean up...');
+  console.log(' * 清理本地不再存在的音声...');
   return db.knex('t_work')
-    .select('id', 'dir')
+    .select('id', 'root_folder', 'dir')
     .then((works) => {
       const promises = works.map(work => new Promise((resolve, reject) => { // 对work数组内的每一项，都新建一个Promise
-        // 检查每个音声的本地路径是否仍然存在，若不再存在，将其数据项从数据库中移除，然后删除其封面图片。
-        if (!fs.existsSync(path.join(config.rootDir, work.dir))) {
-          //console.warn(` ! ${work.dir} is missing from filesystem. Removing from database...`);
+        // 检查每个音声的根文件夹或本地路径是否仍然存在
+        const rootFolder = config.rootFolders.find(rootFolder => rootFolder.name === work.root_folder);
+        if (!rootFolder || !fs.existsSync(path.join(rootFolder.path, work.dir))) {
           db.removeWork(work.id) // 将其数据项从数据库中移除
             .then((result) => { // 然后删除其封面图片
               const rjcode = (`000000${work.id}`).slice(-6); // zero-pad to 6 digits
               deleteCoverImageFromDisk(rjcode)    
-                .catch(() => console.log(` -> [RJ${rjcode}] Failed to delete cover image.`))
+                .catch((err) => console.error(` -> [RJ${rjcode}] 在删除封面过程中出错: ${err.message}`))
                 .then(() => resolve(result));
             })
             .catch(err => reject(err));
@@ -237,39 +204,31 @@ const performCleanup = () => {
  * 执行扫描
  */
 const performScan = () => {
-  // 在 rootDir 路径下创建 Images 文件夹
-  fs.mkdir(path.join(config.rootDir, 'Images'), (direrr) => {
-    if (direrr && direrr.code !== 'EEXIST') {
-      console.error(` ! ERROR while trying to create Images folder: ${direrr.code}`);
-      process.exit(1);
+  fs.mkdir(path.join(config.coverFolderDir), { recursive: true }, (direrr) => {
+    if (direrr) {
+      console.error(` ! 在尝试创建存放封面的文件夹时出错: ${direrr.code}`);
+      return;
     }
 
     return createSchema() // 构建数据库结构
       .then(() => performCleanup()) // 清理本地不再存在的音声
       .catch((err) => {
         console.error(` ! ERROR while performing cleanup: ${err.message}`);
-        process.exit(1);
+        return;
       })
       .then(async () => {
         console.log(' * Finished cleanup. Starting scan...');
         let folderList = [];
 
         try {
-          // 遍历异步生成器函数 getFolderList()
-          for await (const folder of getFolderList()) {
-            folderList.push({
-              id: folder.match(/RJ(\d{6})/)[1],
-              folderDir: folder
-            });
-          }
-
+          folderList = await getAllFolderList();
           if (folderList.length === 0) { // 当库中没有名称包含 RJ 号的文件夹时
             console.log(' * Finished scan. Added 0, skipped 0 and failed to add 0 works.');
-            process.exit(1);
+            return;
           }
         } catch (err) {
           console.error(` ! ERROR while trying to get folder list: ${err.message}`);
-          process.exit(1);
+          return;
         }
 
         try {
@@ -292,42 +251,100 @@ const performScan = () => {
           if (duplicateNum > 0) {
             console.log(` * Found ${duplicateNum} duplicate folders : ${duplicateRJcode.join(", ")}`);
           }
-          
-          // 并行处理文件夹
-          for(let folder of uniqueFolderList){
-            processFolderLimited(folder.id, folder.folderDir)
+
+          const promises = uniqueFolderList.map((folder) => 
+            processFolderLimited(folder)
               .then((processResult) => { // 统计处理结果
                 const rjcode = (`000000${folder.id}`).slice(-6); // zero-pad to 6 digits
 
-                if(processResult.metadata === 'failed' || processResult.coverImage === 'failed') {
+                if (processResult.metadata === 'failed' || processResult.coverImage === 'failed') {
                   counts['failed'] += 1;
                   console.log(`[RJ${rjcode}] Failed adding to the database! Failed: ${counts.failed}`);
-
                 } else if (processResult.metadata === 'skipped' && processResult.coverImage === 'skipped') {
                   counts['skipped'] += 1;
-
                 } else {
                   counts['added'] += 1;
                   console.log(`[RJ${rjcode}] Finished adding to the database! Added: ${counts.added}`);
                 }
-                
-                processedNum += 1;
-                if (processedNum >= uniqueFolderList.length) {
-                  console.log(` * Finished scan. Added ${counts.added}, skipped ${counts.skipped} and failed to add ${counts.failed} works.`);
-                  process.exit(0);
-                }
-              });
-          }
+              })
+          );
+
+          return Promise.all(promises).then(() => {
+            console.log(` * 扫描完成 Added ${counts.added}, skipped ${counts.skipped} and failed to add ${counts.failed} works.`);
+            return counts;
+          })
         } catch (err) {
-          console.error(` ! ERROR while performing scan: ${err.message}`);
-          process.exit(1);
+          console.error(` ! 在扫描过程中出错: ${err.message}`);
+          return;
         }
       })
       .catch((err) => {
-        console.error(` ! ERROR while creating database schema: ${err.message}`);
-        process.exit(1);
+        console.error(` ! 在创建数据库结构过程中出错: ${err.message}`);
+        return;
       });
   });
 };
 
+/**
+ * 更新音声的动态元数据
+ * @param {number} id work id
+ */
+const updateMetadata = (id) => {
+  const rjcode = (`000000${id}`).slice(-6); // zero-pad to 6 digits
+  return scrapeDynamicWorkMetadataFromDLsite(id) // 抓取该音声的元数据
+    .then((metadata) => {
+      // 将抓取到的元数据插入到数据库
+      console.log(` -> [RJ${rjcode}] 元数据抓取成功，准备更新元数据...`);
+      metadata.id = id;
+      return db.updateWorkMetadata(metadata)
+        .then(() => {
+          console.log(` -> [RJ${rjcode}] 元数据更新成功`);
+          return 'updated';
+        });
+    })
+    .catch((err) => {
+      console.error(`  ! [RJ${rjcode}] 在抓取元数据过程中出错: ${err}`);
+      return 'failed';
+    });
+};
+
+const updateMetadataLimited = (id) => limitP.call(updateMetadata, id);
+
+const performUpdate = () => db.knex('t_work').select('id')
+  .then((works) => {
+    let processedNum = 0;
+    const counts = {
+      updated: 0,
+      failed: 0,
+    };
+
+    for (work of works) {
+      updateMetadataLimited(work.id)
+        .then((result) => { // 统计处理结果
+          result === 'failed' ? counts['failed'] += 1 : counts['updated'] += 1;
+          processedNum += 1;
+          if (processedNum >= works.length) {
+            console.log(` * 完成元数据更新 ${counts.updated} and failed to update ${counts.failed} works.`);
+            process.exit(0);
+          }
+        });
+    }
+  });
+
+
+const getAllFolderList = async () => {
+  let folderList = [];
+  for (const rootFolder of config.rootFolders) {
+    // 遍历异步生成器函数 getFolderList()
+    for await (const folder of getFolderList(rootFolder)) {
+      folderList.push(folder);
+    }
+  }
+
+  return folderList;
+};
+
+
 performScan();
+
+// performUpdate();

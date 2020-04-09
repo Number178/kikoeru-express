@@ -23,6 +23,7 @@ const insertWorkMetadata = work => knex.transaction(trx => trx.raw(
   .then(() => trx('t_work')
     .insert({
       id: work.id,
+      root_folder: work.rootFolderName,
       dir: work.dir,
       title: work.title,
       circle_id: work.circle.id,
@@ -76,7 +77,7 @@ const insertWorkMetadata = work => knex.transaction(trx => trx.raw(
   }));
 
 /**
- * 更新作品的动态元数据
+ * 更新音声的动态元数据
  * @param {Object} work Work object.
  */
 const updateWorkMetadata = work => knex.transaction(trx => trx('t_work')

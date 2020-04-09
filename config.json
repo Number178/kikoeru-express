@@ -1,6 +1,14 @@
 {
   "maxParallelism": 16,
   "rootDir": "G:/催眠音声",
+  "coverFolderDir": "G:/催眠声/Covers",
+  "rootFolders": [
+    {
+      "name": "xxxxxx",
+      "path": "G:/催眠音声"
+    }
+  ],
+  "auth": false,
   "md5secret": "oCq893j9heTfTX",
   "jwtsecret": "r8eBXoZgRtU6EG",
   "expiresIn": 2592000,

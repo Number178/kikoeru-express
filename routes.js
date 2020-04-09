@@ -13,7 +13,7 @@ const router = express.Router()
 // GET work cover image
 router.get('/cover/:id', (req, res, next) => {
   const rjcode = (`000000${req.params.id}`).slice(-6);
-  res.sendFile(path.join(config.rootDir, 'Images', `RJ${rjcode}.jpg`), (err) => {
+  res.sendFile(path.join(config.coverFolderDir, `RJ${rjcode}.jpg`), (err) => {
     if (err) {
       res.sendFile(path.join(__dirname, './static/no-image.jpg'), (err2) => {
         if (err2) {
@@ -26,7 +26,7 @@ router.get('/cover/:id', (req, res, next) => {
 
 // expressJwt 中间件 
 // 验证指定 http 请求的 JsonWebTokens 的有效性, 如果有效就将 JsonWebTokens 的值设置到 req.user 里面, 然后路由到相应的 router
-router.use(expressJwt({ secret: config.jwtsecret }));
+if (config.auth) router.use(expressJwt({ secret: config.jwtsecret }));
 
 // GET work metadata
 router.get('/work/:id', (req, res, next) => {
@@ -38,11 +38,12 @@ router.get('/work/:id', (req, res, next) => {
 // GET track list in work folder
 router.get('/tracks/:id', (req, res, next) => {
   db.knex('t_work')
-    .select('dir')
+    .select('root_folder', 'dir')
     .where('id', '=', req.params.id)
     .first()
-    .then((dir) => {
-      getTrackList(req.params.id, dir.dir)
+    .then((work) => {
+      const rootFolder = config.rootFolders.find(rootFolder => rootFolder.name === work.root_folder);
+      getTrackList(req.params.id, path.join(rootFolder.path, work.dir))
         .then(tracks => res.send(tracks));
     })
     .catch(err => next(err));
@@ -51,14 +52,15 @@ router.get('/tracks/:id', (req, res, next) => {
 // GET (stream) a specific track from work folder
 router.get('/stream/:id/:index', (req, res, next) => {
   db.knex('t_work')
-    .select('dir')
+    .select('root_folder', 'dir')
     .where('id', '=', req.params.id)
     .first()
-    .then((dir) => {
-      getTrackList(req.params.id, dir.dir)
+    .then((work) => {
+      const rootFolder = config.rootFolders.find(rootFolder => rootFolder.name === work.root_folder);
+      getTrackList(req.params.id, path.join(rootFolder.path, work.dir))
         .then((tracks) => {
           const track = tracks[req.params.index];
-          res.sendFile(path.join(config.rootDir, dir.dir, track.subtitle || '', track.title));
+          res.sendFile(path.join(rootFolder.path, work.dir, track.subtitle || '', track.title));
         })
         .catch(err => next(err));
     });
@@ -67,7 +69,7 @@ router.get('/stream/:id/:index', (req, res, next) => {
 // GET list of work ids
 router.get('/works', async (req, res, next) => {
   const currentPage = parseInt(req.query.page) || 1;
-  // 通过 "作品id, 贩卖日, 售出数, 评论数量, 价格, 平均评价" 排序
+  // 通过 "音声id, 贩卖日, 售出数, 评论数量, 价格, 平均评价" 排序
   // ['id', 'release', 'dl_count', 'review_count', 'price', 'rate_average_2dp']
   const order = req.query.order || 'release';
   const sort = req.query.sort || 'desc';
@@ -108,7 +110,7 @@ router.get('/get-name/:field/:id', (req, res, next) => {
 router.get('/search/:keyword?', async (req, res, next) => {
   const keyword = req.params.keyword || '';
   const currentPage = parseInt(req.query.page) || 1;
-  // 通过 "作品id, 贩卖日, 售出数, 评论数量, 价格, 平均评价" 排序
+  // 通过 "音声id, 贩卖日, 售出数, 评论数量, 价格, 平均评价" 排序
   // ['id', 'release', 'dl_count', 'review_count', 'price', 'rate_average_2dp']
   const order = req.query.order || 'release';
   const sort = req.query.sort || 'desc';
@@ -135,7 +137,7 @@ router.get('/search/:keyword?', async (req, res, next) => {
 // GET list of work ids, restricted by circle/tag/VA
 router.get('/:field/:id', async (req, res, next) => {
   const currentPage = parseInt(req.query.page) || 1;
-  // 通过 "作品id, 贩卖日, 售出数, 评论数量, 价格, 平均评价" 排序
+  // 通过 "音声id, 贩卖日, 售出数, 评论数量, 价格, 平均评价" 排序
   // ['id', 'release', 'dl_count', 'review_count', 'price', 'rate_average_2dp']
   const order = req.query.order || 'release';
   const sort = req.query.sort || 'desc'; // ['desc', 'asc]

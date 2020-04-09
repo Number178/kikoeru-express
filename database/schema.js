@@ -7,9 +7,10 @@ const createSchema = () => knex.schema
     table.string('name').notNullable(); // VARCHAR 类型 [社团名称]
   })
   .createTable('t_work', (table) => {
-    table.increments(); // id自增列(INTEGER 类型)，会被用作主键 [作品id]
+    table.increments(); // id自增列(INTEGER 类型)，会被用作主键 [音声id]
+    table.string('root_folder').notNullable(); // VARCHAR 类型 [根文件夹别名]
     table.string('dir').notNullable(); // VARCHAR 类型 [相对存储路径]
-    table.string('title').notNullable(); // VARCHAR 类型 [作品名称]
+    table.string('title').notNullable(); // VARCHAR 类型 [音声名称]
     table.integer('circle_id').notNullable(); // INTEGER 类型 [社团id]
     table.boolean('nsfw').notNullable(); // BOOLEAN 类型
     table.string('release').notNullable();  // VARCHAR 类型 [贩卖日 (YYYY-MM-DD)]

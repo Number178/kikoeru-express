@@ -9,11 +9,9 @@ const config = require('../config.json');
  * Returns list of playable tracks in a given folder. Track is an object
  * containing 'title', 'subtitle' and 'hash'.
  * @param {Number} id Work identifier. Currently, RJ/RE code.
- * @param {String} dir Work directory (relative).
+ * @param {String} dir Work directory (absolute).
  */
-const getTrackList = (id, dir) => recursiveReaddir(
-  path.join(config.rootDir, dir),
-)
+const getTrackList = (id, dir) => recursiveReaddir(dir)
   .then((files) => {
     // Filter out any files not matching these extensions
     const filteredFiles = files.filter((file) => {
@@ -24,7 +22,7 @@ const getTrackList = (id, dir) => recursiveReaddir(
 
     // Sort by folder and title
     const sortedFiles = orderBy(filteredFiles.map((file) => {
-      const shortFilePath = file.replace(path.join(config.rootDir, dir, '/'), '');
+      const shortFilePath = file.replace(path.join(dir, '/'), '');
       const dirName = path.dirname(shortFilePath);
 
       return {
@@ -47,25 +45,27 @@ const getTrackList = (id, dir) => recursiveReaddir(
   .catch((err) => { throw new Error(`Failed to get tracklist from disk: ${err}`); });
 
 /**
- * Returns list of directory names (relative) that contain an RJ code.
+ * 返回一个成员为指定根文件夹下所有包含 RJ 号的音声文件夹对象的数组，
+ * 音声文件夹对象 { relativePath: '相对路径', rootFolderName: '根文件夹别名', id: '音声ID' }
+ * @param {Object} rootFolder 根文件夹对象 { name: '别名', path: '绝对路径' }
  */
-async function* getFolderList(current = '', depth = 0) { // 异步生成器函数 async function*() {}
-  // 浅层遍历rootDir路径
-  const folders = await fs.promises.readdir(path.join(config.rootDir, current));    
+async function* getFolderList(rootFolder, current = '', depth = 0) { // 异步生成器函数 async function*() {}
+  // 浅层遍历
+  const folders = await fs.promises.readdir(path.join(rootFolder.path, current));    
 
   for (const folder of folders) {
-    const absolutePath = path.resolve(config.rootDir, current, folder);
+    const absolutePath = path.resolve(rootFolder.path, current, folder);
     const relativePath = path.join(current, folder);
 
     // eslint-disable-next-line no-await-in-loop
     if ((await fs.promises.stat(absolutePath)).isDirectory()) { // 检查是否为文件夹
       if (folder.match(/RJ\d{6}/)) { // 检查文件夹名称中是否含有RJ号
         // Found a work folder, don't go any deeper.
-        yield relativePath;
+        yield { relativePath, rootFolderName: rootFolder.name, id: folder.match(/RJ(\d{6})/)[1] };
       } else if (depth + 1 < config.scannerMaxRecursionDepth) {
         // 若文件夹名称中不含有RJ号，就进入该文件夹内部
         // Found a folder that's not a work folder, go inside if allowed.
-        yield* getFolderList(relativePath, depth + 1);
+        yield* getFolderList(rootFolder, relativePath, depth + 1);
       }
     }
   }
@@ -76,7 +76,7 @@ async function* getFolderList(current = '', depth = 0) { // 异步生成器函�
  * @param {String} rjcode Work RJ code (only the 6 digits, zero-padded).
  */
 const deleteCoverImageFromDisk = rjcode => new Promise((resolve, reject) => {
-  fs.unlink(path.join(config.rootDir, 'Images', `RJ${rjcode}.jpg`), (err) => {
+  fs.unlink(path.join(config.coverFolderDir, `RJ${rjcode}.jpg`), (err) => {
     if (err) {
       reject(err);
     } else {
@@ -94,7 +94,7 @@ const saveCoverImageToDisk = (stream, rjcode) => new Promise((resolve, reject) =
   // TODO: don't assume image is a jpg?
   try {
     stream.pipe(
-      fs.createWriteStream(path.join(config.rootDir, 'Images', `RJ${rjcode}.jpg`))
+      fs.createWriteStream(path.join(config.coverFolderDir, `RJ${rjcode}.jpg`))
         .on('close', () => resolve()),
     );
   } catch (err) {
