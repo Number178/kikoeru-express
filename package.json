@@ -1,11 +1,16 @@
 {
   "name": "kikoeru-express",
-  "version": "0.1.0",
+  "version": "0.2.0",
   "description": "server",
   "bin": "app.js",
   "pkg": {
     "scripts": [
-      "filesystem/scanner.js"
+      "filesystem/scanner.js",
+      "dist/**/*.js"
+    ],
+    "assets": [
+      "dist/**/*",
+      "static/**/*"
     ]
   },
   "scripts": {
