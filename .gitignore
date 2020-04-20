@@ -108,3 +108,6 @@ dist
 
 # Visual Studio Code
 .vscode/
+
+# Windows Batch
+/*.bat
