@@ -17,7 +17,7 @@
     "start": "node app.js",
     "dev": "nodemon app.js",
     "scan": "node ./filesystem/scanner.js",
-    "build": "pkg -t win app.js --out-path package"
+    "build": "pkg -t win package.json --out-path package"
   },
   "author": "Watanuki-Kimihiro",
   "license": "GPL-3.0-or-later",
