@@ -2,7 +2,7 @@ const fs = require('fs');
 const path = require('path');
 const LimitPromise = require('limit-promise'); // 限制并发数量
 
-const axios = require('../scraper/axios'); // 数据请求
+const axios = require('../scraper/axios.js'); // 数据请求
 const { scrapeWorkMetadataFromDLsite, scrapeDynamicWorkMetadataFromDLsite } = require('../scraper/dlsite');
 const db = require('../database/db');
 const { createSchema } = require('../database/schema');
@@ -17,6 +17,8 @@ process.send = process.send || function () {};
 
 const tasks = [];
 const failedTasks = [];
+const mainLogs = [];
+const results = [];
 
 const addTask = (rjcode) => tasks.push({
   rjcode,
@@ -56,7 +58,6 @@ const addLogForTask = (rjcode, log) => {
   });
 };
 
-const results = [];
 const addResult = (rjcode, result, count) => {
   results.push({
     rjcode,
@@ -69,11 +70,8 @@ const addResult = (rjcode, result, count) => {
       results
     }
   });
-}
+};
 
-
-
-const mainLogs = [];
 const addMainLog = (log) => {
   mainLogs.push(log);
   process.send({
@@ -95,6 +93,14 @@ process.on('message', (m) => {
         results
       }
     });
+  } else if (m.exit) {
+    console.error(' ! 终止扫描进程.');
+    addMainLog({
+      level: 'error',
+      message: '终止扫描进程.'
+    });
+
+    process.exit(1);
   }
 });
 

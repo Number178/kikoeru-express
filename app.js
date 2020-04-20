@@ -5,7 +5,6 @@ const history = require('connect-history-api-fallback');
 const http = require('http');
 const jwtAuth = require('socketio-jwt-auth'); // 用于 JWT 验证的 socket.io 中间件
 const child_process = require('child_process'); // 子进程
-const kill = require('tree-kill'); // 终止进程
 
 const { getConfig } = require('./config');
 const config = getConfig();
@@ -81,7 +80,7 @@ io.on('connection', function (socket) {
 
   socket.on('PERFORM_SCAN', () => {
     if (!scanner) {
-      scanner = child_process.fork('./filesystem/scanner', { silent: true }); // 子进程
+      scanner = child_process.fork(path.join(__dirname, './filesystem/scanner.js'), { silent: false }); // 子进程
       scanner.on('exit', (code) => {
         scanner = null;
         if (code) {
@@ -98,9 +97,9 @@ io.on('connection', function (socket) {
   });
 
   socket.on('KILL_SCAN_PROCESS', () => {
-    if (scanner && scanner.pid) {
-      kill(scanner.pid, 'SIGHUP');
-    }
+    scanner.send({
+      exit: 1
+    });
   });
 
   // 发生错误时触发

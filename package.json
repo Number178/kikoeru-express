@@ -2,7 +2,12 @@
   "name": "kikoeru-express",
   "version": "0.1.0",
   "description": "server",
-  "main": "app.js",
+  "bin": "app.js",
+  "pkg":  {
+    "scripts":  [
+       "filesystem/scanner.js"
+     ]
+  },
   "scripts": {
     "start": "node app.js",
     "dev": "nodemon app.js",
