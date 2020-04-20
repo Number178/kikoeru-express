@@ -4,6 +4,8 @@ const bodyParser = require('body-parser'); // 获取 req.body
 const history = require('connect-history-api-fallback');
 const http = require('http');
 const jwtAuth = require('socketio-jwt-auth'); // 用于 JWT 验证的 socket.io 中间件
+const child_process = require('child_process'); // 子进程
+const kill = require('tree-kill'); // 终止进程
 
 const { getConfig } = require('./config');
 const config = getConfig();
@@ -54,24 +56,19 @@ if (config.auth) {
   }));
 }
 
-
-const child_process = require('child_process');
-const kill = require('tree-kill');
-
 let scanner = null;
 
-
-//有新的客户端连接时触发
+// 有新的客户端连接时触发
 io.on('connection', function (socket) {
-  console.log('connection');
+  // console.log('connection');
   socket.emit('success', {
     message: '成功登录管理后台.',
     user: socket.request.user
   });
 
-  socket.on('disconnect', () => {
-    console.log('disconnect');
-  });
+  // socket.on('disconnect', () => {
+  //   console.log('disconnect');
+  // });
   
   socket.on('ON_SCANNER_PAGE', () => {
     if (scanner) {
@@ -106,16 +103,9 @@ io.on('connection', function (socket) {
     }
   });
 
-  //接收到消息时触发
-  socket.on('message', function (data) {
-      console.log('服务端收到 : ', data);
-      //注意send()方法其实是发送一个 'message' 事件
-      //客户端要通过on('message')来响应
-      socket.send('你好客户端, ' + data);
-  });
-  //发生错误时触发
-  socket.on('error', function (err) {
-      console.log(err);
+  // 发生错误时触发
+  socket.on('error', (err) => {
+    console.error(err);
   });
 });
 
