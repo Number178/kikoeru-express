@@ -353,7 +353,6 @@ const createUser = user => knex.transaction(trx => trx('t_user')
  */
 const updateUserPassword = (user, newPassword) => knex.transaction(trx => trx('t_user')
   .where('name', '=', user.name)
-  .andWhere('password', '=', user.password)
   .first()
   .then((res) => {
     if (!res) {
@@ -363,6 +362,24 @@ const updateUserPassword = (user, newPassword) => knex.transaction(trx => trx('t
       .where('name', '=', user.name)
       .update({
         password: newPassword
+      });
+  }));
+
+/**
+ * 重置用户密码为 "password"
+ * @param {Object} user User object.
+ */
+const resetUserPassword = (user) => knex.transaction(trx => trx('t_user')
+  .where('name', '=', user.name)
+  .first()
+  .then((res) => {
+    if (!res) {
+      throw new Error('用户名错误.');
+    }
+    return trx('t_user')
+      .where('name', '=', user.name)
+      .update({
+        password: 'password'
       });
   }));
 
@@ -377,5 +394,5 @@ const deleteUser = users => knex.transaction(trx => trx('t_user')
 
 module.exports = {
   knex, insertWorkMetadata, getWorkMetadata, removeWork, getWorksBy, getWorksByKeyWord, updateWorkMetadata, getLabels,
-  createUser, updateUserPassword, deleteUser
+  createUser, updateUserPassword, resetUserPassword, deleteUser
 };
