@@ -6,7 +6,8 @@
   "scripts": {
     "start": "node app.js",
     "dev": "nodemon app.js",
-    "scan": "node ./filesystem/scanner.js"
+    "scan": "node ./filesystem/scanner.js",
+    "build": "pkg -t win app.js --out-path package"
   },
   "author": "Watanuki-Kimihiro",
   "license": "GPL-3.0-or-later",
@@ -25,7 +26,11 @@
     "md5": "^2.2.1",
     "natural-orderby": "^2.0.3",
     "recursive-readdir": "^2.2.2",
+    "socket.io": "^2.3.0",
+    "socketio-jwt-auth": "^0.1.0",
     "sqlite3": "^4.1.1",
+    "string-random": "^0.1.3",
+    "tree-kill": "^1.2.2",
     "tunnel-agent": "^0.6.0"
   }
 }

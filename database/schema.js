@@ -21,10 +21,10 @@ const createSchema = () => knex.schema
     table.integer('rate_count').notNullable(); // INTEGER 类型 [评价数量]
     table.float('rate_average_2dp').notNullable(); // FLOAT 类型 [平均评价]
     table.text('rate_count_detail').notNullable(); // TEXT 类型 [评价分布明细]
-    table.text('rank'); // TEXT 类型 [成绩]
+    table.text('rank'); // TEXT 类型 [历史销售业绩]
     
     table.foreign('circle_id').references('id').inTable('t_circle'); // FOREIGN KEY 外键
-    table.index(['circle_id', 'release', 'dl_count', 'review_count', 'price', 'rate_average_2dp']); // 索引
+    table.index(['circle_id', 'release', 'dl_count', 'review_count', 'price', 'rate_average_2dp']); // INDEX 索引
   })
   .createTable('t_tag', (table) => {
     table.increments(); // id自增列(INTEGER 类型)，会被用作主键 [标签id]
@@ -55,15 +55,29 @@ const createSchema = () => knex.schema
     table.primary(['name']); // PRIMARY KEYprimary 主键
   })
   .then(() => {
-    console.log(' * Schema created.');
+    console.log(' * 成功构建数据库结构.');
   })
   .catch((err) => {
     if (err.toString().indexOf('table `t_circle` already exists') !== -1) {
-      console.log(' * Schema already exists.');
+      console.log(' * 数据库结构已经存在.');
     } else {
-      throw new Error(` ! ERROR while creating schema: ${err}`);
+      throw err;
     }
   });
+
+  /**
+   * user have playlists = [playlist, ...]
+   * playlist = {
+   *   name,
+   *   files: [{hash, title, path}, ...]
+   * }
+   * 
+   * user have Favorites
+   * Favorite = {
+   *   name,
+   *   works: [{id, title, circle}, ...]
+   * }
+   */
 
 
 module.exports = { createSchema };

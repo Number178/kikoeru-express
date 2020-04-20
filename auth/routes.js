@@ -5,15 +5,16 @@ const expressJwt = require('express-jwt'); // 把 JWT 的 payload 部分赋值�
 const { signtoken, md5 } = require('./utils');
 const db = require('../database/db');
 
-const config = require('../config.json');
+const { getConfig, setConfig } = require('../config');
+const config = getConfig();
 
 const router = express.Router();
 
 // 用户登录
 router.post('/me', [
   check('name')
-    .isLength({ min: 4 })
-    .withMessage('用户名长度至少为 4'),
+    .isLength({ min: 5 })
+    .withMessage('用户名长度至少为 5'),
   check('password')
     .isLength({ min: 5 })
     .withMessage('密码长度至少为 5')
@@ -33,7 +34,7 @@ router.post('/me', [
     .first()
     .then((user) => {
       if (!user) {
-        res.send({error: '用户名或密码错误.'});
+        res.status(401).send({error: '用户名或密码错误.'});
       } else {
         const token = signtoken(user);
         res.send({ token });
@@ -44,31 +45,32 @@ router.post('/me', [
     });
 });
 
+if (config.auth) {
+  router.get('/me', expressJwt({ secret: config.jwtsecret }));
+}
+
 // 获取用户信息
-router.get('/me', expressJwt({ secret: config.jwtsecret }), (req, res, next) => {
-  const user = {
-    name: req.user.name,
-    group: req.user.group
-  }
-  res.send({ user });
+router.get('/me', (req, res, next) => {
+  // 同时告诉客户端，服务器是否启用用户验证
+  const auth = config.auth;
+  const user = config.auth
+    ? { name: req.user.name, group: req.user.group }
+    : { name: 'admin', group: 'administrator' }
+  res.send({ user, auth });
 });
 
-// expressJwt 中间件 
-// 验证指定 http 请求的 JsonWebTokens 的有效性, 如果有效就将 JsonWebTokens 的值设置到 req.user 里面, 然后路由到相应的 router
-router.use('/user', expressJwt({ secret: config.jwtsecret }));
-
-// 创建一个新用户 (仅管理员用户组拥有权限)
+// 创建一个新用户 (只有 admin 账号拥有权限)
 router.post('/user', [
   check('name')
-    .isLength({ min: 4 })
-    .withMessage('用户名长度至少为 4'),
+    .isLength({ min: 5 })
+    .withMessage('用户名长度至少为 5'),
   check('password')
     .isLength({ min: 5 })
     .withMessage('密码长度至少为 5'),
   check('group')
     .custom(value => {
-      if (value !== 'administrator' && value !== 'user' && value !== 'gaust') {
-        throw new Error('用户组名称必须为 (administrator, user, gaust) 的一个.')
+      if (value !== 'user' && value !== 'gaust') {
+        throw new Error(`用户组名称必须为 ['user', 'gaust'] 的一个.`)
       }
       return true
     })
@@ -83,38 +85,35 @@ router.post('/user', [
     name: req.body.name,
     password: req.body.password,
     group: req.body.group
-  }
+  };
 
-  if (req.user.group === 'administrator') {
+  if (!config.auth || req.user.name === 'admin') {
     db.createUser({
       name: user.name,
       password: md5(user.password),
       group: user.group
     })
-      .then(() => res.send({ user }))
+      .then(() => res.send({ message: `用户 ${user.name} 创建成功.` }))
       .catch((err) => {
-        if (err.message.indexOf('用户已存在') !== -1) {
-          res.send({ error: `用户 ${user.name} 已存在.` });
+        if (err.message.indexOf('已存在') !== -1) {
+          res.status(403).send({ error: err.message });
         } else {
           next(err);
         }
-      }); 
+      });
   } else {
-    res.send({ error: '当前用户所在用户组权限不足.' });
+    res.status(401).send({ error: '只有 admin 账号能创建新用户.' });
   }
 });
 
-// 更新用户
+// 更新用户密码
 router.put('/user', [
-  check('oldName')
-    .isLength({ min: 4 })
-    .withMessage('用户名至少为 4'),
+  check('name')
+    .isLength({ min: 5 })
+    .withMessage('用户名至少为 5'),
   check('oldPassword')
     .isLength({ min: 5 })
     .withMessage('密码长度至少为 5'),
-  check('newName')
-    .isLength({ min: 4 })
-    .withMessage('用户名长度至少为 4'),
   check('newPassword')
     .isLength({ min: 5 })
     .withMessage('密码长度至少为 5')
@@ -125,49 +124,85 @@ router.put('/user', [
     return res.status(422).json({errors: errors.array()});
   }
 
-  const oldUser = {
-    name: req.body.oldName,
-    password: req.body.oldPassword,
-  }
+  const user = {
+    name: req.body.name,
+    password: md5(req.body.oldPassword)
+  };
+  const newPassword = md5(req.body.newPassword);
 
-  const newUser = {
-    name: req.body.newName,
-    password: req.body.newPassword,
+  if (!config.auth || req.user.name === 'admin' || req.user.name === user.name) {
+    db.updateUserPassword(user, newPassword)
+      .then(() => res.send({ message: '密码修改成功.' }))
+      .catch((err) => {
+        if (err.message.indexOf('用户名或密码错误.') !== -1) {
+          res.status(401).send({ error: '用户名或密码错误.' });
+        } else {
+          next(err);
+        }
+      });
+  } else {
+    res.status(403).send({ error: '只能修改自己账号的密码.' });
   }
-  
-  db.updateUser(oldUser, newUser)
-    .then(() => res.send({ user: newUser }))
-    .catch((err) => {
-      if (err.message.indexOf('用户名或密码错误.') !== -1) {
-        res.send({ error: '用户名或密码错误.' });
-      } else {
-        next(err);
-      }
-    });   
+     
 });
 
-// 删除用户 (仅管理员用户组拥有权限)
+// 删除用户 (仅 admin 账号拥有权限)
 router.delete('/user', (req, res, next) => {
-  const user = {
-    name: req.body.name
-  }
+  const users = req.body.users
 
-  if (req.user.group === 'administrator') {
-    if (user.name !== 'admin') {
-      db.deleteUser(user)
-        .then((resault) => {
-          (resault > 0)
-            ? res.send({ user })
-            : res.send({ error: `用户 ${user.name} 不存在.` })
+  if (!config.auth || req.user.name === 'admin') {
+    if (!users.find(user => user.name === 'admin')) {
+      db.deleteUser(users)
+        .then(() => {
+          res.send({ message: '删除成功.' });  
         })
         .catch((err) => {
           next(err);
         });
     } else {
-      res.send({ error: '不能删除内置的管理员账号.' });
+      res.status(403).send({ error: '不能删除内置的管理员账号.' });
     }
   } else {
-    res.send({ error: '当前用户所在用户组权限不足.' });
+    res.status(401).send({ error: '只有 admin 账号能删除用户.' });
+  }
+});
+
+// 获取所有用户
+router.get('/users', (req, res, next) => {
+  db.knex('t_user')
+    .select('name', 'group')
+    .then((users) => {
+      res.send({ users });
+    })
+    .catch((err) => {
+      next(err);
+    });
+});
+
+// 修改配置文件
+router.put('/config', (req, res, next) => {
+  if (!config.auth || req.user.name === 'admin') {
+    try {
+      setConfig(req.body.config);
+      res.send({ message: '保存成功.' })
+    } catch(err) {
+      next(err);
+    }
+  } else {
+    res.status(401).send({ error: '只有 admin 账号能修改配置文件.' });
+  }
+});
+
+// 获取配置文件
+router.get('/config', (req, res, next) => {
+  if (!config.auth || req.user.name === 'admin') {
+    try {
+      res.send({ config: getConfig() });
+    } catch(err) {
+      next(err);
+    }
+  } else {
+    res.status(401).send({ error: '只有 admin 账号能读取配置文件.' });
   }
 });
 

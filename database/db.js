@@ -339,26 +339,30 @@ const createUser = user => knex.transaction(trx => trx('t_user')
   .where('name', '=', user.name)
   .first()
   .then((res) => {
-    if (res) throw new Error(` ! ERROR ${user.name} 用户已存在.`);
+    if (res) {
+      throw new Error(`用户 ${user.name} 已存在.`);
+    }
     return trx('t_user')
       .insert(user);
   }));
 
 /**
- * 更新用户
+ * 更新用户密码
  * @param {Object} user User object.
+ * @param {String} newPassword new password
  */
-const updateUser = (oldUser, newUser) => knex.transaction(trx => trx('t_user')
-  .where('name', '=', oldUser.name)
-  .andWhere('password', '=', oldUser.password)
+const updateUserPassword = (user, newPassword) => knex.transaction(trx => trx('t_user')
+  .where('name', '=', user.name)
+  .andWhere('password', '=', user.password)
   .first()
   .then((res) => {
-    if (!res) throw new Error(' ! ERROR 用户名或密码错误.');
+    if (!res) {
+      throw new Error('用户名或密码错误.');
+    }
     return trx('t_user')
-      .where('name', '=', oldUser.name)
+      .where('name', '=', user.name)
       .update({
-        name: newUser.name,
-        password: newUser.password
+        password: newPassword
       });
   }));
 
@@ -366,12 +370,12 @@ const updateUser = (oldUser, newUser) => knex.transaction(trx => trx('t_user')
  * 删除用户
  * @param {Object} user User object.
  */
-const deleteUser = user => knex.transaction(trx => trx('t_user')
-  .where('name', '=', user.name)
+const deleteUser = users => knex.transaction(trx => trx('t_user')
+  .where('name', 'in', users.map(user => user.name))
   .del());
 
 
 module.exports = {
   knex, insertWorkMetadata, getWorkMetadata, removeWork, getWorksBy, getWorksByKeyWord, updateWorkMetadata, getLabels,
-  createUser, updateUser, deleteUser
+  createUser, updateUserPassword, deleteUser
 };
