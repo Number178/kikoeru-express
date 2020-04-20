@@ -1,14 +1,14 @@
 const path = require('path');
 const express = require('express');
-const expressJwt = require('express-jwt'); // 把 JWT 的 payload 部分赋值于 req.user
 
 const db = require('./database/db');
 const { getTrackList } = require('./filesystem/utils');
 
-const config = require('./config.json');
+const { getConfig } = require('./config');
+const config = getConfig();
 
 const PAGE_SIZE = config.pageSize || 12;
-const router = express.Router()
+const router = express.Router();
 
 // GET work cover image
 router.get('/cover/:id', (req, res, next) => {
@@ -23,10 +23,6 @@ router.get('/cover/:id', (req, res, next) => {
     }
   });
 });
-
-// expressJwt 中间件 
-// 验证指定 http 请求的 JsonWebTokens 的有效性, 如果有效就将 JsonWebTokens 的值设置到 req.user 里面, 然后路由到相应的 router
-if (config.auth) router.use(expressJwt({ secret: config.jwtsecret }));
 
 // GET work metadata
 router.get('/work/:id', (req, res, next) => {
@@ -108,7 +104,7 @@ router.get('/get-name/:field/:id', (req, res, next) => {
 });
 
 router.get('/search/:keyword?', async (req, res, next) => {
-  const keyword = req.params.keyword || '';
+  const keyword = req.params.keyword ? req.params.keyword.trim() : '';
   const currentPage = parseInt(req.query.page) || 1;
   // 通过 "音声id, 贩卖日, 售出数, 评论数量, 价格, 平均评价" 排序
   // ['id', 'release', 'dl_count', 'review_count', 'price', 'rate_average_2dp']

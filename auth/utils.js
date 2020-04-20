@@ -1,7 +1,9 @@
 const jwt = require('jsonwebtoken');
 const md5 = require('md5');
 
-const config = require('../config.json');
+const { getConfig } = require('../config');
+
+const config = getConfig();
 
 const signtoken = (obj) => jwt.sign(obj, config.jwtsecret, {expiresIn: config.expiresIn});
 

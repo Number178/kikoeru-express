@@ -3,7 +3,8 @@ const path = require('path');
 const recursiveReaddir = require('recursive-readdir');
 const { orderBy } = require('natural-orderby');
 
-const config = require('../config.json');
+const { getConfig } = require('../config');
+const config = getConfig();
 
 /**
  * Returns list of playable tracks in a given folder. Track is an object
@@ -61,7 +62,7 @@ async function* getFolderList(rootFolder, current = '', depth = 0) { // 异步�
     if ((await fs.promises.stat(absolutePath)).isDirectory()) { // 检查是否为文件夹
       if (folder.match(/RJ\d{6}/)) { // 检查文件夹名称中是否含有RJ号
         // Found a work folder, don't go any deeper.
-        yield { relativePath, rootFolderName: rootFolder.name, id: folder.match(/RJ(\d{6})/)[1] };
+        yield { absolutePath, relativePath, rootFolderName: rootFolder.name, id: parseInt(folder.match(/RJ(\d{6})/)[1]) };
       } else if (depth + 1 < config.scannerMaxRecursionDepth) {
         // 若文件夹名称中不含有RJ号，就进入该文件夹内部
         // Found a folder that's not a work folder, go inside if allowed.
@@ -102,7 +103,7 @@ const saveCoverImageToDisk = (stream, rjcode) => new Promise((resolve, reject) =
   }
 });
 
-// 模块接口，声明这个模块对外暴露什么内容
+
 module.exports = {
   getTrackList,
   getFolderList,
