@@ -32,7 +32,7 @@ app.use(history({
 api(app);
 
 // Serve WebApp routes
-// app.use(express.static(path.join(__dirname, './dist')));
+app.use(express.static(path.join(__dirname, './dist')));
 
 const server = http.createServer(app);
 // websocket 握手依赖 http 服务
@@ -80,7 +80,7 @@ io.on('connection', function (socket) {
 
   socket.on('PERFORM_SCAN', () => {
     if (!scanner) {
-      scanner = child_process.fork(path.join(__dirname, './filesystem/scanner.js'), { silent: false }); // 子进程
+      scanner = child_process.fork(path.join(__dirname, './filesystem/scanner.js'), { silent: true }); // 子进程
       scanner.on('exit', (code) => {
         scanner = null;
         if (code) {
