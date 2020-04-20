@@ -2,7 +2,7 @@ const fs = require('fs');
 const path = require('path');
 const stringRandom = require('string-random');
 
-const configFolderDir = path.join(process.execPath, '..', 'config');
+const configFolderDir = process.pkg ? path.join(process.execPath, '..', 'config') : 'config'
 const configPath = path.join(configFolderDir, 'config.json');
 
 const defaultConfig = {
@@ -13,7 +13,7 @@ const defaultConfig = {
     //   path: ''
     // }
   ],
-  coverFolderDir: path.join(process.execPath, '..', 'covers'),
+  coverFolderDir: process.pkg ? path.join(process.execPath, '..', 'covers') : 'covers',
   auth: false,
   md5secret: stringRandom(14),
   jwtsecret: stringRandom(14),
