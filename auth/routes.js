@@ -110,10 +110,7 @@ router.post('/user', [
 router.put('/user', [
   check('name')
     .isLength({ min: 5 })
-    .withMessage('用户名至少为 5'),
-  check('oldPassword')
-    .isLength({ min: 5 })
-    .withMessage('密码长度至少为 5'),
+    .withMessage('用户名长度至少为 5'),
   check('newPassword')
     .isLength({ min: 5 })
     .withMessage('密码长度至少为 5')
@@ -125,8 +122,7 @@ router.put('/user', [
   }
 
   const user = {
-    name: req.body.name,
-    password: md5(req.body.oldPassword)
+    name: req.body.name
   };
   const newPassword = md5(req.body.newPassword);
 
@@ -134,8 +130,8 @@ router.put('/user', [
     db.updateUserPassword(user, newPassword)
       .then(() => res.send({ message: '密码修改成功.' }))
       .catch((err) => {
-        if (err.message.indexOf('用户名或密码错误.') !== -1) {
-          res.status(401).send({ error: '用户名或密码错误.' });
+        if (err.message.indexOf('用户名错误.') !== -1) {
+          res.status(401).send({ error: '用户名错误.' });
         } else {
           next(err);
         }
@@ -143,7 +139,6 @@ router.put('/user', [
   } else {
     res.status(403).send({ error: '只能修改自己账号的密码.' });
   }
-     
 });
 
 // 删除用户 (仅 admin 账号拥有权限)
