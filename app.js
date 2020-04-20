@@ -81,7 +81,7 @@ io.on('connection', function (socket) {
 
   socket.on('PERFORM_SCAN', () => {
     if (!scanner) {
-      scanner = child_process.fork('./filesystem/scanner', { silent: false }); // 子进程
+      scanner = child_process.fork('./filesystem/scanner', { silent: true }); // 子进程
       scanner.on('exit', (code) => {
         scanner = null;
         if (code) {
