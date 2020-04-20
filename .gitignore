@@ -111,3 +111,6 @@ dist
 
 # Windows Batch
 /*.bat
+
+# Package
+package
