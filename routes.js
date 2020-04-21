@@ -39,8 +39,12 @@ router.get('/tracks/:id', (req, res, next) => {
     .first()
     .then((work) => {
       const rootFolder = config.rootFolders.find(rootFolder => rootFolder.name === work.root_folder);
-      getTrackList(req.params.id, path.join(rootFolder.path, work.dir))
-        .then(tracks => res.send(tracks));
+      if (rootFolder) {
+        getTrackList(req.params.id, path.join(rootFolder.path, work.dir))
+          .then(tracks => res.send(tracks));
+      } else {
+        res.status(500).send({error: `找不到文件夹: "${work.root_folder}"，请尝试重启服务器或重新扫描.`});
+      }
     })
     .catch(err => next(err));
 });
@@ -53,12 +57,17 @@ router.get('/stream/:id/:index', (req, res, next) => {
     .first()
     .then((work) => {
       const rootFolder = config.rootFolders.find(rootFolder => rootFolder.name === work.root_folder);
-      getTrackList(req.params.id, path.join(rootFolder.path, work.dir))
-        .then((tracks) => {
-          const track = tracks[req.params.index];
-          res.sendFile(path.join(rootFolder.path, work.dir, track.subtitle || '', track.title));
-        })
-        .catch(err => next(err));
+      if (rootFolder) {
+        getTrackList(req.params.id, path.join(rootFolder.path, work.dir))
+          .then((tracks) => {
+            const track = tracks[req.params.index];
+            res.sendFile(path.join(rootFolder.path, work.dir, track.subtitle || '', track.title));
+          })
+          .catch(err => next(err));
+      } else {
+        res.status(500).send({error: `找不到文件夹: "${work.root_folder}"，请尝试重启服务器或重新扫描.`});
+      }
+      
     });
 });
 
