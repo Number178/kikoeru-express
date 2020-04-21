@@ -1,9 +1,24 @@
+const fs = require('fs');
+const path = require('path');
+
+const { getConfig } = require('../config');
+const config = getConfig();
+
+const databaseFolderDir = config.databaseFolderDir;
+if (!fs.existsSync(databaseFolderDir)) {
+  try {
+    fs.mkdirSync(databaseFolderDir, { recursive: true });
+  } catch(err) {
+    console.error(` ! 在创建存放数据库文件的文件夹时出错: ${err.message}`);
+  }
+}
+
 // knex 操作数据库
 const knex = require('knex')({
   client: 'sqlite3', // 数据库类型
   useNullAsDefault: true,
   connection: { // 连接参数
-    filename: './db.sqlite3',
+    filename: path.join(databaseFolderDir, 'db.sqlite3'),
   },
   acquireConnectionTimeout: 5000, // 连接计时器
 });

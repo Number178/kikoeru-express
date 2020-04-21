@@ -14,6 +14,7 @@ const defaultConfig = {
     // }
   ],
   coverFolderDir: process.pkg ? path.join(process.execPath, '..', 'covers') : path.join(__dirname, 'covers'),
+  databaseFolderDir: process.pkg ? path.join(process.execPath, '..', 'sqlite') : path.join(__dirname, 'sqlite'),
   auth: false,
   md5secret: stringRandom(14),
   jwtsecret: stringRandom(14),
