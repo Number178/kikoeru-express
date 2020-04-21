@@ -115,10 +115,10 @@ app.use((err, req, res, next) => {
     res.status(401).send({ error: err.message });
   } else if (err.code === 'SQLITE_ERROR') {
     if (err.message.indexOf('no such table') !== -1) {
-      res.status(500).send({ error: '数据库结构尚未建立，请先执行扫描.'})
+      res.status(500).send({ error: '数据库结构尚未建立，请先执行扫描.'});
     }
   } else {
-    res.status(500).send({ error: err.message || err })
+    res.status(500).send({ error: err.message || err });
   }
 });
 
