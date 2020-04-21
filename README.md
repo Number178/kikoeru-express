@@ -1,66 +1,54 @@
-# kikoeru-express
+# Kikoeru
+一个同人音声专用的音乐流媒体服务器
 
-### 下载 kikoeru
+### 功能介绍
+- 从 DLSite 爬取音声元数据
+- 通过标签快速检索想要找到的音声
+- 根据音声元数据对检索结果进行排序
+- 通过 JWT 验证用户
+- 可在 Web 端修改配置文件和扫描音声库
+- 可为音声库添加多个根文件夹
 
-下载 [kikoeru.rar](https://github.com/Watanuki-Kimihiro/kikoeru-express/releases) 并解压
-
-### 下载并解压 dist 文件
-
-下载 [spa.rar](https://github.com/Watanuki-Kimihiro/kikoeru-quasar/releases) 并在 kikoeru/dist 文件夹内解压
-
-### 配置文件
-
-```
-// config.json
-{
-  "maxParallelism": 16, // 爬取元数据时并行任务数量
-  "rootDir": "G:/催眠音声", // 音声库的绝对路径
-  // 注意: 在 Windows 资源管理器中复制得到的路径中的斜杠均为反斜杠("\"),
-  // 需要把其路径中的反斜杠替换为正斜杠("/")
-  "scannerMaxRecursionDepth": 2, // 最大递归扫描深度
-  "worksPerPage": 12, // 单页音声数量
-  "tagLanguage": "zh-cn", 
-  // 标签元数据的语言，默认简体中文("zh-cn")
-  // 可选参数有: "ja-jp"、"zh-tw"、或 "en-us"
-  "coverSource": "DLite", // 封面图片源
-  // 默认从 DLsite 下载封面图片, 可选参数有: "HVDB"
-  "retry": 5, // axios 请求重试次数
-  "timeout": 2000, // axios 请求超时时间 (毫秒)
-  "retryDelay": 500, // 请求重试延迟 (毫秒)
-  "httpProxyHost": false,
-  // http 代理服务器地址
-  // (为 false 时默认为本地主机)
-  "httpProxyPort": 10809
-  // http 代理服务端口号
-  // (为 false 时不启用 http 代理)
-}
-```
-
-
-### 安装依赖
-
-```
+### 安装部署
+```bash
+# 安装依赖
 npm install
-```
 
-### 扫描音声库
-
-```
-npm run scan
-```
-
-### 启动服务
-
-```
+# 启动服务器
 npm start
+
+# Express listening on http://localhost:8888
 ```
 
-### 访问 web 应用
+### 技术栈
+- axios (网络请求)
+- express (构建后端服务)
+- sqlite3 (文件型数据库)
+- knexjs (操作数据库)
+- cheerio (将 html 解析为 jQuery 对象)
+- jsonwebtoken (用户认证)
+- socket.io (用于将扫描音声库的结果实时传给客户端)
+- child_process (nodejs 子进程)
+- pkg (打包为可执行文件)
 
-[http://localhost:8888/](http://localhost:8888/)
 
-### TODO
-
-* [ ] POST/DELETE api/me 用户登录/注销
-* [ ] GET api/playlist 获取当前用户的播放列表
-* [ ] POST api/playlist 创建一个新的播放列表
+### 项目目录结构
+```
+├── auth/                    # 用户认证相关路由
+├── config/                  # 存放配置文件
+├── covers/                  # 存放音声封面
+├── database/                # 操作数据库相关代码
+├── dist/                    # 存放前端项目构建的 SPA
+├── filesystem/              # 存放用于执行扫描的相关代码
+├── package/                 # 存放通过 pkg 打包后的可执行文件
+├── scraper/                 # 存放爬虫相关代码
+├── sqlite/                  # 存放 sqlite 数据库文件
+├── static/                  # 存放静态资源
+├── .gitignore               # git 忽略路径
+├── api.js                   # 为 express 实例添加路由与 jwt 验证中间件
+├── app.js                   # 项目入口文件
+├── config.js                # 用于生成与修改 config.json 配置文件
+├── Dockerfile               # 用于构建 docker 镜像的文本文件
+├── package.json             # npm 脚本和依赖项
+└── routes.js                # 主要路由
+```
