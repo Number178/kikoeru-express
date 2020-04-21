@@ -1,5 +1,5 @@
 # Kikoeru
-一个同人音声专用的音乐流媒体服务器
+一个同人音声专用的音乐流媒体服务器，详细的使用说明见[**用户文档**](https://github.com/Watanuki-Kimihiro/kikoeru-express/blob/master/%E7%94%A8%E6%88%B7%E6%96%87%E6%A1%A3.md)
 
 ### 功能介绍
 - 从 DLSite 爬取音声元数据
@@ -19,6 +19,7 @@ npm start
 
 # Express listening on http://localhost:8888
 ```
+本项目还有打包好的 **Windows 系统下可用的 exe 可执行文件**与 **docker 镜像**版本，docker 镜像的使用说明详见[**用户文档**](https://github.com/Watanuki-Kimihiro/kikoeru-express/blob/master/%E7%94%A8%E6%88%B7%E6%96%87%E6%A1%A3.md)
 
 ### 技术栈
 - axios (网络请求)
@@ -39,8 +40,8 @@ npm start
 ├── covers/                  # 存放音声封面
 ├── database/                # 操作数据库相关代码
 ├── dist/                    # 存放前端项目构建的 SPA
-├── filesystem/              # 存放用于执行扫描的相关代码
-├── package/                 # 存放通过 pkg 打包后的可执行文件
+├── filesystem/              # 存放扫描相关代码
+├── package/                 # 存放 pkg 打包后的可执行文件
 ├── scraper/                 # 存放爬虫相关代码
 ├── sqlite/                  # 存放 sqlite 数据库文件
 ├── static/                  # 存放静态资源
