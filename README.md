@@ -1,6 +1,8 @@
 # Kikoeru
 一个同人音声专用的音乐流媒体服务器，详细的使用说明见[**用户文档**](https://github.com/Watanuki-Kimihiro/kikoeru-express/blob/master/%E7%94%A8%E6%88%B7%E6%96%87%E6%A1%A3.md)
 
+![截图.png](https://i.loli.net/2020/04/22/hjXW4PdsaoIt97U.png)
+
 ### 功能介绍
 - 从 DLSite 爬取音声元数据
 - 通过标签或关键字快速检索想要找到的音声
