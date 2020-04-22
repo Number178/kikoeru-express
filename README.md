@@ -41,7 +41,7 @@ npm start
 ├── config/                  # 存放配置文件
 ├── covers/                  # 存放音声封面
 ├── database/                # 操作数据库相关代码
-├── dist/                    # 存放前端项目构建的 SPA
+├── dist/                    # 存放前端项目 kikoeru-quasar 构建的 SPA
 ├── filesystem/              # 存放扫描相关代码
 ├── package/                 # 存放 pkg 打包后的可执行文件
 ├── scraper/                 # 存放爬虫相关代码
