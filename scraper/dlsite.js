@@ -1,7 +1,7 @@
 const cheerio = require('cheerio'); // 解析器
 
 const axios = require('./axios'); // 数据请求
-const { hashNameIntoInt, insertStr, hasLetter } = require('./utils');
+const { hashNameIntoInt, hasLetter } = require('./utils');
 const scrapeWorkMetadataFromHVDB = require('./hvdb');
 
 /**
@@ -72,8 +72,8 @@ const scrapeStaticWorkMetadataFromDLsite = (id, language) => new Promise((resolv
         .filter(function() {
           return $(this).text() === RELEASE;
         }).parent().children('td').text().replace(/[^0-9]/ig,'');
-      work.release = (release.length === 8)
-        ? insertStr(insertStr(release, 4, '-'), 7, '-')
+      work.release = (release.length >= 8)
+        ? `${release.slice(0, 4)}-${release.slice(4, 6)}-${release.slice(6, 8)}`
         : '';
 
       // 系列
@@ -204,6 +204,11 @@ const scrapeWorkMetadataFromDLsite = (id, language) => {
     });
 };
 
+scrapeStaticWorkMetadataFromDLsite(276074)
+  .then((work) =>  {
+    console.log(work)
+    console.log(work)
+  })
 
 module.exports = {
   scrapeWorkMetadataFromDLsite,

@@ -19,14 +19,6 @@ const hashNameIntoInt = (name) => {
 };
 
 /**
- * 在字符串固定位置插入字符
- * @param {String} soure 原字符串
- * @param {Number} start 将要插入字符的位置
- * @param {String} newStr 要插入的字符
- */
-const insertStr = (soure, start, newStr) => soure.slice(0, start) + newStr + soure.slice(start);
-
-/**
  * 判断一个字符串中是否包含字母
  * @param {String} str
  */
@@ -40,6 +32,7 @@ const hasLetter = (str) => {
   return false;
 };
 
+
 module.exports = {
-  hashNameIntoInt, insertStr, hasLetter
+  hashNameIntoInt, hasLetter
 };
