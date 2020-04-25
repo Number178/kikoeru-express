@@ -204,11 +204,6 @@ const scrapeWorkMetadataFromDLsite = (id, language) => {
     });
 };
 
-scrapeStaticWorkMetadataFromDLsite(276074)
-  .then((work) =>  {
-    console.log(work)
-    console.log(work)
-  })
 
 module.exports = {
   scrapeWorkMetadataFromDLsite,
