@@ -41,7 +41,8 @@ const scrapeStaticWorkMetadataFromDLsite = (id, language) => new Promise((resolv
       SERIES = '系列名';
   }
 
-  axios.get(url, {
+  axios.retryGet(url, {
+    retry: {},
     headers: { "cookie": COOKIE_LOCALE } // 自定义请求头
   })
     .then(response => response.data)
@@ -119,7 +120,8 @@ const scrapeStaticWorkMetadataFromDLsite = (id, language) => new Promise((resolv
       }
     })
     .then(() => {
-      if (work.vas.length === 0) {  
+      if (work.vas.length === 0) { 
+        console.log(work); 
         // 从 DLsite 抓不到声优信息时, 从 HVDB 抓取声优信息
         scrapeWorkMetadataFromHVDB(id)
           .then((metadata) => {
@@ -162,7 +164,7 @@ const scrapeDynamicWorkMetadataFromDLsite = id => new Promise((resolve, reject) 
   const rjcode = (`000000${id}`).slice(-6);
   const url = `https://www.dlsite.com/maniax-touch/product/info/ajax?product_id=RJ${rjcode}`;
 
-  axios.get(url)
+  axios.retryGet(url, { retry: {} })
     .then(response => response.data[`RJ${rjcode}`])
     .then((data) => {
       const work = {};
@@ -175,7 +177,7 @@ const scrapeDynamicWorkMetadataFromDLsite = id => new Promise((resolve, reject) 
       if (data.rank.length) {
         work.rank = data.rank; // 成绩
       }
-
+      console.log(`[RJ${rjcode}] 成功从 DLSite 抓取Dynamic元数据...`);
       resolve(work);
     })
     .catch((error) => {

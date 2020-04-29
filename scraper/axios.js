@@ -5,13 +5,13 @@ const { getConfig } = require('../config');
 const Config = getConfig();
 
 const axios = originAxios.create();
-axios.defaults.timeout = Config.timeout || 2000; // 请求超时的毫秒数
-// 拦截请求 (添加自定义默认参数)
-axios.interceptors.request.use(function (config) {
-  config.retry = Config.retry || 5; // 重试次数
-  config.retryDelay = Config.retryDelay || 1000; // 请求间隔的毫秒数
-  return config;
-});
+// axios.defaults.timeout = Config.timeout || 2000; // 请求超时的毫秒数
+// // 拦截请求 (添加自定义默认参数)
+// axios.interceptors.request.use(function (config) {
+//   config.retry = Config.retry || 5; // 重试次数
+//   config.retryDelay = Config.retryDelay || 1000; // 请求间隔的毫秒数
+//   return config;
+// });
 
 // 代理设置
 const TUNNEL_OPTIONS = {
@@ -34,35 +34,77 @@ axios.interceptors.request.use(function (config) {
   return config
 });
 
-// 拦截响应 (遇到错误时, 重新发起新请求)
-axios.interceptors.response.use(undefined, function axiosRetryInterceptor(err) {
-  var config = err.config;
-  // If config does not exist or the retry option is not set, reject
-  if(!config || !config.retry) return Promise.reject(err);
+// // 拦截响应 (遇到错误时, 重新发起新请求)
+// axios.interceptors.response.use(undefined, function axiosRetryInterceptor(err) {
+//   var config = err.config;
+//   // If config does not exist or the retry option is not set, reject
+//   if(!config || !config.retry) return Promise.reject(err);
   
-  // Set the variable for keeping track of the retry count
-  config.__retryCount = config.__retryCount || 0;
+//   // Set the variable for keeping track of the retry count
+//   config.__retryCount = config.__retryCount || 0;
   
-  // Check if we've maxed out the total number of retries
-  if(config.__retryCount >= config.retry) {
-    // Reject with the error
-    return Promise.reject(err);
-  }
+//   // Check if we've maxed out the total number of retries
+//   if(config.__retryCount >= config.retry) {
+//     // Reject with the error
+//     return Promise.reject(err);
+//   }
   
-  // Increase the retry count
-  config.__retryCount += 1;
+//   // Increase the retry count
+//   config.__retryCount += 1;
 
-  // Create new promise to handle exponential backoff
-  var backoff = new Promise(function(resolve) {
-    setTimeout(function() {
-        resolve();
-    }, config.retryDelay || 1);
-  });
+//   // Create new promise to handle exponential backoff
+//   var backoff = new Promise(function(resolve) {
+//     setTimeout(function() {
+//         resolve();
+//     }, config.retryDelay || 1);
+//   });
   
-  // Return the promise in which recalls axios to retry the request
-  return backoff.then(function() {
-    return axios(config);
-  });
-});
+//   // Return the promise in which recalls axios to retry the request
+//   return backoff.then(function() {
+//     return axios(config);
+//   });
+// });
+
+
+
+
+const retryGet = async (url, config) => {
+  config.retry = {
+    limit: config.retry.limit || 5,
+    retryCount: config.retry.retryCount || 0,
+    // retryDelay: config.retry.retryDelay || 1000,
+    retryDelay: 2000,
+    // timeout: config.retry.timeout || 10000
+    timeout: 10000
+  };
+
+  const abort = originAxios.CancelToken.source();
+  const timeoutId = setTimeout(
+    () => abort.cancel(`Timeout of ${config.retry.timeout}ms.`),
+    config.retry.timeout
+  );
+  config.cancelToken = abort.token;
+
+  try {
+    const response = await axios.get(url, config);
+    clearTimeout(timeoutId);
+    return response;
+  } catch (error) {
+    const backoff = new Promise((resolve) => {
+      setTimeout(() => resolve(), config.retry.retryDelay);
+    });
+
+    if (config.retry.retryCount < config.retry.limit && !error.response) {
+      config.retry.retryCount += 1;
+      await backoff;
+      console.log(`${url} 第 ${config.retry.retryCount} 次重试请求`);
+      return retryGet(url, config);
+    } else {
+      throw error;
+    }
+  }
+};
+axios.retryGet = retryGet;
+
 
 module.exports = axios;

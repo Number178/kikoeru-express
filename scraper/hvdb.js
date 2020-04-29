@@ -8,10 +8,18 @@ const { hashNameIntoInt } = require('./utils');
  * @param {number} id Work id.
  */
 const scrapeWorkMetadataFromHVDB = id => new Promise((resolve, reject) => {
+  const rjcode = (`000000${id}`).slice(-6);
   const url = `https://hvdb.me/Dashboard/WorkDetails/${id}`;
 
-  axios.get(url)
-    .then(response => response.data)
+  console.log(`[RJ${rjcode}] 从 HVDB 抓取元数据...`);
+  axios.retryGet(url, {
+    // cancelToken: abort.token,
+    retry: {retryDelay: 2000}
+  })
+    .then(response => {
+      console.log('res HVDB')
+      return response.data
+    })
     .then((data) => { //解析
       const work = { id, tags: [], vas: [] };
       let writeTo;
@@ -68,6 +76,7 @@ const scrapeWorkMetadataFromHVDB = id => new Promise((resolve, reject) => {
       if (work.tags.length === 0 && work.vas.length === 0) {
         reject(new Error('Couldn\'t parse data from HVDB work page.'));
       } else {
+        console.log(`[RJ${rjcode}] 成功从 HVDB 抓取元数据...`);
         resolve(work);
       }
     })
@@ -75,10 +84,15 @@ const scrapeWorkMetadataFromHVDB = id => new Promise((resolve, reject) => {
       if (error.response) {
         // 请求已发出，但服务器响应的状态码不在 2xx 范围内
         reject(new Error(`Couldn't request work page HTML (${url}), received: ${error.response.status}.`));
+      } else if (error.request) {
+        reject(error);
+        console.log(error.request);
       } else {
-        reject(new Error(error.message));
+        console.log('Error', error.message);
+        reject(error);
       }
     });
 });
+
 
 module.exports = scrapeWorkMetadataFromHVDB;
