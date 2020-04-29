@@ -407,7 +407,71 @@ const deleteUser = users => knex.transaction(trx => trx('t_user')
   .del());
 
 
+
+
+
+/**
+ * 创建一个新用户收藏夹
+ * @param {Object} favorite User Favorite object.
+ */
+const createUserFavorite = (username, favorite) => knex.transaction(trx => trx('t_favorite')
+  .where('name', '=', favorite.name)
+  .andWhere('user_name', '=', username)
+  .first()
+  .then((res) => {
+    if (res) {
+      throw new Error(`用户 ${username} 的收藏夹 ${favorite.name} 已存在.`);
+    }
+    return trx('t_favorite')
+      .insert({
+        user_name: username,
+        name: favorite.name,
+        works: JSON.stringify(favorite.works)
+      });
+  }));
+
+/**
+ * 更新用户收藏夹
+ * @param {Object} favorite User favorite object.
+ */
+const updateUserFavorite = (username, oldFavoriteName, newFavorite) => knex.transaction(trx => trx('t_favorite')
+  .where('name', '=', oldFavoriteName)
+  .andWhere('user_name', '=', username)
+  .first()
+  .then((res) => {
+    if (!res) {
+      throw new Error(`用户 ${username} 的收藏夹 $oldFavoriteName} 不存在.`);
+    }
+    return trx('t_favorite')
+      .where('name', '=', oldFavoriteName)
+      .andWhere('user_name', '=', username)
+      .update({
+        name: newFavorite.name,
+        works: JSON.stringify(newFavorite.works)
+      });
+  }));
+
+/**
+ * 更新用户收藏夹
+ * @param {String} user_name User name
+ * @param {Array} favorites User favorites.
+ */
+const deleteUserFavorites = (username, favoriteNames) => knex.transaction(trx => trx('t_favorite')
+  .where('user_name', '=', username)
+  .andWhere('name', 'in', favoriteNames)
+  .del());
+
+const getUserFavorites = username => knex('t_favorite')
+  .select('name', 'works')
+  .where('user_name', '=', username)
+  .then(favorites => favorites.map((favorite) => {
+    favorite.works = JSON.parse(favorite.works);
+    return favorite;
+  }));
+
+
 module.exports = {
   knex, insertWorkMetadata, getWorkMetadata, removeWork, getWorksBy, getWorksByKeyWord, updateWorkMetadata, getLabels,
-  createUser, updateUserPassword, resetUserPassword, deleteUser
+  createUser, updateUserPassword, resetUserPassword, deleteUser,
+  createUserFavorite, updateUserFavorite, deleteUserFavorites, getUserFavorites
 };
