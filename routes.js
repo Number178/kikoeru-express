@@ -41,7 +41,33 @@ router.get('/tracks/:id', (req, res, next) => {
       const rootFolder = config.rootFolders.find(rootFolder => rootFolder.name === work.root_folder);
       if (rootFolder) {
         getTrackList(req.params.id, path.join(rootFolder.path, work.dir))
-          .then(tracks => res.send(tracks));
+          .then(tracks => {
+            const tree = [];
+            tracks.forEach(track => {
+              let fatherFolder = tree;
+              const path = track.subtitle ? track.subtitle.split('\\') : [];
+              path.forEach(folderName => {
+                let folder = fatherFolder.find(item => item.type === 'folder' && item.name === folderName);
+                if (!folder) {
+                  fatherFolder.push({
+                    type: 'folder',
+                    name: folderName,
+                    children: []
+                  });
+                }
+                fatherFolder = fatherFolder.find(item => item.type === 'folder' && item.name === folderName).children;
+              });
+
+              fatherFolder.push({
+                type: 'file',
+                name: track.title,
+                hash: track.hash,
+                subtitle: track.subtitle
+              });
+            });
+            
+            res.send(tree)
+          });
       } else {
         res.status(500).send({error: `找不到文件夹: "${work.root_folder}"，请尝试重启服务器或重新扫描.`});
       }
