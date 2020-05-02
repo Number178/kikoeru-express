@@ -43,18 +43,29 @@ router.get('/tracks/:id', (req, res, next) => {
         getTrackList(req.params.id, path.join(rootFolder.path, work.dir))
           .then(tracks => {
             const tree = [];
+
+            // 插入文件夹
             tracks.forEach(track => {
               let fatherFolder = tree;
               const path = track.subtitle ? track.subtitle.split('\\') : [];
               path.forEach(folderName => {
-                let folder = fatherFolder.find(item => item.type === 'folder' && item.name === folderName);
-                if (!folder) {
+                const index = fatherFolder.findIndex(item => item.type === 'folder' && item.name === folderName);
+                if (index === -1) {
                   fatherFolder.push({
                     type: 'folder',
                     name: folderName,
                     children: []
                   });
                 }
+                fatherFolder = fatherFolder.find(item => item.type === 'folder' && item.name === folderName).children;
+              });
+            });
+            
+            // 插入文件
+            tracks.forEach(track => {
+              let fatherFolder = tree;
+              const path = track.subtitle ? track.subtitle.split('\\') : [];
+              path.forEach(folderName => {
                 fatherFolder = fatherFolder.find(item => item.type === 'folder' && item.name === folderName).children;
               });
 
@@ -65,7 +76,7 @@ router.get('/tracks/:id', (req, res, next) => {
                 subtitle: track.subtitle
               });
             });
-            
+
             res.send(tree)
           });
       } else {
