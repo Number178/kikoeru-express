@@ -46,6 +46,50 @@ const getTrackList = (id, dir) => recursiveReaddir(dir)
   .catch((err) => { throw new Error(`Failed to get tracklist from disk: ${err}`); });
 
 /**
+ * 转换成树状结构
+ * @param {Array} tracks 
+ * @param {String} workTitle 
+ */
+const toTree = (tracks, workTitle) => {
+  const tree = [];
+
+  // 插入文件夹
+  tracks.forEach(track => {
+    let fatherFolder = tree;
+    const path = track.subtitle ? track.subtitle.split('\\') : [];
+    path.forEach(folderName => {
+      const index = fatherFolder.findIndex(item => item.type === 'folder' && item.title === folderName);
+      if (index === -1) {
+        fatherFolder.push({
+          type: 'folder',
+          title: folderName,
+          children: []
+        });
+      }
+      fatherFolder = fatherFolder.find(item => item.type === 'folder' && item.title === folderName).children;
+    });
+  });
+  
+  // 插入文件
+  tracks.forEach(track => {
+    let fatherFolder = tree;
+    const path = track.subtitle ? track.subtitle.split('\\') : [];
+    path.forEach(folderName => {
+      fatherFolder = fatherFolder.find(item => item.type === 'folder' && item.title === folderName).children;
+    });
+
+    fatherFolder.push({
+      type: 'file',
+      hash: track.hash,
+      title: track.title,
+      workTitle
+    });
+  });
+
+  return tree;
+};
+
+/**
  * 返回一个成员为指定根文件夹下所有包含 RJ 号的音声文件夹对象的数组，
  * 音声文件夹对象 { relativePath: '相对路径', rootFolderName: '根文件夹别名', id: '音声ID' }
  * @param {Object} rootFolder 根文件夹对象 { name: '别名', path: '绝对路径' }
@@ -110,6 +154,7 @@ const saveCoverImageToDisk = (stream, rjcode, type) => new Promise((resolve, rej
 
 module.exports = {
   getTrackList,
+  toTree,
   getFolderList,
   deleteCoverImageFromDisk,
   saveCoverImageToDisk,

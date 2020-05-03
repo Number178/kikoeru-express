@@ -2,7 +2,7 @@ const path = require('path');
 const express = require('express');
 
 const db = require('./database/db');
-const { getTrackList } = require('./filesystem/utils');
+const { getTrackList, toTree } = require('./filesystem/utils');
 
 const { getConfig } = require('./config');
 const config = getConfig();
@@ -35,51 +35,14 @@ router.get('/work/:id', (req, res, next) => {
 // GET track list in work folder
 router.get('/tracks/:id', (req, res, next) => {
   db.knex('t_work')
-    .select('root_folder', 'dir')
+    .select('title', 'root_folder', 'dir')
     .where('id', '=', req.params.id)
     .first()
     .then((work) => {
       const rootFolder = config.rootFolders.find(rootFolder => rootFolder.name === work.root_folder);
       if (rootFolder) {
         getTrackList(req.params.id, path.join(rootFolder.path, work.dir))
-          .then(tracks => {
-            const tree = [];
-
-            // 插入文件夹
-            tracks.forEach(track => {
-              let fatherFolder = tree;
-              const path = track.subtitle ? track.subtitle.split('\\') : [];
-              path.forEach(folderName => {
-                const index = fatherFolder.findIndex(item => item.type === 'folder' && item.name === folderName);
-                if (index === -1) {
-                  fatherFolder.push({
-                    type: 'folder',
-                    name: folderName,
-                    children: []
-                  });
-                }
-                fatherFolder = fatherFolder.find(item => item.type === 'folder' && item.name === folderName).children;
-              });
-            });
-            
-            // 插入文件
-            tracks.forEach(track => {
-              let fatherFolder = tree;
-              const path = track.subtitle ? track.subtitle.split('\\') : [];
-              path.forEach(folderName => {
-                fatherFolder = fatherFolder.find(item => item.type === 'folder' && item.name === folderName).children;
-              });
-
-              fatherFolder.push({
-                type: 'file',
-                name: track.title,
-                hash: track.hash,
-                subtitle: track.subtitle
-              });
-            });
-
-            res.send(tree)
-          });
+          .then(tracks => res.send(toTree(tracks, work.title)));
       } else {
         res.status(500).send({error: `找不到文件夹: "${work.root_folder}"，请尝试重启服务器或重新扫描.`});
       }
@@ -105,7 +68,6 @@ router.get('/stream/:id/:index', (req, res, next) => {
       } else {
         res.status(500).send({error: `找不到文件夹: "${work.root_folder}"，请尝试重启服务器或重新扫描.`});
       }
-      
     });
 });
 
