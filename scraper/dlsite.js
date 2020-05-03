@@ -82,14 +82,15 @@ const scrapeStaticWorkMetadataFromDLsite = (id, language) => new Promise((resolv
         .filter(function() {
           return $(this).text() === SERIES;
         }).parent().children('td').children('a');
-      const seriesUrl = seriesElement.attr('href');
-      if (seriesUrl.match(/SRI(\d{10})/)) {
-        work.series = {
-          id: parseInt(seriesUrl.match(/SRI(\d{10})/)[1]),
-          name: seriesElement.text()
-        };
+      if (seriesElement.length) {
+        const seriesUrl = seriesElement.attr('href');
+        if (seriesUrl.match(/SRI(\d{10})/)) {
+          work.series = {
+            id: parseInt(seriesUrl.match(/SRI(\d{10})/)[1]),
+            name: seriesElement.text()
+          };
+        }
       }
-      
       
       // 标签
       $('#work_outline').children('tbody').children('tr').children('th')
@@ -124,7 +125,6 @@ const scrapeStaticWorkMetadataFromDLsite = (id, language) => new Promise((resolv
     })
     .then(() => {
       if (work.vas.length === 0) { 
-        console.log(work); 
         // 从 DLsite 抓不到声优信息时, 从 HVDB 抓取声优信息
         scrapeWorkMetadataFromHVDB(id)
           .then((metadata) => {
