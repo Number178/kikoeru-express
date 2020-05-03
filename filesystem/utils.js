@@ -77,25 +77,29 @@ async function* getFolderList(rootFolder, current = '', depth = 0) { // 异步�
  * @param {String} rjcode Work RJ code (only the 6 digits, zero-padded).
  */
 const deleteCoverImageFromDisk = rjcode => new Promise((resolve, reject) => {
-  fs.unlink(path.join(config.coverFolderDir, `RJ${rjcode}.jpg`), (err) => {
-    if (err) {
+  const types = ['main', 'sam'];
+  types.forEach(type => {
+    try {
+      fs.unlinkSync(path.join(config.coverFolderDir, `RJ${rjcode}_img_${type}.jpg`));
+    } catch (err) {
       reject(err);
-    } else {
-      resolve();
     }
   });
+
+  resolve();
 });
 
 /**
  * Saves cover image to disk.
  * @param {ReadableStream} stream Image data stream.
  * @param {String} rjcode Work RJ code (only the 6 digits, zero-padded).
+ * @param {String} types img type: ('main', 'sam', 'sam@2x' or 'sam@3x').
  */
-const saveCoverImageToDisk = (stream, rjcode) => new Promise((resolve, reject) => {
+const saveCoverImageToDisk = (stream, rjcode, type) => new Promise((resolve, reject) => {
   // TODO: don't assume image is a jpg?
   try {
     stream.pipe(
-      fs.createWriteStream(path.join(config.coverFolderDir, `RJ${rjcode}.jpg`))
+      fs.createWriteStream(path.join(config.coverFolderDir, `RJ${rjcode}_img_${type}.jpg`))
         .on('close', () => resolve()),
     );
   } catch (err) {

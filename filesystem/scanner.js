@@ -189,53 +189,53 @@ const getMetadata = (id, rootFolderName, dir, tagLanguage) => {
 };
 
 /**
- * 从 HVDB 或 DLsite 下载封面图片，并保存到 Images 文件夹，
+ * 从 DLsite 下载封面图片，并保存到 Images 文件夹，
  * 返回一个 Promise 对象，处理结果: 'added' or 'failed'
  * @param {number} id work id
- * @param {string} coverSource 封面图片源，'HVDB' or 'DLsite'，默认'DLsite'
+ * @param {Array} types img types: ['main', 'sam', 'sam@2x', 'sam@3x']
  */
-const getCoverImage = (id, coverSource) => {
+const getCoverImage = (id, types) => {
   const rjcode = (`000000${id}`).slice(-6); // zero-pad to 6 digits
-  let url = '';
-  switch (coverSource) {
-    case 'HVDB':
-      url = `https://hvdb.me/WorkImages/RJ${rjcode}.jpg`;
-      break;
-    default:
-      // 默认从 DLsite 下载封面图片
-      const id2 = (id % 1000 === 0) ? id : parseInt(id / 1000) * 1000 + 1000;
-      const rjcode2 = (`000000${id2}`).slice(-6); // zero-pad to 6 digits
-      url = `https://img.dlsite.jp/modpub/images2/work/doujin/RJ${rjcode2}/RJ${rjcode}_img_main.jpg`;
-  }
+  const id2 = (id % 1000 === 0) ? id : parseInt(id / 1000) * 1000 + 1000;
+  const rjcode2 = (`000000${id2}`).slice(-6); // zero-pad to 6 digits
+  const promises = [];
+  types.forEach(type => {
+    const url = `https://img.dlsite.jp/modpub/images2/work/doujin/RJ${rjcode2}/RJ${rjcode}_img_${type}.jpg`;
+    promises.push(
+      axios.retryGet(url, { responseType: "stream", retry: {} })
+        .then((imageRes) => {
+          return saveCoverImageToDisk(imageRes.data, rjcode, type)
+            .then(() => {
+              console.log(` -> [RJ${rjcode}] 封面 RJ${rjcode}_img_${type}.jpg 下载成功.`);
+              addLogForTask(rjcode, {
+                level: 'info',
+                message: `封面 RJ${rjcode}_img_${type}.jpg 下载成功.`
+              });
 
-  console.log(` -> [RJ${rjcode}] 从 ${coverSource} 下载封面...`);
-  addLogForTask(rjcode, {
-    level: 'info',
-    message: `从 ${coverSource} 下载封面...`
-  });
-  
-
-  return axios.get(url, { responseType: "stream" })
-    .then((imageRes) => {
-      return saveCoverImageToDisk(imageRes.data, rjcode)
-        .then(() => {
-          console.log(` -> [RJ${rjcode}] 封面下载成功.`);
+              return 'added';
+            });
+        })
+        .catch((err) => {
+          console.error(`  ! [RJ${rjcode}] 在下载封面 RJ${rjcode}_img_${type}.jpg 过程中出错: ${err.message}`);
           addLogForTask(rjcode, {
-            level: 'info',
-            message: '封面下载成功.'
+            level: 'error',
+            message: `在下载封面 RJ${rjcode}_img_${type}.jpg 过程中出错: ${err.message}`
           });
           
-          return 'added';
-        });
-    })
-    .catch((err) => {
-      console.error(`  ! [RJ${rjcode}] 在下载封面过程中出错: ${err.message}`);
-      addLogForTask(rjcode, {
-        level: 'error',
-        message: `在下载封面过程中出错: ${err.message}`
+          return 'failed';
+        })
+    );
+  });
+  
+  return Promise.all(promises)
+    .then((results) => {
+      results.forEach(result => {
+        if (result === 'failed') {
+          return 'failed';
+        }
       });
-      
-      return 'failed';
+
+      return 'added';
     });
 };
 
@@ -251,11 +251,20 @@ const processFolder = (folder) => db.knex('t_work')
   .first()
   .then((res) => {
     const rjcode = (`000000${folder.id}`).slice(-6); // zero-pad to 6 digits
+    const coverTypes = ['main', 'sam'];
     const count = res['count(*)'];
     if (count) { // 查询数据库，检查是否已经写入该音声的元数据
       // 已经成功写入元数据
-      const coverPath = path.join(config.coverFolderDir, `RJ${rjcode}.jpg`);
-      if (!fs.existsSync(coverPath)) { // 检查音声封面图片是否缺失
+      // 检查音声封面图片是否缺失
+      const lostCoverTypes = [];
+      coverTypes.forEach(type => {
+        const coverPath = path.join(config.coverFolderDir, `RJ${rjcode}_img_${type}.jpg`);
+        if (!fs.existsSync(coverPath)) {
+          lostCoverTypes.push(type);
+        }
+      });
+      
+      if (lostCoverTypes.length) {
         console.log(`  ! [RJ${rjcode}] 封面图片缺失，重新下载封面图片...`);
         addTask(rjcode);
         addLogForTask(rjcode, {
@@ -263,7 +272,7 @@ const processFolder = (folder) => db.knex('t_work')
           message: '封面图片缺失，重新下载封面图片...'
         });
 
-        return getCoverImage(folder.id, config.coverSource);
+        return getCoverImage(folder.id, lostCoverTypes);
       } else {
         return 'skipped';
       }
@@ -280,7 +289,7 @@ const processFolder = (folder) => db.knex('t_work')
           if (result === 'failed') { // 如果获取元数据失败，跳过封面图片下载
             return 'failed';
           } else { // 下载封面图片
-            return getCoverImage(folder.id, config.coverSource);
+            return getCoverImage(folder.id, coverTypes);
           }
         });
     }
@@ -579,3 +588,11 @@ const performUpdate = () => db.knex('t_work').select('id')
   // });
 
 performScan();
+
+// getCoverImage(250820, ['main', 'sam'])
+//   .then(res => {
+//     console.log(res)
+//   })
+//   .catch(err => {
+//     console.log(err)
+//   })
