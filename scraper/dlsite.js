@@ -82,13 +82,14 @@ const scrapeStaticWorkMetadataFromDLsite = (id, language) => new Promise((resolv
         .filter(function() {
           return $(this).text() === SERIES;
         }).parent().children('td').children('a');
-      if (seriesElement.length) {
-        const seriesUrl = seriesElement.attr('href');
+      const seriesUrl = seriesElement.attr('href');
+      if (seriesUrl.match(/SRI(\d{10})/)) {
         work.series = {
-          id: seriesUrl.match(/SRI(\d{10})/) ? parseInt(seriesUrl.match(/SRI(\d{10})/)[1]) : null,
+          id: parseInt(seriesUrl.match(/SRI(\d{10})/)[1]),
           name: seriesElement.text()
         };
       }
+      
       
       // 标签
       $('#work_outline').children('tbody').children('tr').children('th')
@@ -97,10 +98,12 @@ const scrapeStaticWorkMetadataFromDLsite = (id, language) => new Promise((resolv
         }).parent().children('td').children('div').children('a').each(function() {
           const tagUrl = $(this).attr('href');
           const tagName = $(this).text();
-          work.tags.push({
-            id: parseInt(tagUrl.substr(-19,3)),
-            name: tagName
-          });
+          if (tagUrl.match(/genre\/(\d{3})/)) {
+            work.tags.push({
+              id: parseInt(tagUrl.match(/genre\/(\d{3})/)[1]),
+              name: tagName
+            });
+          }
         });
       
       // 声优
