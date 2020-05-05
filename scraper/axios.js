@@ -69,13 +69,21 @@ axios.interceptors.request.use(function (config) {
 
 
 const retryGet = async (url, config) => {
+  let defaultLimit = Config.retry || 5;;
+  let defaultRetryDelay = Config.retryDelay || 2000;
+  let defaultTimeout = 10000;
+
+  if (url.indexOf('dlsite') !== -1) {
+    defaultTimeout = Config.dlsiteTimeout || defaultLimit;
+  } else if (url.indexOf('hvdb') !== -1) {
+    defaultTimeout = Config.hvdbTimeout || defaultLimit;;
+  }
+
   config.retry = {
-    limit: config.retry.limit || 5,
-    retryCount: config.retry.retryCount || 0,
-    // retryDelay: config.retry.retryDelay || 1000,
-    retryDelay: 2000,
-    // timeout: config.retry.timeout || 10000
-    timeout: 10000
+    limit: (config.retry && config.retry.limit) ? config.retry.limit : defaultLimit, // 5
+    retryCount: (config.retry && config.retry.retryCount) ? config.retry.retryCount : 0,
+    retryDelay: (config.retry && config.retry.retryDelay) ? config.retry.retryDelay : defaultRetryDelay, //2000,
+    timeout: (config.retry && config.retry.timeout) ? config.retry.timeout : defaultTimeout
   };
 
   const abort = originAxios.CancelToken.source();

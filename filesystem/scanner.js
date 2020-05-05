@@ -226,6 +226,12 @@ const getCoverImage = (id, types) => {
         })
     );
   });
+
+  console.log(` -> [RJ${rjcode}] 从 DLsite 下载封面...`);
+  addLogForTask(rjcode, {
+    level: 'info',
+    message: `从 DLsite 下载封面...`
+  });
   
   return Promise.all(promises)
     .then((results) => {

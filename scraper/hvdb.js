@@ -12,10 +12,7 @@ const scrapeWorkMetadataFromHVDB = id => new Promise((resolve, reject) => {
   const url = `https://hvdb.me/Dashboard/WorkDetails/${id}`;
 
   console.log(`[RJ${rjcode}] 从 HVDB 抓取元数据...`);
-  axios.retryGet(url, {
-    // cancelToken: abort.token,
-    retry: {retryDelay: 2000}
-  })
+  axios.retryGet(url, { retry: {} })
     .then(response => {
       console.log('res HVDB')
       return response.data

@@ -22,10 +22,10 @@ const defaultConfig = {
   scannerMaxRecursionDepth: 2,
   pageSize: 12,
   tagLanguage: 'zh-cn',
-  coverSource: 'DLite',
   retry: 5,
-  timeout: 2000,
-  retryDelay: 500,
+  dlsiteTimeout: 10000,
+  hvdbTimeout: 10000,
+  retryDelay: 2000,
   httpProxyHost: '',
   httpProxyPort: 0
 };
