@@ -5,8 +5,7 @@ const expressJwt = require('express-jwt'); // 把 JWT 的 payload 部分赋值�
 const { signtoken, md5 } = require('./utils');
 const db = require('../database/db');
 
-const { getConfig, setConfig } = require('../config');
-const config = getConfig();
+const { config, setConfig } = require('../config');
 
 const router = express.Router();
 
@@ -192,7 +191,7 @@ router.put('/config', (req, res, next) => {
 router.get('/config', (req, res, next) => {
   if (!config.auth || req.user.name === 'admin') {
     try {
-      res.send({ config: getConfig() });
+      res.send({ config: config });
     } catch(err) {
       next(err);
     }

@@ -7,8 +7,7 @@ const jwtAuth = require('socketio-jwt-auth'); // 用于 JWT 验证的 socket.io 
 const child_process = require('child_process'); // 子进程
 const { initApp }= require('./database/schema');
 
-const { getConfig, setConfig } = require('./config');
-const config = getConfig();
+const { config } = require('./config');
 const api = require('./api');
 
 const app = express();

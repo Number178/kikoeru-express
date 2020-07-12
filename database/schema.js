@@ -4,8 +4,7 @@ const { md5 } = require('../auth/utils');
 const pjson = require('../package.json');
 const compareVersions = require('compare-versions');
 
-const { getConfig, updateConfig } = require('../config');
-const config = getConfig();
+const { config, updateConfig } = require('../config');
 
 // 数据库结构
 const createSchema = () => knex.schema

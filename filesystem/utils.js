@@ -3,8 +3,7 @@ const path = require('path');
 const recursiveReaddir = require('recursive-readdir');
 const { orderBy } = require('natural-orderby');
 
-const { getConfig } = require('../config');
-const config = getConfig();
+const { config } = require('../config');
 
 /**
  * Returns list of playable tracks in a given folder. Track is an object

@@ -9,8 +9,7 @@ const { createSchema } = require('../database/schema');
 const { getFolderList, deleteCoverImageFromDisk, saveCoverImageToDisk } = require('./utils');
 const { md5 } = require('../auth/utils');
 
-const { getConfig } = require('../config');
-const config = getConfig();
+const { config } = require('../config');
 
 // 只有在子进程中 process 对象才有 send() 方法
 process.send = process.send || function () {};

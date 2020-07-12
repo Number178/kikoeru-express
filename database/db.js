@@ -1,7 +1,6 @@
 const fs = require('fs');
 const path = require('path');
-const { getConfig} = require('../config');
-const config = getConfig();
+const { config} = require('../config');
 
 const databaseFolderDir = config.databaseFolderDir;
 if (!fs.existsSync(databaseFolderDir)) {

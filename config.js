@@ -8,6 +8,8 @@ const pjson = require('./package.json');
 
 const versionWithoutVerTracking = '0.4.1';
 
+let config = {};
+
 const defaultConfig = {
   version: pjson.version,
   maxParallelism: 16,
@@ -35,13 +37,19 @@ const defaultConfig = {
   listenPort: 8888
 };
 
-const initConfig = () => fs.writeFileSync(configPath, JSON.stringify(defaultConfig, null, "\t"));
+const initConfig = () => {
+  config = Object.assign(config, defaultConfig);
+  fs.writeFileSync(configPath, JSON.stringify(defaultConfig, null, "\t"));
+}
 
-const setConfig = (newConfig) => fs.writeFileSync(configPath, JSON.stringify(newConfig, null, "\t"));
+const setConfig = newConfig => {
+  config = Object.assign(config, newConfig);
+  fs.writeFileSync(configPath, JSON.stringify(newConfig, null, "\t"));
+}
 
 // Get or use default value
 const getConfig = () => {
-  let config = JSON.parse(fs.readFileSync(configPath));
+  config = JSON.parse(fs.readFileSync(configPath));
   for (let key in defaultConfig) {
     if (!config.hasOwnProperty(key)) {
       if (key === 'version') {
@@ -51,7 +59,6 @@ const getConfig = () => {
       }
     }
   }
-  return config;
 };
 
 if (!fs.existsSync(configPath)) {
@@ -63,25 +70,27 @@ if (!fs.existsSync(configPath)) {
     }
   }
   initConfig();
+} else {
+  getConfig();
 }
 
 // Migrate config
 const updateConfig = () => {
-  let config = JSON.parse(fs.readFileSync(configPath));
+  let cfg = JSON.parse(fs.readFileSync(configPath));
   let countChanged = 0;
   for (let key in defaultConfig) {
-    if (!config.hasOwnProperty(key)) {
-      console.log('写入设置', key);
-      config[key] = defaultConfig[key];
+    if (!cfg.hasOwnProperty(key)) {
+      cfg.log('写入设置', key);
+      cfg[key] = defaultConfig[key];
       countChanged += 1;
     }
   }
-  if (countChanged || config.version !== pjson.version) {
-    config.version = pjson.version;
-    setConfig(config)
+  if (countChanged || cfg.version !== pjson.version) {
+    cfg.version = pjson.version;
+    setConfig(cfg)
   };
 }
 
 module.exports = {
-  setConfig, getConfig, updateConfig
+  setConfig, updateConfig, config
 };

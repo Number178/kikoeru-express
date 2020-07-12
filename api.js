@@ -2,8 +2,7 @@ const routers = require('./routes');
 const authRoutes = require('./auth/routes');
 const expressJwt = require('express-jwt'); // 把 JWT 的 payload 部分赋值于 req.user
 
-const { getConfig } = require('./config');
-const config = getConfig();
+const { config } = require('./config');
 
 /**
  * Get token from header or query string.

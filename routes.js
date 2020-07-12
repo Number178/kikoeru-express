@@ -6,8 +6,7 @@ const express = require('express');
 const db = require('./database/db');
 const { getTrackList, toTree } = require('./filesystem/utils');
 
-const { getConfig } = require('./config');
-const config = getConfig();
+const { config } = require('./config');
 
 const PAGE_SIZE = config.pageSize || 12;
 const router = express.Router();
