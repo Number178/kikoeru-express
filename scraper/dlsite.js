@@ -51,7 +51,7 @@ const scrapeStaticWorkMetadataFromDLsite = (id, language) => new Promise((resolv
       const $ = cheerio.load(data);
 
       // 标题
-      work.title = $(`a[href="${url}"]`).text();
+      work.title = $(`a[href="${url}"] span`).text();
   
       // 社团
       const circleElement = $('span[class="maker_name"]').children('a');
