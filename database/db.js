@@ -303,7 +303,7 @@ const getWorksBy = (id, field) => {
  * @param {String} keyword 
  */
 const getWorksByKeyWord = (keyword) => {
-  const workid = keyword.match(/RJ(\d{6})/) ? keyword.match(/RJ(\d{6})/)[1] : '';
+const workid = keyword.match(/((R|r)(J|j))?(\d{6})/) ? keyword.match(/((R|r)(J|j))?(\d{6})/)[4] : '';
   if (workid) {
     return knex('t_work')
       .select('id', 'release', 'dl_count', 'review_count', 'price', 'rate_average_2dp')
