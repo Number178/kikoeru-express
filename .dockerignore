@@ -12,3 +12,6 @@ covers
 
 # SQLite
 sqlite
+
+# Node modules
+node_modules
