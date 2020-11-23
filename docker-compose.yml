@@ -1,4 +1,4 @@
-version: '3.3'
+version: '3.8'
 services:
     kikoeru:
         ports:
@@ -11,5 +11,6 @@ services:
             - $PWD/sqlite:/usr/src/kikoeru/sqlite
             - $PWD/covers:/usr/src/kikoeru/covers
             - $PWD/config:/usr/src/kikoeru/config
-        image: 'muveexu/kikoeru:v0.3.4'
+        image: 'muveex/kikoeru:v0.3.4'
+        init: true
 
