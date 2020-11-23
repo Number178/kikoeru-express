@@ -1,0 +1,15 @@
+version: '3.3'
+services:
+    kikoeru:
+        ports:
+            - '8888:8888'
+        volumes:
+            # Change the next line to your location of storage
+            # e.g. /storage/DLsite/xxx:/usr/src/kikoeru/VoiceWork
+            # Then fill in the location /usr/src/kikoeru/VoiceWork in the admin UI
+            - $PWD/VoiceWork:/usr/src/kikoeru/VoiceWork
+            - $PWD/sqlite:/usr/src/kikoeru/sqlite
+            - $PWD/covers:/usr/src/kikoeru/covers
+            - $PWD/config:/usr/src/kikoeru/config
+        image: 'muveexu/kikoeru:v0.3.4'
+
