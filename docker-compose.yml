@@ -7,10 +7,10 @@ services:
             # Change the next line to your location of storage
             # e.g. /storage/DLsite/xxx:/usr/src/kikoeru/VoiceWork
             # Then fill in the location /usr/src/kikoeru/VoiceWork in the admin UI
-            - $PWD/VoiceWork:/usr/src/kikoeru/VoiceWork
-            - $PWD/sqlite:/usr/src/kikoeru/sqlite
-            - $PWD/covers:/usr/src/kikoeru/covers
-            - $PWD/config:/usr/src/kikoeru/config
+            - ./VoiceWork:/usr/src/kikoeru/VoiceWork
+            - ./sqlite:/usr/src/kikoeru/sqlite
+            - ./covers:/usr/src/kikoeru/covers
+            - ./config:/usr/src/kikoeru/config
         image: 'muveex/kikoeru:v0.3.5'
         init: true
 
