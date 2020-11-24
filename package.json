@@ -1,6 +1,6 @@
 {
   "name": "kikoeru-express",
-  "version": "0.3.4",
+  "version": "0.3.5",
   "description": "server",
   "bin": "app.js",
   "pkg": {
