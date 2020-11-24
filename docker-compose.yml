@@ -11,6 +11,6 @@ services:
             - $PWD/sqlite:/usr/src/kikoeru/sqlite
             - $PWD/covers:/usr/src/kikoeru/covers
             - $PWD/config:/usr/src/kikoeru/config
-        image: 'muveex/kikoeru:v0.3.4'
+        image: 'muveex/kikoeru:v0.3.5'
         init: true
 
