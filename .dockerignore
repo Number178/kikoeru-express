@@ -2,16 +2,18 @@
 .git
 
 # Package
-package
+package/*
 
 # Config
-config
+config/*
 
 # Covers
-covers
+covers/*
 
 # SQLite
-sqlite
+sqlite/*
 
 # Node modules
 node_modules
+
+*.md
