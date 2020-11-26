@@ -12,5 +12,3 @@ services:
             - ./covers:/usr/src/kikoeru/covers
             - ./config:/usr/src/kikoeru/config
         image: 'muveex/kikoeru:v0.3.7'
-        init: true
-

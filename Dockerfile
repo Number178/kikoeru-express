@@ -15,7 +15,14 @@ RUN npm ci --only=production
 # Bundle app source
 COPY . .
 
+# Make it easier for me to pack things up on Windoze
 RUN find /usr/src/kikoeru/dist -type d -exec chmod 755 {} \; && find /usr/src/kikoeru/dist -type f -exec chmod 644 {} \;
+
+# Tini
+ENV TINI_VERSION v0.19.0
+ADD https://github.com/krallin/tini/releases/download/${TINI_VERSION}/tini /tini
+RUN chmod +x /tini
+ENTRYPOINT ["/tini", "--"]
 
 # 持久化
 VOLUME [ "/usr/src/kikoeru/sqlite", "/usr/src/kikoeru/config", "/usr/src/kikoeru/covers"]
