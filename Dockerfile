@@ -8,12 +8,14 @@ WORKDIR /usr/src/kikoeru
 # where available (npm@5+)
 COPY package*.json ./
 
-RUN npm install --registry=https://registry.npm.taobao.org
+RUN npm ci --only=production
 # If you are building your code for production
 # RUN npm ci --only=production
 
 # Bundle app source
 COPY . .
+
+RUN find /usr/src/kikoeru/dist -type d -exec chmod 755 {} \; && find /usr/src/kikoeru/dist -type f -exec chmod 644 {} \;
 
 # 持久化
 VOLUME [ "/usr/src/kikoeru/sqlite", "/usr/src/kikoeru/config", "/usr/src/kikoeru/covers"]
