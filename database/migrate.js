@@ -18,7 +18,7 @@ var db = new sqlite3.Database(path.join(databaseFolderDir, 'db.sqlite3'), err =>
     if (err) {
         console.error(err.message);
     }
-    console.log('连接到数据库。');
+    console.log('连接到数据库');
 });
 
 // 迁移脚本
