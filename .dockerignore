@@ -17,3 +17,6 @@ sqlite/*
 node_modules
 
 *.md
+
+# Storage
+VoiceWork
