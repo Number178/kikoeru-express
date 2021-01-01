@@ -83,7 +83,14 @@ router.get('/works', async (req, res, next) => {
   try {
     const query = () => db.getWorksBy();
     const totalCount = await query().count('id as count');
-    const works = await query().offset(offset).limit(PAGE_SIZE).orderBy(order, sort);
+
+    let works = null;
+    if (order === 'nsfw') {
+      works = await query().offset(offset).limit(PAGE_SIZE).orderBy([{ column: 'nsfw', order: sort }, { column: 'release', order: 'desc' }]);
+    }
+    else {
+      works = await query().offset(offset).limit(PAGE_SIZE).orderBy(order, sort);
+    }
 
     res.send({
       works,
@@ -124,7 +131,14 @@ router.get('/search/:keyword?', async (req, res, next) => {
   try {
     const query = () => db.getWorksByKeyWord(keyword);
     const totalCount = await query().count('id as count');
-    const works = await query().offset(offset).limit(PAGE_SIZE).orderBy(order, sort);
+
+    let works = null;
+    if (order === 'nsfw') {
+      works = await query().offset(offset).limit(PAGE_SIZE).orderBy([{ column: 'nsfw', order: sort }, { column: 'release', order: 'desc' }]);
+    }
+    else {
+      works = await query().offset(offset).limit(PAGE_SIZE).orderBy(order, sort);
+    }
 
     res.send({
       works,
@@ -144,14 +158,21 @@ router.get('/:field/:id', async (req, res, next) => {
   const currentPage = parseInt(req.query.page) || 1;
   // 通过 "音声id, 贩卖日, 售出数, 评论数量, 价格, 平均评价" 排序
   // ['id', 'release', 'dl_count', 'review_count', 'price', 'rate_average_2dp']
-  const order = req.query.order || 'release';
+  let order = req.query.order || 'release';
   const sort = req.query.sort || 'desc'; // ['desc', 'asc]
   const offset = (currentPage - 1) * PAGE_SIZE;
   
   try {
     const query = () => db.getWorksBy(req.params.id, req.params.field);
     const totalCount = await query().count('id as count');
-    const works = await query().offset(offset).limit(PAGE_SIZE).orderBy(order, sort);
+
+    let works = null;
+    if (order === 'nsfw') {
+      works = await query().offset(offset).limit(PAGE_SIZE).orderBy([{ column: 'nsfw', order: sort }, { column: 'release', order: 'desc' }]);
+    }
+    else {
+      works = await query().offset(offset).limit(PAGE_SIZE).orderBy(order, sort);
+    }
 
     res.send({
       works,
