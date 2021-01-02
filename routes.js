@@ -71,6 +71,26 @@ router.get('/stream/:id/:index', (req, res, next) => {
     });
 });
 
+router.get('/download/:id/:index', (req, res, next) => {
+  db.knex('t_work')
+    .select('root_folder', 'dir')
+    .where('id', '=', req.params.id)
+    .first()
+    .then((work) => {
+      const rootFolder = config.rootFolders.find(rootFolder => rootFolder.name === work.root_folder);
+      if (rootFolder) {
+        getTrackList(req.params.id, path.join(rootFolder.path, work.dir))
+          .then((tracks) => {
+            const track = tracks[req.params.index];
+            res.download(path.join(rootFolder.path, work.dir, track.subtitle || '', track.title));
+          })
+          .catch(err => next(err));
+      } else {
+        res.status(500).send({error: `找不到文件夹: "${work.root_folder}"，请尝试重启服务器或重新扫描.`});
+      }
+    });
+});
+
 // GET list of work ids
 router.get('/works', async (req, res, next) => {
   const currentPage = parseInt(req.query.page) || 1;
