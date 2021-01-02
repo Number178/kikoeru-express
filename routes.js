@@ -62,7 +62,12 @@ router.get('/stream/:id/:index', (req, res, next) => {
         getTrackList(req.params.id, path.join(rootFolder.path, work.dir))
           .then((tracks) => {
             const track = tracks[req.params.index];
-            res.sendFile(path.join(rootFolder.path, work.dir, track.subtitle || '', track.title));
+
+            const fileName = path.join(rootFolder.path, work.dir, track.subtitle || '', track.title);
+            if (path.extname(fileName) === '.txt') {
+              res.setHeader('Content-Type', 'text/plain; charset=Shift_JIS');
+            }
+            res.sendFile(fileName);
           })
           .catch(err => next(err));
       } else {
