@@ -11,4 +11,4 @@ services:
             - ./sqlite:/usr/src/kikoeru/sqlite
             - ./covers:/usr/src/kikoeru/covers
             - ./config:/usr/src/kikoeru/config
-        image: 'muveex/kikoeru:v0.3.9'
+        image: 'muveex/kikoeru:v0.3.10'

@@ -18,7 +18,10 @@ const getTrackList = (id, dir) => recursiveReaddir(dir)
     const filteredFiles = files.filter((file) => {
       const ext = path.extname(file);
 
-      return (ext === '.mp3' || ext === '.ogg' || ext === '.opus' || ext === '.wav' || ext === '.flac' || ext === '.webm' || ext === '.mp4'|| ext === '.m4a');
+      return (ext === '.mp3' || ext === '.ogg' || ext === '.opus' || ext === '.wav' 
+        || ext === '.flac' || ext === '.webm' || ext === '.mp4'|| ext === '.m4a' 
+        || ext === '.txt' 
+        || ext === '.jpg' || ext === '.jpeg' || ext === '.png' || ext === '.webp');
     });
 
     // Sort by folder and title
@@ -29,8 +32,9 @@ const getTrackList = (id, dir) => recursiveReaddir(dir)
       return {
         title: path.basename(file),
         subtitle: dirName === '.' ? null : dirName,
+        ext: path.extname(file),
       };
-    }), [v => v.subtitle, v => v.title]);
+    }), [v => v.subtitle, v => v.title, v => v.ext]);
 
     // Add hash to each file
     const sortedHashedFiles = sortedFiles.map(
@@ -38,6 +42,7 @@ const getTrackList = (id, dir) => recursiveReaddir(dir)
         title: file.title,
         subtitle: file.subtitle,
         hash: `${id}/${index}`,
+        ext: file.ext,
       }),
     );
 
@@ -78,12 +83,28 @@ const toTree = (tracks, workTitle) => {
       fatherFolder = fatherFolder.find(item => item.type === 'folder' && item.title === folderName).children;
     });
 
-    fatherFolder.push({
-      type: 'file',
-      hash: track.hash,
-      title: track.title,
-      workTitle
-    });
+    if (track.ext === '.txt') {
+      fatherFolder.push({
+        type: 'text',
+        hash: track.hash,
+        title: track.title,
+        workTitle
+      });
+    } else if (track.ext === '.jpg' || track.ext === '.jpeg' || track.ext === '.png' || track.ext === '.webp' ) {
+      fatherFolder.push({
+        type: 'image',
+        hash: track.hash,
+        title: track.title,
+        workTitle
+      });
+    } else {
+      fatherFolder.push({
+        type: 'file',
+        hash: track.hash,
+        title: track.title,
+        workTitle
+      });
+    }
   });
 
   return tree;
