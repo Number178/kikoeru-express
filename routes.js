@@ -1,3 +1,5 @@
+const fs = require('fs');
+const jschardet = require('jschardet');
 const path = require('path');
 const express = require('express');
 
@@ -65,7 +67,11 @@ router.get('/stream/:id/:index', (req, res, next) => {
 
             const fileName = path.join(rootFolder.path, work.dir, track.subtitle || '', track.title);
             if (path.extname(fileName) === '.txt') {
-              res.setHeader('Content-Type', 'text/plain; charset=Shift_JIS');
+              const fileBuffer = fs.readFileSync(fileName);
+              const charsetMatch = jschardet.detect(fileBuffer).encoding;
+              if (charsetMatch) {
+                res.setHeader('Content-Type', `text/plain; charset=${charsetMatch}`);
+              }
             }
             res.sendFile(fileName);
           })
