@@ -20,7 +20,7 @@ const getTrackList = (id, dir) => recursiveReaddir(dir)
 
       return (ext === '.mp3' || ext === '.ogg' || ext === '.opus' || ext === '.wav' 
         || ext === '.flac' || ext === '.webm' || ext === '.mp4'|| ext === '.m4a' 
-        || ext === '.txt' 
+        || ext === '.txt' || ext === '.lrc' || ext === '.srt' || ext === '.ass'
         || ext === '.jpg' || ext === '.jpeg' || ext === '.png' || ext === '.webp');
     });
 
@@ -83,7 +83,7 @@ const toTree = (tracks, workTitle) => {
       fatherFolder = fatherFolder.find(item => item.type === 'folder' && item.title === folderName).children;
     });
 
-    if (track.ext === '.txt') {
+    if (track.ext === '.txt' || track.ext === '.lrc' || track.ext === '.srt' || track.ext === '.ass') {
       fatherFolder.push({
         type: 'text',
         hash: track.hash,
