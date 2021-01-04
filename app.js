@@ -124,5 +124,5 @@ app.use((err, req, res, next) => {
 
 // Start server
 server.listen(process.env.PORT || 8888, () => {
-  console.log(`Express listening on http://localhost:${process.env.PORT || 8888}`)
+  console.log(`Express listening on http://[::]:${process.env.PORT || 8888}`)
 });
