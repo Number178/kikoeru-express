@@ -117,17 +117,15 @@ router.get('/check-lrc/:id/:index', (req, res, next) => {
             const lrcFileLoc = fileLoc.substr(0, fileLoc.lastIndexOf(".")) + ".lrc";
 
             if (!fs.existsSync(lrcFileLoc)) {
-              //console.log('不存在歌词文件');
               res.send({result: false, message:'不存在歌词文件', hash: ''});
             } else {
-              console.log('找到歌词文件');
-              
+              console.log('找到歌词文件');             
               const lrcFileName = track.title.substr(0, track.title.lastIndexOf(".")) + ".lrc";
               const subtitleToFind = track.subtitle;
               console.log('歌词文件名： ', lrcFileName);
+              // 文件名、子目录名相同
               tracks.forEach(trackItem => {
                 if (trackItem.title === lrcFileName && subtitleToFind === trackItem.subtitle) {
-                    console.log(trackItem.hash);
                     res.send({result: true, message:'找到歌词文件', hash: trackItem.hash});
                 }
               })
@@ -143,8 +141,8 @@ router.get('/check-lrc/:id/:index', (req, res, next) => {
 // GET list of work ids
 router.get('/works', async (req, res, next) => {
   const currentPage = parseInt(req.query.page) || 1;
-  // 通过 "音声id, 贩卖日, 售出数, 评论数量, 价格, 平均评价" 排序
-  // ['id', 'release', 'dl_count', 'review_count', 'price', 'rate_average_2dp']
+  // 通过 "音声id, 贩卖日, 售出数, 评论数量, 价格, 平均评价, 全年龄新作" 排序
+  // ['id', 'release', 'dl_count', 'review_count', 'price', 'rate_average_2dp, nsfw']
   const order = req.query.order || 'release';
   const sort = req.query.sort || 'desc';
   const offset = (currentPage - 1) * PAGE_SIZE;
@@ -191,8 +189,8 @@ router.get('/get-name/:field/:id', (req, res, next) => {
 router.get('/search/:keyword?', async (req, res, next) => {
   const keyword = req.params.keyword ? req.params.keyword.trim() : '';
   const currentPage = parseInt(req.query.page) || 1;
-  // 通过 "音声id, 贩卖日, 售出数, 评论数量, 价格, 平均评价" 排序
-  // ['id', 'release', 'dl_count', 'review_count', 'price', 'rate_average_2dp']
+  // 通过 "音声id, 贩卖日, 售出数, 评论数量, 价格, 平均评价, 全年龄新作" 排序
+  // ['id', 'release', 'dl_count', 'review_count', 'price', 'rate_average_2dp', 'nsfw']
   const order = req.query.order || 'release';
   const sort = req.query.sort || 'desc';
   const offset = (currentPage - 1) * PAGE_SIZE;
@@ -225,8 +223,8 @@ router.get('/search/:keyword?', async (req, res, next) => {
 // GET list of work ids, restricted by circle/tag/VA
 router.get('/:field/:id', async (req, res, next) => {
   const currentPage = parseInt(req.query.page) || 1;
-  // 通过 "音声id, 贩卖日, 售出数, 评论数量, 价格, 平均评价" 排序
-  // ['id', 'release', 'dl_count', 'review_count', 'price', 'rate_average_2dp']
+  // 通过 "音声id, 贩卖日, 售出数, 评论数量, 价格, 平均评价, 全年龄新作" 排序
+  // ['id', 'release', 'dl_count', 'review_count', 'price', 'rate_average_2dp, 'nsfw']
   let order = req.query.order || 'release';
   const sort = req.query.sort || 'desc'; // ['desc', 'asc]
   const offset = (currentPage - 1) * PAGE_SIZE;
