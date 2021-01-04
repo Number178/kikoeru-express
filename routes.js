@@ -73,6 +73,10 @@ router.get('/stream/:id/:index', (req, res, next) => {
                 res.setHeader('Content-Type', `text/plain; charset=${charsetMatch}`);
               }
             }
+            if (path.extname(fileName) === '.flac') {
+              // iOS不支持audio/x-flac
+              res.setHeader('Content-Type', `audio/flac`);
+            }
             res.sendFile(fileName);
           })
           .catch(err => next(err));
