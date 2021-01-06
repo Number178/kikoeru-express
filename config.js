@@ -35,7 +35,20 @@ const initConfig = () => fs.writeFileSync(configPath, JSON.stringify(defaultConf
 
 const setConfig = (newConfig) => fs.writeFileSync(configPath, JSON.stringify(newConfig, null, "\t"));
 
-const getConfig = () => JSON.parse(fs.readFileSync(configPath));
+// 迁移设置
+const getConfig = () => {
+  let config = JSON.parse(fs.readFileSync(configPath));
+  let countChanged = 0;
+  for (let key in defaultConfig) {
+    if (!config.hasOwnProperty(key)) {
+      console.log('写入设置', key);
+      config[key] = defaultConfig[key];
+      countChanged += 1;
+    }
+  }
+  if (countChanged) setConfig(config);
+  return config;
+};
 
 if (!fs.existsSync(configPath)) {
   if (!fs.existsSync(configFolderDir)) {

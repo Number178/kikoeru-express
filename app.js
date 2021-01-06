@@ -135,10 +135,6 @@ runMigrations();
 let listenPort = 8888;
 if (config.listenPort) {
   listenPort = config.listenPort;
-} else {
-  // 迁移设置
-  config.listenPort = listenPort;
-  setConfig(config);
 }
 listenPort = process.env.PORT || listenPort;
 
