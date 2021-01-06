@@ -30,6 +30,7 @@ npm start
 - express (构建后端服务)
 - sqlite3 (文件型数据库)
 - knexjs (操作数据库)
+- knex-migrate (数据库迁移)
 - cheerio (将 html 解析为 jQuery 对象)
 - jsonwebtoken (用户认证)
 - socket.io (用于将扫描音声库的结果实时传给客户端)

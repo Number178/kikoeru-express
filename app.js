@@ -5,10 +5,10 @@ const history = require('connect-history-api-fallback');
 const http = require('http');
 const jwtAuth = require('socketio-jwt-auth'); // 用于 JWT 验证的 socket.io 中间件
 const child_process = require('child_process'); // 子进程
+const knexMigrate = require('knex-migrate');
 
 const { getConfig, setConfig } = require('./config');
 const config = getConfig();
-
 const api = require('./api');
 
 const app = express();
@@ -121,6 +121,16 @@ app.use((err, req, res, next) => {
     res.status(500).send({ error: err.message || err });
   }
 });
+
+async function runMigrations () {
+  const log = ({ action, migration }) => console.log('Doing ' + action + ' on ' + migration);
+  await knexMigrate('up', {
+    knexfile: './database/knexfile.js',
+    migrations: './database/migrations',
+  }, log);
+}
+
+runMigrations();
 
 let listenPort = 8888;
 if (config.listenPort) {
