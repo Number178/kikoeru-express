@@ -201,5 +201,15 @@ router.get('/config', (req, res, next) => {
   }
 });
 
+// 提交用户评价
+router.put('/review', (req, res, next) => {
+  let username = config.auth ? req.user.name : 'admin';
+  db.updateUserReview(username, req.body.work_id, req.body.rating)
+      .then(() => {
+        res.send({ message: '评价成功' });
+      }).catch(() =>{
+        res.status(500).send({ error: '评价失败，服务器错误' });
+      })
+});
 
 module.exports = router;

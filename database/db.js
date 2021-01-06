@@ -111,11 +111,21 @@ const updateWorkMetadata = work => knex.transaction(trx => trx('t_work')
 /**
  * Fetches metadata for a specific work id.
  * @param {Number} id Work identifier.
+ * @param {String} username 'admin' or other usernames for current user
  */
-const getWorkMetadata = id => new Promise((resolve, reject) => {
+const getWorkMetadata = (id, username) => new Promise((resolve, reject) => {
   // TODO: do this all in a single transaction?
+  // <= Yes, WTF is this
+
+  const ratingSubQuery = knex('t_review')
+    .select(['t_review.work_id', 't_review.rating'])
+    .join('t_work', 't_work.id', 't_review.work_id')
+    .join('t_user', 't_user.name', 't_review.user_name')
+    .where('t_review.user_name', username).as('userrate')
+
   knex('t_work')
     .select('*')
+    .leftJoin(ratingSubQuery, 'userrate.work_id', 't_work.id')
     .where('id', '=', id)
     .first()
     .then((workRes) => {
@@ -141,7 +151,8 @@ const getWorkMetadata = id => new Promise((resolve, reject) => {
             rate_count: workRes.rate_count,
             rate_average_2dp: workRes.rate_average_2dp,
             rate_count_detail: JSON.parse(workRes.rate_count_detail),
-            rank: workRes.rank ? JSON.parse(workRes.rank) : null
+            rank: workRes.rank ? JSON.parse(workRes.rank) : null,
+            userRating: workRes.rating
           };
 
           knex('r_tag_work')
@@ -470,8 +481,14 @@ const getUserFavorites = username => knex('t_favorite')
   }));
 
 
+const updateUserReview = async (username, workid, rating) => knex.transaction(async(trx) => {
+    //UPSERT
+    await trx.raw('UPDATE t_review SET rating = ?, updated_at = CURRENT_TIMESTAMP WHERE user_name = ? AND work_id = ?;', [rating, username, workid]);
+    await trx.raw('INSERT OR IGNORE INTO t_review (user_name, work_id, rating) VALUES (?, ?, ?);', [username, workid, rating]); 
+});
+
 module.exports = {
   knex, insertWorkMetadata, getWorkMetadata, removeWork, getWorksBy, getWorksByKeyWord, updateWorkMetadata, getLabels,
   createUser, updateUserPassword, resetUserPassword, deleteUser,
-  createUserFavorite, updateUserFavorite, deleteUserFavorites, getUserFavorites
+  createUserFavorite, updateUserFavorite, deleteUserFavorites, getUserFavorites, updateUserReview
 };

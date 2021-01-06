@@ -29,7 +29,11 @@ router.get('/cover/:id', (req, res, next) => {
 
 // GET work metadata
 router.get('/work/:id', (req, res, next) => {
-  db.getWorkMetadata(req.params.id)
+  let username = 'admin';
+  if (config.auth) {
+    username = req.user.name;
+  }
+  db.getWorkMetadata(req.params.id, username)
     .then(work => res.send(work))
     .catch(err => next(err));
 });

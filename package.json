@@ -15,7 +15,7 @@
   },
   "scripts": {
     "start": "node app.js",
-    "dev": "nodemon app.js",
+    "dev": "nodemon --trace-warnings app.js",
     "scan": "node ./filesystem/scanner.js",
     "build": "pkg -t win package.json --out-path package"
   },
