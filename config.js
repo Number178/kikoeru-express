@@ -27,7 +27,8 @@ const defaultConfig = {
   hvdbTimeout: 10000,
   retryDelay: 2000,
   httpProxyHost: '',
-  httpProxyPort: 0
+  httpProxyPort: 0,
+  listenPort: 8888
 };
 
 const initConfig = () => fs.writeFileSync(configPath, JSON.stringify(defaultConfig, null, "\t"));

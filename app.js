@@ -6,7 +6,7 @@ const http = require('http');
 const jwtAuth = require('socketio-jwt-auth'); // 用于 JWT 验证的 socket.io 中间件
 const child_process = require('child_process'); // 子进程
 
-const { getConfig } = require('./config');
+const { getConfig, setConfig } = require('./config');
 const config = getConfig();
 
 const api = require('./api');
@@ -122,7 +122,16 @@ app.use((err, req, res, next) => {
   }
 });
 
-// Start server
-server.listen(process.env.PORT || 8888, () => {
-  console.log(`Express listening on http://[::]:${process.env.PORT || 8888}`)
+let listenPort = 8888;
+if (config.listenPort) {
+  listenPort = config.listenPort;
+} else {
+  // 迁移设置
+  config.listenPort = listenPort;
+  setConfig(config);
+}
+listenPort = process.env.PORT || listenPort;
+
+server.listen(listenPort, () => {
+  console.log(`Express listening on http://[::]:${listenPort}`)
 });
