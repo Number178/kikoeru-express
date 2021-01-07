@@ -68,6 +68,7 @@ npm start
 - [x] 手动星标（不知道该放在哪里？）
 - [x] 评价过的作品优先
 - [ ] 星标列表
+- [ ] 进度标记
 - [ ] 重构WorkCard和WorkDetail
 - [ ] 检查on delete cascade是否可用
 - [ ] 重构config和schema，添加多用户支持（目前实际上仍然是单用户架构）
