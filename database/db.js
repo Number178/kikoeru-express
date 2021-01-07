@@ -290,28 +290,31 @@ const getWorksBy = ({id, field, username = 'admin'} = {}) => {
     .join('t_work', 't_work.id', 't_review.work_id')
     .join('t_user', 't_user.name', 't_review.user_name')
     .where('t_review.user_name', username).as('userrate')
-
+  
   switch (field) {
     case 'circle':
       return knex('t_work')
-        .select('id', 'release', 'dl_count', 'review_count', 'price', 'rate_average_2dp')
+        .select('id', 'release', 'dl_count', 'review_count', 'price', 'rate_average_2dp', 'nsfw')
+        .leftJoin(ratingSubQuery, 'userrate.work_id', 't_work.id')
         .where('circle_id', '=', id);
 
     case 'tag':
       workIdQuery = knex('r_tag_work').select('work_id').where('tag_id', '=', id);
       return knex('t_work')
-        .select('id', 'release', 'dl_count', 'review_count', 'price', 'rate_average_2dp')
+        .select('id', 'release', 'dl_count', 'review_count', 'price', 'rate_average_2dp', 'nsfw')
+        .leftJoin(ratingSubQuery, 'userrate.work_id', 't_work.id')
         .where('id', 'in', workIdQuery);
 
     case 'va':
       workIdQuery = knex('r_va_work').select('work_id').where('va_id', '=', id);
       return knex('t_work')
-        .select('id', 'release', 'dl_count', 'review_count', 'price', 'rate_average_2dp')
+        .select('id', 'release', 'dl_count', 'review_count', 'price', 'rate_average_2dp', 'nsfw')
+        .leftJoin(ratingSubQuery, 'userrate.work_id', 't_work.id')
         .where('id', 'in', workIdQuery);
 
     default:
       return knex('t_work')
-        .select('id', 'release', 'dl_count', 'review_count', 'price', 'rate_average_2dp', 'userrate.rating')
+        .select('id', 'release', 'dl_count', 'review_count', 'price', 'rate_average_2dp', 'userrate.rating', 'nsfw')
         .leftJoin(ratingSubQuery, 'userrate.work_id', 't_work.id');
   }
 };
