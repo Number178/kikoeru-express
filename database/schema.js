@@ -53,7 +53,7 @@ const createSchema = () => knex.schema
   .createTable('t_user', (table) => {
     table.string('name').notNullable();
     table.string('password').notNullable();
-    table.string('group').notNullable(); // USER ADMIN GAUST
+    table.string('group').notNullable(); // USER ADMIN guest
     table.primary(['name']); // PRIMARY KEYprimary 主键
   })
   .createTable('t_favorite', (table) => {

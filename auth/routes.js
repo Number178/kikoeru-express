@@ -69,8 +69,8 @@ router.post('/user', [
     .withMessage('密码长度至少为 5'),
   check('group')
     .custom(value => {
-      if (value !== 'user' && value !== 'gaust') {
-        throw new Error(`用户组名称必须为 ['user', 'gaust'] 的一个.`)
+      if (value !== 'user' && value !== 'guest') {
+        throw new Error(`用户组名称必须为 ['user', 'guest'] 的一个.`)
       }
       return true
     })
