@@ -199,9 +199,10 @@ router.get('/search/:keyword?', async (req, res, next) => {
   const order = req.query.order || 'release';
   const sort = req.query.sort || 'desc';
   const offset = (currentPage - 1) * PAGE_SIZE;
+  const username = config.auth ? req.user.name : 'admin';
   
   try {
-    const query = () => db.getWorksByKeyWord(keyword);
+    const query = () => db.getWorksByKeyWord({keyword: keyword, username: username});
     const totalCount = await query().count('id as count');
 
     let fields = ['id', 'release', 'rating', 'dl_count', 'review_count', 'price', 'rate_average_2dp', 'nsfw']
