@@ -71,6 +71,7 @@ npm start
 - [ ] 重构WorkCard和WorkDetail
 - [ ] 检查on delete cascade是否可用
 - [ ] 重构config和schema，添加多用户支持（目前实际上仍然是单用户架构）
+- [ ] Knex error catch
 - [x] 写迁移脚本
 - [x] 重写创建数据库逻辑（与迁移脚本冲突了）
 - [ ] 播放列表功能（目前只有一个）
