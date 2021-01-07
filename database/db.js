@@ -283,8 +283,13 @@ const removeWork = id => new Promise(async (resolve, reject) => {
  * @param {Number} id Which id to filter by.
  * @param {String} field Which field to filter by.
  */
-const getWorksBy = (id, field) => {
+const getWorksBy = ({id, field, username = 'admin'} = {}) => {
   let workIdQuery;
+  const ratingSubQuery = knex('t_review')
+    .select(['t_review.work_id', 't_review.rating'])
+    .join('t_work', 't_work.id', 't_review.work_id')
+    .join('t_user', 't_user.name', 't_review.user_name')
+    .where('t_review.user_name', username).as('userrate')
 
   switch (field) {
     case 'circle':
@@ -306,7 +311,8 @@ const getWorksBy = (id, field) => {
 
     default:
       return knex('t_work')
-        .select('id', 'release', 'dl_count', 'review_count', 'price', 'rate_average_2dp');
+        .select('id', 'release', 'dl_count', 'review_count', 'price', 'rate_average_2dp', 'userrate.rating')
+        .leftJoin(ratingSubQuery, 'userrate.work_id', 't_work.id');
   }
 };
 

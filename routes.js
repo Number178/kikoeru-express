@@ -149,23 +149,20 @@ router.get('/check-lrc/:id/:index', (req, res, next) => {
 // GET list of work ids
 router.get('/works', async (req, res, next) => {
   const currentPage = parseInt(req.query.page) || 1;
-  // 通过 "音声id, 贩卖日, 售出数, 评论数量, 价格, 平均评价, 全年龄新作" 排序
-  // ['id', 'release', 'dl_count', 'review_count', 'price', 'rate_average_2dp, nsfw']
+  // 通过 "音声id, 贩卖日, 售出数, 评论数量, 价格, 平均评价, 全年龄新作， 评价" 排序
+  // ['id', 'release', 'dl_count', 'review_count', 'price', 'rate_average_2dp, nsfw, rating']
   const order = req.query.order || 'release';
   const sort = req.query.sort || 'desc';
   const offset = (currentPage - 1) * PAGE_SIZE;
+  const username = config.auth ? req.user.name : 'admin';
   
   try {
-    const query = () => db.getWorksBy();
+    const query = () => db.getWorksBy({username: username});
     const totalCount = await query().count('id as count');
 
-    let works = null;
-    if (order === 'nsfw') {
-      works = await query().offset(offset).limit(PAGE_SIZE).orderBy([{ column: 'nsfw', order: sort }, { column: 'release', order: 'desc' }]);
-    }
-    else {
-      works = await query().offset(offset).limit(PAGE_SIZE).orderBy(order, sort);
-    }
+    let fields = ['id', 'release', 'rating', 'dl_count', 'review_count', 'price', 'rate_average_2dp', 'nsfw']
+    let orderArray = fields.filter(e => e !== order).map(option => ({'column': option, 'order': 'desc'}))
+    const works = await query().offset(offset).limit(PAGE_SIZE).orderBy(order, sort).orderBy(orderArray);
 
     res.send({
       works,
@@ -207,13 +204,9 @@ router.get('/search/:keyword?', async (req, res, next) => {
     const query = () => db.getWorksByKeyWord(keyword);
     const totalCount = await query().count('id as count');
 
-    let works = null;
-    if (order === 'nsfw') {
-      works = await query().offset(offset).limit(PAGE_SIZE).orderBy([{ column: 'nsfw', order: sort }, { column: 'release', order: 'desc' }]);
-    }
-    else {
-      works = await query().offset(offset).limit(PAGE_SIZE).orderBy(order, sort);
-    }
+    let fields = ['id', 'release', 'rating', 'dl_count', 'review_count', 'price', 'rate_average_2dp', 'nsfw']
+    let orderArray = fields.filter(e => e !== order).map(option => ({'column': option, 'order': 'desc'}))
+    const works = await query().offset(offset).limit(PAGE_SIZE).orderBy(order, sort).orderBy(orderArray);
 
     res.send({
       works,
@@ -236,18 +229,15 @@ router.get('/:field/:id', async (req, res, next) => {
   let order = req.query.order || 'release';
   const sort = req.query.sort || 'desc'; // ['desc', 'asc]
   const offset = (currentPage - 1) * PAGE_SIZE;
+  const username = config.auth ? req.user.name : 'admin';
   
   try {
-    const query = () => db.getWorksBy(req.params.id, req.params.field);
+    const query = () => db.getWorksBy({id: req.params.id, field: req.params.field, username: username});
     const totalCount = await query().count('id as count');
 
-    let works = null;
-    if (order === 'nsfw') {
-      works = await query().offset(offset).limit(PAGE_SIZE).orderBy([{ column: 'nsfw', order: sort }, { column: 'release', order: 'desc' }]);
-    }
-    else {
-      works = await query().offset(offset).limit(PAGE_SIZE).orderBy(order, sort);
-    }
+    let fields = ['id', 'release', 'rating', 'dl_count', 'review_count', 'price', 'rate_average_2dp', 'nsfw']
+    let orderArray = fields.filter(e => e !== order).map(option => ({'column': option, 'order': 'desc'}))
+    const works = await query().offset(offset).limit(PAGE_SIZE).orderBy(order, sort).orderBy(orderArray);
 
     res.send({
       works,

@@ -66,6 +66,7 @@ npm start
 - [x] 可拖动歌词控件
 - [x] 二级页面返回按钮
 - [x] 手动星标（不知道该放在哪里？）
+- [x] 评价过的作品优先
 - [ ] 星标列表
 - [ ] 重构WorkCard和WorkDetail
 - [ ] 检查on delete cascade是否可用
