@@ -17,5 +17,5 @@ exports.up = async function(knex) {
 };
 
 exports.down = async function(knex) {
-  await knex.schema.dropTable("t_review");
+  await knex.schema.dropTable("t_review").catch(err => console.error(err));
 };
