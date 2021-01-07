@@ -4,8 +4,10 @@ const stringRandom = require('string-random');
 
 const configFolderDir = process.pkg ? path.join(process.execPath, '..', 'config') : path.join(__dirname, 'config');
 const configPath = path.join(configFolderDir, 'config.json');
+const pjson = require('./package.json');
 
 const defaultConfig = {
+  version: pjson.version,
   maxParallelism: 16,
   rootFolders: [
     // {

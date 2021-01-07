@@ -1,4 +1,6 @@
-const { knex } = require('./db');
+const { knex, databaseExist, createUser } = require('./db');
+const knexMigrate = require('./knex-migrate');
+const { md5 } = require('../auth/utils');
 
 // 数据库结构
 const createSchema = () => knex.schema
@@ -96,5 +98,35 @@ const createSchema = () => knex.schema
    * }
    */
 
+const initApp = () => {
+  // 迁移或创建数据库结构
+  async function runMigrations () {
+    const log = ({ action, migration }) => console.log('Doing ' + action + ' on ' + migration);
+    await knexMigrate('up', {}, log);
+  }
 
-module.exports = { createSchema };
+  if (databaseExist) {
+    runMigrations();
+  } else if (!databaseExist) {
+    createSchema()
+      .then(async () => {
+        try { // 创建内置的管理员账号
+          await createUser({
+            name: 'admin',
+            password: md5('admin'),
+            group: 'administrator'
+          });
+        } catch(err) {{
+            console.error(err.message);
+            process.exit(1);
+          }
+        }})
+      .then(runMigrations())
+      .catch((err) => {
+        console.error(` ! 在构建数据库结构过程中出错: ${err.message}`);
+        process.exit(1);
+      })
+  }
+}
+
+module.exports = { createSchema, initApp };

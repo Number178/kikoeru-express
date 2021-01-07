@@ -1,7 +1,6 @@
 const fs = require('fs');
 const path = require('path');
-
-const { getConfig } = require('../config');
+const { getConfig} = require('../config');
 const config = getConfig();
 
 const databaseFolderDir = config.databaseFolderDir;
@@ -12,6 +11,8 @@ if (!fs.existsSync(databaseFolderDir)) {
     console.error(` ! 在创建存放数据库文件的文件夹时出错: ${err.message}`);
   }
 }
+
+const databaseExist = fs.existsSync(path.join(databaseFolderDir, 'db.sqlite3'));
 
 // knex 操作数据库
 const knex = require('knex')({
@@ -490,5 +491,5 @@ const updateUserReview = async (username, workid, rating) => knex.transaction(as
 module.exports = {
   knex, insertWorkMetadata, getWorkMetadata, removeWork, getWorksBy, getWorksByKeyWord, updateWorkMetadata, getLabels,
   createUser, updateUserPassword, resetUserPassword, deleteUser,
-  createUserFavorite, updateUserFavorite, deleteUserFavorites, getUserFavorites, updateUserReview
+  createUserFavorite, updateUserFavorite, deleteUserFavorites, getUserFavorites, updateUserReview, databaseExist
 };
