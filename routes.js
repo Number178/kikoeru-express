@@ -160,9 +160,7 @@ router.get('/works', async (req, res, next) => {
     const query = () => db.getWorksBy({username: username});
     const totalCount = await query().count('id as count');
 
-    let fields = ['id', 'release', 'rating', 'dl_count', 'review_count', 'price', 'rate_average_2dp', 'nsfw']
-    let orderArray = fields.filter(e => e !== order).map(option => ({'column': option, 'order': 'desc'}))
-    const works = await query().offset(offset).limit(PAGE_SIZE).orderBy(order, sort).orderBy(orderArray);
+    const works = await query().offset(offset).limit(PAGE_SIZE).orderBy(order, sort).orderBy([{ column: 'release', order: 'desc'}, { column: 'id', order: 'desc' }]);
 
     res.send({
       works,
@@ -205,9 +203,7 @@ router.get('/search/:keyword?', async (req, res, next) => {
     const query = () => db.getWorksByKeyWord({keyword: keyword, username: username});
     const totalCount = await query().count('id as count');
 
-    let fields = ['id', 'release', 'rating', 'dl_count', 'review_count', 'price', 'rate_average_2dp', 'nsfw']
-    let orderArray = fields.filter(e => e !== order).map(option => ({'column': option, 'order': 'desc'}))
-    const works = await query().offset(offset).limit(PAGE_SIZE).orderBy(order, sort).orderBy(orderArray);
+    const works = await query().offset(offset).limit(PAGE_SIZE).orderBy(order, sort).orderBy([{ column: 'release', order: 'desc'}, { column: 'id', order: 'desc' }]);
 
     res.send({
       works,
@@ -236,9 +232,7 @@ router.get('/:field/:id', async (req, res, next) => {
     const query = () => db.getWorksBy({id: req.params.id, field: req.params.field, username: username});
     const totalCount = await query().count('id as count');
 
-    let fields = ['id', 'release', 'rating', 'dl_count', 'review_count', 'price', 'rate_average_2dp', 'nsfw']
-    let orderArray = fields.filter(e => e !== order).map(option => ({'column': option, 'order': 'desc'}))
-    const works = await query().offset(offset).limit(PAGE_SIZE).orderBy(order, sort).orderBy(orderArray);
+    const works = await query().offset(offset).limit(PAGE_SIZE).orderBy(order, sort).orderBy([{ column: 'release', order: 'desc'}, { column: 'id', order: 'desc' }]);
 
     res.send({
       works,
