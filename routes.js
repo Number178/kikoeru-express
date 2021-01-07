@@ -149,8 +149,8 @@ router.get('/check-lrc/:id/:index', (req, res, next) => {
 // GET list of work ids
 router.get('/works', async (req, res, next) => {
   const currentPage = parseInt(req.query.page) || 1;
-  // 通过 "音声id, 贩卖日, 售出数, 评论数量, 价格, 平均评价, 全年龄新作， 评价" 排序
-  // ['id', 'release', 'dl_count', 'review_count', 'price', 'rate_average_2dp, nsfw, rating']
+  // 通过 "音声id, 贩卖日, 用户评价, 售出数, 评论数量, 价格, 平均评价, 全年龄新作， 评价" 排序
+  // ['id', 'release', 'rating', 'dl_count', 'review_count', 'price', 'rate_average_2dp, nsfw, rating']
   const order = req.query.order || 'release';
   const sort = req.query.sort || 'desc';
   const offset = (currentPage - 1) * PAGE_SIZE;
@@ -194,8 +194,8 @@ router.get('/get-name/:field/:id', (req, res, next) => {
 router.get('/search/:keyword?', async (req, res, next) => {
   const keyword = req.params.keyword ? req.params.keyword.trim() : '';
   const currentPage = parseInt(req.query.page) || 1;
-  // 通过 "音声id, 贩卖日, 售出数, 评论数量, 价格, 平均评价, 全年龄新作" 排序
-  // ['id', 'release', 'dl_count', 'review_count', 'price', 'rate_average_2dp', 'nsfw']
+  // 通过 "音声id, 贩卖日, 用户评价， 售出数, 评论数量, 价格, 平均评价, 全年龄新作" 排序
+  // ['id', 'release', 'rating', 'dl_count', 'review_count', 'price', 'rate_average_2dp', 'nsfw']
   const order = req.query.order || 'release';
   const sort = req.query.sort || 'desc';
   const offset = (currentPage - 1) * PAGE_SIZE;
@@ -225,8 +225,8 @@ router.get('/search/:keyword?', async (req, res, next) => {
 // GET list of work ids, restricted by circle/tag/VA
 router.get('/:field/:id', async (req, res, next) => {
   const currentPage = parseInt(req.query.page) || 1;
-  // 通过 "音声id, 贩卖日, 售出数, 评论数量, 价格, 平均评价, 全年龄新作" 排序
-  // ['id', 'release', 'dl_count', 'review_count', 'price', 'rate_average_2dp, 'nsfw']
+  // 通过 "音声id, 贩卖日, 用户评价, 售出数, 评论数量, 价格, 平均评价, 全年龄新作" 排序
+  // ['id', 'release', 'rating', 'dl_count', 'review_count', 'price', 'rate_average_2dp, 'nsfw']
   let order = req.query.order || 'release';
   const sort = req.query.sort || 'desc'; // ['desc', 'asc]
   const offset = (currentPage - 1) * PAGE_SIZE;
