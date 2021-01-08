@@ -192,7 +192,7 @@ const getMetadata = (id, rootFolderName, dir, tagLanguage) => {
  * 从 DLsite 下载封面图片，并保存到 Images 文件夹，
  * 返回一个 Promise 对象，处理结果: 'added' or 'failed'
  * @param {number} id work id
- * @param {Array} types img types: ['main', 'sam', 'sam@2x', 'sam@3x']
+ * @param {Array} types img types: ['main', 'sam', 'sam@2x', 'sam@3x', '240x240', '360x360']
  */
 const getCoverImage = (id, types) => {
   const rjcode = (`000000${id}`).slice(-6); // zero-pad to 6 digits
@@ -200,7 +200,10 @@ const getCoverImage = (id, types) => {
   const rjcode2 = (`000000${id2}`).slice(-6); // zero-pad to 6 digits
   const promises = [];
   types.forEach(type => {
-    const url = `https://img.dlsite.jp/modpub/images2/work/doujin/RJ${rjcode2}/RJ${rjcode}_img_${type}.jpg`;
+    let url = `https://img.dlsite.jp/modpub/images2/work/doujin/RJ${rjcode2}/RJ${rjcode}_img_${type}.jpg`;
+    if (type === '240x240'|| type === '360x360') {
+      url = `https://img.dlsite.jp/resize/images2/work/doujin/RJ${rjcode2}/RJ${rjcode}_img_main_${type}.jpg`;
+    }
     promises.push(
       axios.retryGet(url, { responseType: "stream", retry: {} })
         .then((imageRes) => {
@@ -257,7 +260,7 @@ const processFolder = (folder) => db.knex('t_work')
   .first()
   .then((res) => {
     const rjcode = (`000000${folder.id}`).slice(-6); // zero-pad to 6 digits
-    const coverTypes = ['main', 'sam'];
+    const coverTypes = ['main', 'sam', '240x240', '360x360'];
     const count = res['count(*)'];
     if (count) { // 查询数据库，检查是否已经写入该音声的元数据
       // 已经成功写入元数据

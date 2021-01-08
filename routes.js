@@ -15,7 +15,7 @@ const router = express.Router();
 // GET work cover image
 router.get('/cover/:id', (req, res, next) => {
   const rjcode = (`000000${req.params.id}`).slice(-6);
-  const type = req.query.type || 'main'; // 'main' or 'sam'
+  const type = req.query.type || 'main'; // 'main', 'sam', '240x240', '360x360'
   res.sendFile(path.join(config.coverFolderDir, `RJ${rjcode}_img_${type}.jpg`), (err) => {
     if (err) {
       res.sendFile(path.join(__dirname, './static/no-image.jpg'), (err2) => {
