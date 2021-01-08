@@ -302,7 +302,7 @@ const processFolder = (folder) => db.knex('t_work')
           }
         });
     }
-  }).catch(err => console.error(err));
+  });
 
 const MAX = config.maxParallelism; // 并发请求上限
 const limitP = new LimitPromise(MAX); // 核心控制器
@@ -587,7 +587,7 @@ const performUpdate = () => db.knex('t_work').select('id')
           }
         });
     }
-  }).catch(err => console.error(err));
+  });
 
   // process.send({
   //   event: 'SCAN_ERROR',
