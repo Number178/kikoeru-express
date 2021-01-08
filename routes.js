@@ -87,7 +87,7 @@ router.get('/stream/:id/:index', (req, res, next) => {
       } else {
         res.status(500).send({error: `找不到文件夹: "${work.root_folder}"，请尝试重启服务器或重新扫描.`});
       }
-    }).catch(err => console.error(err));
+    });
 });
 
 router.get('/download/:id/:index', (req, res, next) => {
@@ -107,7 +107,7 @@ router.get('/download/:id/:index', (req, res, next) => {
       } else {
         res.status(500).send({error: `找不到文件夹: "${work.root_folder}"，请尝试重启服务器或重新扫描.`});
       }
-    }).catch(err => console.error(err));
+    });
 });
 
 router.get('/check-lrc/:id/:index', (req, res, next) => {
@@ -143,7 +143,7 @@ router.get('/check-lrc/:id/:index', (req, res, next) => {
       } else {
         res.status(500).send({error: `找不到文件夹: "${work.root_folder}"，请尝试重启服务器或重新扫描.`});
       }
-    }).catch(err => console.error(err));
+    });
 });
 
 // GET list of work ids
@@ -162,10 +162,6 @@ router.get('/works', async (req, res, next) => {
 
     const works = await query().offset(offset).limit(PAGE_SIZE).orderBy(order, sort)
       .orderBy([{ column: 'release', order: 'desc'}, { column: 'id', order: 'desc' }])
-      .catch(err => {
-        console.error(err);
-        res.status(500).send({error: '查询过程中出错'});
-      });
 
     res.send({
       works,
@@ -176,6 +172,7 @@ router.get('/works', async (req, res, next) => {
       }
     });
   } catch(err) {
+    res.status(500).send({error: '查询过程中出错'});
     next(err);
   }
 });
@@ -210,10 +207,6 @@ router.get('/search/:keyword?', async (req, res, next) => {
 
     const works = await query().offset(offset).limit(PAGE_SIZE).orderBy(order, sort)
       .orderBy([{ column: 'release', order: 'desc'}, { column: 'id', order: 'desc' }])
-      .catch(err => {
-        console.error(err);
-        res.status(500).send({error: '查询过程中出错'});
-      });
 
     res.send({
       works,
@@ -224,6 +217,7 @@ router.get('/search/:keyword?', async (req, res, next) => {
       }
     });
   } catch(err) {
+    res.status(500).send({error: '查询过程中出错'});
     next(err);
   }
 });
@@ -244,7 +238,6 @@ router.get('/:field/:id', async (req, res, next) => {
 
     const works = await query().offset(offset).limit(PAGE_SIZE).orderBy(order, sort)
       .orderBy([{ column: 'release', order: 'desc'}, { column: 'id', order: 'desc' }])
-      .catch(err => console.error(err));
 
     res.send({
       works,
