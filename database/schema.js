@@ -1,6 +1,11 @@
 const { knex, databaseExist, createUser } = require('./db');
 const knexMigrate = require('./knex-migrate');
 const { md5 } = require('../auth/utils');
+const pjson = require('../package.json');
+const compareVersions = require('compare-versions');
+
+const { getConfig, updateConfig } = require('../config');
+const config = getConfig();
 
 // 数据库结构
 const createSchema = () => knex.schema
@@ -99,14 +104,20 @@ const createSchema = () => knex.schema
    */
 
 const initApp = () => {
+  let configVersion = config.version;
+  let currentVersion = pjson.version;
+
   // 迁移或创建数据库结构
   async function runMigrations () {
     const log = ({ action, migration }) => console.log('Doing ' + action + ' on ' + migration);
     await knexMigrate('up', {}, log);
   }
 
-  if (databaseExist) {
-    runMigrations();
+  if (databaseExist && compareVersions.compare(currentVersion, configVersion, '>')) {
+    console.log('升级中');
+    runMigrations()
+      .then(updateConfig())
+      .catch(console.error);
   } else if (!databaseExist) {
     createSchema()
       .then(async () => {

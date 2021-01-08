@@ -1,6 +1,6 @@
 {
   "name": "kikoeru-express",
-  "version": "0.4.1",
+  "version": "0.4.3",
   "description": "server",
   "bin": "app.js",
   "pkg": {
@@ -28,6 +28,7 @@
     "axios": "^0.19.2",
     "body-parser": "^1.19.0",
     "cheerio": "^1.0.0-rc.3",
+    "compare-versions": "^3.6.0",
     "connect-history-api-fallback": "^1.6.0",
     "express": "^4.17.1",
     "express-jwt": "^5.3.1",

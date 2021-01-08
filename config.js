@@ -6,6 +6,8 @@ const configFolderDir = process.pkg ? path.join(process.execPath, '..', 'config'
 const configPath = path.join(configFolderDir, 'config.json');
 const pjson = require('./package.json');
 
+const versionWithoutVerTracking = '0.4.1';
+
 const defaultConfig = {
   version: pjson.version,
   maxParallelism: 16,
@@ -37,18 +39,18 @@ const initConfig = () => fs.writeFileSync(configPath, JSON.stringify(defaultConf
 
 const setConfig = (newConfig) => fs.writeFileSync(configPath, JSON.stringify(newConfig, null, "\t"));
 
-// 迁移设置
+// Get or use default value
 const getConfig = () => {
   let config = JSON.parse(fs.readFileSync(configPath));
-  let countChanged = 0;
   for (let key in defaultConfig) {
     if (!config.hasOwnProperty(key)) {
-      console.log('写入设置', key);
-      config[key] = defaultConfig[key];
-      countChanged += 1;
+      if (key === 'version') {
+        config['version'] = versionWithoutVerTracking;
+      } else {
+        config[key] = defaultConfig[key];
+      }
     }
   }
-  if (countChanged) setConfig(config);
   return config;
 };
 
@@ -63,7 +65,23 @@ if (!fs.existsSync(configPath)) {
   initConfig();
 }
 
+// Migrate config
+const updateConfig = () => {
+  let config = JSON.parse(fs.readFileSync(configPath));
+  let countChanged = 0;
+  for (let key in defaultConfig) {
+    if (!config.hasOwnProperty(key)) {
+      console.log('写入设置', key);
+      config[key] = defaultConfig[key];
+      countChanged += 1;
+    }
+  }
+  if (countChanged || config.version !== pjson.version) {
+    config.version = pjson.version;
+    setConfig(config)
+  };
+}
 
 module.exports = {
-  setConfig, getConfig
+  setConfig, getConfig, updateConfig
 };
