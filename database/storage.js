@@ -57,6 +57,21 @@ module.exports = class KnexStorage {
     })
   }
 
+  // Non standard
+  async skipMigrations (migrationNames) {
+    return this.knex.transaction(async (trx) => {
+      await this.ensureTable ()
+
+      const currentBatch = await this.getCurrentBatch()
+
+      let records = []
+      migrationNames.forEach((fileName, index) => {
+        records.push({name: fileName, batch: currentBatch + 1, migration_time: new Date()})
+      });
+      return this.knex(this.tableName).insert(records)
+    })
+  }
+
   unlogMigration (migrationName) {
     return this.knex(this.tableName)
       .where('name', migrationName)

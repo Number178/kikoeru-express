@@ -3,11 +3,13 @@
 // 仍然使用绝对路径导致找不到文件的问题
 
 const { join } = require('path')
-const { existsSync } = require('fs')
+const { existsSync} = require('fs')
 const Umzug = require('umzug')
 const { omitBy, isNil} = require('lodash')
 const Promise = require('bluebird')
 const knex = require('knex')
+const { promisify } = require('util')
+const readdir = promisify(require('fs').readdir)
 
 function normalizeFlags (flags) {
   flags.knexfile = flags.knexfile || 'knexfile.js'
@@ -63,7 +65,7 @@ function knexInit (flags) {
     config.useNullAsDefault = true
   }
 
-  config.pool = { max: 1, min: 0, idleTimeoutMillis: 1000 }
+  config.pool = { max: 10, min: 0, idleTimeoutMillis: 1000 }
 
   return knex(config)
 }
@@ -168,6 +170,12 @@ async function knexMigrate (command, flags, progress) {
       await umzug.storage.ensureTable()
       return umzug.up(opts)
     },
+    
+    // Non standard, used in this project only
+    skipAll: async () => {
+      let files  = await readdir(flags.migrations)
+      return umzug.storage.skipMigrations(files).catch(err => console.error(err))
+    }
   }
 
   if (!(command in api)) {

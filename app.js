@@ -122,7 +122,7 @@ app.use((err, req, res, next) => {
   }
 });
 
-initApp();
+initApp().catch(err => console.error(err));
 
 let listenPort = 8888;
 if (config.listenPort) {

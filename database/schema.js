@@ -103,7 +103,7 @@ const createSchema = () => knex.schema
    * }
    */
 
-const initApp = () => {
+const initApp = async () => {
   let configVersion = config.version;
   let currentVersion = pjson.version;
 
@@ -112,6 +112,12 @@ const initApp = () => {
     const log = ({ action, migration }) => console.log('Doing ' + action + ' on ' + migration);
     await knexMigrate('up', {}, log);
   }
+
+  async function skipMigrations () {
+    await knexMigrate('skipAll', {});
+  }
+
+  // await skipMigrations();
 
   if (databaseExist && compareVersions.compare(currentVersion, configVersion, '>')) {
     console.log('升级中');
@@ -132,7 +138,7 @@ const initApp = () => {
             process.exit(1);
           }
         }})
-      .then(runMigrations())
+      .then(skipMigrations())
       .catch((err) => {
         console.error(` ! 在构建数据库结构过程中出错: ${err.message}`);
         process.exit(1);
