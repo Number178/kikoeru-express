@@ -121,28 +121,27 @@ const initApp = async () => {
 
   if (databaseExist && compareVersions.compare(currentVersion, configVersion, '>')) {
     console.log('升级中');
-    runMigrations()
-      .then(updateConfig())
-      .catch(console.error);
+    await runMigrations();
+    await updateConfig();
   } else if (!databaseExist) {
-    createSchema()
-      .then(async () => {
-        try { // 创建内置的管理员账号
-          await createUser({
-            name: 'admin',
-            password: md5('admin'),
-            group: 'administrator'
-          });
-        } catch(err) {{
-            console.error(err.message);
-            process.exit(1);
-          }
-        }})
-      .then(skipMigrations())
-      .catch((err) => {
-        console.error(` ! 在构建数据库结构过程中出错: ${err.message}`);
+    await createSchema()
+    try { // 创建内置的管理员账号
+      await createUser({
+        name: 'admin',
+        password: md5('admin'),
+        group: 'administrator'
+      });
+    } catch(err) {{
+        console.error(err.message);
         process.exit(1);
-      })
+      }
+    }
+    try {
+      await skipMigrations()
+    } catch {
+      console.error(` ! 在构建数据库结构过程中出错: ${err.message}`);
+      process.exit(1);
+    }
   }
 }
 
