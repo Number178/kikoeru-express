@@ -80,6 +80,7 @@ npm start
 - [ ] 收藏功能
 - [ ] docker适当的权限与进程监控
 - [ ] 添加计划任务，定期更新音声的动态元数据
+- [ ] PM2 readme
 
 ### 感谢
 本项目的大部分后端代码来自于开源项目 [kikoeru](https://github.com/nortonandrews/kikoeru)
