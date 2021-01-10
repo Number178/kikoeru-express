@@ -117,20 +117,35 @@ const getWorkMetadata = (id, username) => new Promise((resolve, reject) => {
   // TODO: do this all in a single transaction?
   // <= Yes, WTF is this
 
-    knex.raw(`SELECT t_work.*, t_circle.name AS circlename, t_tag.id AS tagid, t_tag.name AS tagname, t_va.id AS vaid, t_va.name AS vaname, userrate.rating
+    knex.raw(`
+    SELECT t_work.*,
+      t_circle.name AS circlename,
+      t_tag.id AS tagid,
+      t_tag.name AS tagname,
+      t_va.id AS vaid,
+      t_va.name AS vaname,
+      userrate.rating,
+      userrate.review_text,
+      userrate.progress,
+      datetime(userrate.updated_at,'localtime')
     FROM t_work
-    JOIN t_circle on t_circle.id = t_work.circle_id
-    JOIN r_tag_work on r_tag_work.work_id = t_work.id
-    JOIN t_tag on t_tag.id = r_tag_work.tag_id
-    JOIN r_va_work on r_va_work.work_id = t_work.id
-    join t_va on t_va.id = r_va_work.va_id
-    LEFT JOIN (
-      SELECT t_review.work_id, t_review.rating from t_review
-      JOIN t_work on t_work.id = t_review.work_id
-      JOIN t_user on t_review.user_name = t_user.name
-      WHERE t_review.user_name = ?
-    ) AS userrate
-    ON userrate.work_id = t_work.id
+      JOIN t_circle on t_circle.id = t_work.circle_id
+      JOIN r_tag_work on r_tag_work.work_id = t_work.id
+      JOIN t_tag on t_tag.id = r_tag_work.tag_id
+      JOIN r_va_work on r_va_work.work_id = t_work.id
+      join t_va on t_va.id = r_va_work.va_id
+      LEFT JOIN (
+        SELECT t_review.work_id,
+          t_review.rating,
+          t_review.review_text,
+          t_review.progress,
+          t_review.updated_at
+        FROM t_review
+          JOIN t_work on t_work.id = t_review.work_id
+          JOIN t_user on t_review.user_name = t_user.name
+        WHERE t_review.user_name = ?
+      ) AS userrate
+      ON userrate.work_id = t_work.id
     WHERE t_work.id = ?;`, [username, id])
       .then(res => {
         if (res.length === 0) throw new Error(`There is no work with id ${id} in the database.`);
@@ -496,14 +511,20 @@ const getUserFavorites = username => knex('t_favorite')
   }));
 
 
-const updateUserReview = async (username, workid, rating) => knex.transaction(async(trx) => {
+const updateUserReview = async (username, workid, rating, review_text = '', progress = '') => knex.transaction(async(trx) => {
     //UPSERT
-    await trx.raw('UPDATE t_review SET rating = ?, updated_at = CURRENT_TIMESTAMP WHERE user_name = ? AND work_id = ?;', [rating, username, workid]);
-    await trx.raw('INSERT OR IGNORE INTO t_review (user_name, work_id, rating) VALUES (?, ?, ?);', [username, workid, rating]); 
+    await trx.raw('UPDATE t_review SET rating = ?, review_text = ?, progress = ?, updated_at = CURRENT_TIMESTAMP WHERE user_name = ? AND work_id = ?;', [rating, review_text, progress, username, workid]);
+    await trx.raw('INSERT OR IGNORE INTO t_review (user_name, work_id, rating, review_text, progress) VALUES (?, ?, ?, ?, ?);', [username, workid, rating, review_text, progress]); 
 });
+
+// 删除星标及评语
+const deleteUserReview = (username, workid) => knex.transaction(trx => trx('t_review')
+  .where('user_name', '=', username)
+  .andWhere('work_id', '=', workid)
+  .del());
 
 module.exports = {
   knex, insertWorkMetadata, getWorkMetadata, removeWork, getWorksBy, getWorksByKeyWord, updateWorkMetadata, getLabels,
   createUser, updateUserPassword, resetUserPassword, deleteUser,
-  createUserFavorite, updateUserFavorite, deleteUserFavorites, getUserFavorites, updateUserReview, databaseExist
+  createUserFavorite, updateUserFavorite, deleteUserFavorites, getUserFavorites, updateUserReview, deleteUserReview, databaseExist
 };

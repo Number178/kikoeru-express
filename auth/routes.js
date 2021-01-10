@@ -203,12 +203,21 @@ router.get('/config', (req, res, next) => {
 // 提交用户评价
 router.put('/review', (req, res, next) => {
   let username = config.auth ? req.user.name : 'admin';
-  db.updateUserReview(username, req.body.work_id, req.body.rating)
+  db.updateUserReview(username, req.body.work_id, req.body.rating, req.body.review_text, req.body.progress)
       .then(() => {
         res.send({ message: '评价成功' });
       }).catch(() =>{
         res.status(500).send({ error: '评价失败，服务器错误' });
       })
+});
+
+// 删除用户评价
+router.delete('/user', (req, res, next) => {
+  let username = config.auth ? req.user.name : 'admin';
+  db.deleteUserReview(username, req.body.work_id)
+    .then(() => {
+      res.send({message: '删除评价成功'});
+    }).catch(() => next(err));
 });
 
 module.exports = router;
