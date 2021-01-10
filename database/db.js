@@ -523,19 +523,53 @@ const deleteUserReview = (username, workid) => knex.transaction(trx => trx('t_re
   .andWhere('work_id', '=', workid)
   .del());
 
-// 
-const getWorksWithReviews = ({id, username = ''} = {}) => {
-  let workIdQuery;
-  const ratingSubQuery = knex('t_review')
-    .select(['t_review.work_id', 't_review.rating', 't_review.review_text', 't_review.progress', 't_review.created_at', 't_review.updated_at'])
-    .join('t_work', 't_work.id', 't_review.work_id')
-    .join('t_user', 't_user.name', 't_review.user_name')
-    .where('t_review.user_name', username).as('userrate')
+// TODO 增加排序列 写migration
+const getWorksWithReviews = ({username = '', limit = 1000, offset = 0, orderBy = 'release', sortOption = 'desc'} = {}) => knex.transaction(async(trx) => {
+  await trx.raw(
+    `CREATE VIEW IF NOT EXISTS userMetadata AS
+    SELECT t_work.id,
+      t_work.title,
+      json_object('id', t_work.circle_id, 'name', t_circle.name) AS circleObj,
+      t_work.release,
+      t_va.id AS vaid, 
+      t_va.name AS vaname,
+      userrate.userRating,
+      userrate.review_text,
+      userrate.progress,
+      userrate.updated_at,
+      json_object('vas', json_group_array(json_object('id', t_va.id, 'name', t_va.name))) AS vaObj,
+      userrate.user_name
+    FROM t_work
+    JOIN t_circle on t_circle.id = t_work.circle_id
+    JOIN r_va_work on r_va_work.work_id = t_work.id
+    join t_va on t_va.id = r_va_work.va_id
+    JOIN (
+        SELECT t_review.work_id,
+          t_review.rating AS userRating,
+          t_review.review_text,
+          t_review.progress,
+          t_review.updated_at,
+          t_review.user_name
+        FROM t_review
+          JOIN t_work on t_work.id = t_review.work_id
+        ) AS userrate
+    ON userrate.work_id = t_work.id
+    GROUP BY t_work.id
+  `);
   
-    return knex('t_work')
-      .select('id', 'userrate.rating', 'userrate.review_text', 'userrate.progress', 'userrate.created_at', 'userrate.updated_at')
-      .join(ratingSubQuery, 'userrate.work_id', 't_work.id');
-};
+  let works = await trx('userMetadata').where('user_name', '=', username).orderBy(orderBy, sortOption).limit(limit).offset(offset);
+
+  console.log(trx('userMetadata').where('user_name', '=', username).orderBy(orderBy, sortOption).limit(limit).offset(offset).toString());
+
+  if (works.length > 0) {
+    works.map(record => {
+      record.circle = JSON.parse(record.circleObj);
+      record.vas = JSON.parse(record.vaObj)['vas'];
+    })
+  }
+  works = {'works': works};
+  return works;
+});
 
 module.exports = {
   knex, insertWorkMetadata, getWorkMetadata, removeWork, getWorksBy, getWorksByKeyWord, updateWorkMetadata, getLabels,
