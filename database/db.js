@@ -117,62 +117,59 @@ const getWorkMetadata = (id, username) => new Promise((resolve, reject) => {
   // TODO: do this all in a single transaction?
   // <= Yes, WTF is this
 
-  const ratingSubQuery = knex('t_review')
-    .select(['t_review.work_id', 't_review.rating'])
-    .join('t_work', 't_work.id', 't_review.work_id')
-    .join('t_user', 't_user.name', 't_review.user_name')
-    .where('t_review.user_name', username).as('userrate')
+    knex.raw(`SELECT t_work.*, t_circle.name AS circlename, t_tag.id AS tagid, t_tag.name AS tagname, t_va.id AS vaid, t_va.name AS vaname, userrate.rating
+    FROM t_work
+    JOIN t_circle on t_circle.id = t_work.circle_id
+    JOIN r_tag_work on r_tag_work.work_id = t_work.id
+    JOIN t_tag on t_tag.id = r_tag_work.tag_id
+    JOIN r_va_work on r_va_work.work_id = t_work.id
+    join t_va on t_va.id = r_va_work.va_id
+    LEFT JOIN (
+      SELECT t_review.work_id, t_review.rating from t_review
+      JOIN t_work on t_work.id = t_review.work_id
+      JOIN t_user on t_review.user_name = t_user.name
+      WHERE t_review.user_name = ?
+    ) AS userrate
+    ON userrate.work_id = t_work.id
+    WHERE t_work.id = ?;`, [username, id])
+      .then(res => {
+        if (res.length === 0) throw new Error(`There is no work with id ${id} in the database.`);
+        let work = {};
+        let result = res[0];
+        work.id= result.id;
+        work.title= result.title;
+        work.circle= {id: result.circle_id, name: result.circlename};
+        work.nsfw= Boolean(result.nsfw);
+        work.release= result.release;
 
-  knex('t_work')
-    .select('*')
-    .leftJoin(ratingSubQuery, 'userrate.work_id', 't_work.id')
-    .where('id', '=', id)
-    .first()
-    .then((workRes) => {
-      if (!workRes) {
-        throw new Error(`There is no work with id ${id} in the database.`);
-      }
+        work.dl_count= result.dl_count;
+        work.price= result.price;
+        work.review_count= result.review_count;
+        work.rate_count= result.rate_count;
+        work.rate_average_2dp= result.rate_average_2dp;
+        work.rate_count_detail= JSON.parse(result.rate_count_detail);
+        work.rank= result.rank ? JSON.parse(result.rank) : null;
+        work.userRating= result.rating;
 
-      knex('t_circle')
-        .select('name')
-        .where('t_circle.id', '=', workRes.circle_id)
-        .first()
-        .then((circleRes) => {
-          const work = {
-            id: workRes.id,
-            title: workRes.title,
-            circle: { id: workRes.circle_id, name: circleRes.name },
-            nsfw: Boolean(workRes.nsfw),
-            release: workRes.release,
-
-            dl_count: workRes.dl_count,
-            price: workRes.price,
-            review_count: workRes.review_count,
-            rate_count: workRes.rate_count,
-            rate_average_2dp: workRes.rate_average_2dp,
-            rate_count_detail: JSON.parse(workRes.rate_count_detail),
-            rank: workRes.rank ? JSON.parse(workRes.rank) : null,
-            userRating: workRes.rating
-          };
-
-          knex('r_tag_work')
-            .select('tag_id', 'name')
-            .where('r_tag_work.work_id', '=', id)
-            .join('t_tag', 't_tag.id', '=', 'r_tag_work.tag_id')
-            .then((tagsRes) => {
-              work.tags = tagsRes.map(tag => ({ id: tag.tag_id, name: tag.name }));
-
-              knex('r_va_work')
-                .select('va_id', 'name')
-                .where('r_va_work.work_id', '=', id)
-                .join('t_va', 't_va.id', '=', 'r_va_work.va_id')
-                .then((vaRes) => {
-                  work.vas = vaRes.map(va => ({ id: va.va_id, name: va.name }));
-                  resolve(work);
-                });
-            });
-        });
-    })
+        // Get unique tags and vas records
+        let tags = new Set();
+        let vas = new Set();
+        let tagRecord = [];
+        let vasRecord = [];
+        for (record of res) {
+          if (!tags.has(record.tagname)) {
+            tags.add(record.tagname);
+            tagRecord.push({id: record.tagid, name: record.tagname});
+          }
+          if (!vas.has(record.vaname)) {
+            vas.add(record.vaname);
+            vasRecord.push({id: record.vaid, name: record.vaname});
+          }
+        }
+        work.tags = tagRecord;
+        work.vas = vasRecord;
+        resolve(work);
+      })
     .catch(err => reject(err));
 });
 
