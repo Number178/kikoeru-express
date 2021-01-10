@@ -176,6 +176,36 @@ router.get('/works', async (req, res, next) => {
   }
 });
 
+router.get('/favourites', async (req, res, next) => {
+  const currentPage = parseInt(req.query.page) || 1;
+  // 通过 "音声id, 贩卖日, 评价, 用户评价, 售出数, 评论数量, 价格, 平均评价, 全年龄新作" 排序
+  // ['id', 'release', 'rating', 'dl_count', 'review_count', 'price', 'rate_average_2dp, nsfw']
+  const order = req.query.order || 'release';
+  const sort = req.query.sort || 'desc';
+  const offset = (currentPage - 1) * PAGE_SIZE;
+  const username = config.auth ? req.user.name : 'admin';
+  
+  try {
+    const query = () => db.getWorksWithReviews({username: username});
+    const totalCount = await query().count('id as count');
+
+    const works = await query().offset(offset).limit(PAGE_SIZE).orderBy(order, sort)
+      .orderBy([{ column: 'release', order: 'desc'}, { column: 'id', order: 'desc' }])
+
+    res.send({
+      works,
+      pagination: {
+        currentPage,
+        pageSize: PAGE_SIZE,
+        totalCount: totalCount[0]['count']
+      }
+    });
+  } catch(err) {
+    res.status(500).send({error: '查询过程中出错'});
+    next(err);
+  }
+});
+
 // GET name of a circle/tag/VA
 router.get('/get-name/:field/:id', (req, res, next) => {
   if (req.params.field === 'undefined') {

@@ -510,7 +510,7 @@ const getUserFavorites = username => knex('t_favorite')
     return favorite;
   }));
 
-
+// 添加星标或评语
 const updateUserReview = async (username, workid, rating, review_text = '', progress = '') => knex.transaction(async(trx) => {
     //UPSERT
     await trx.raw('UPDATE t_review SET rating = ?, review_text = ?, progress = ?, updated_at = CURRENT_TIMESTAMP WHERE user_name = ? AND work_id = ?;', [rating, review_text, progress, username, workid]);
@@ -523,8 +523,23 @@ const deleteUserReview = (username, workid) => knex.transaction(trx => trx('t_re
   .andWhere('work_id', '=', workid)
   .del());
 
+// 
+const getWorksWithReviews = ({id, username = ''} = {}) => {
+  let workIdQuery;
+  const ratingSubQuery = knex('t_review')
+    .select(['t_review.work_id', 't_review.rating', 't_review.review_text', 't_review.progress', 't_review.created_at', 't_review.updated_at'])
+    .join('t_work', 't_work.id', 't_review.work_id')
+    .join('t_user', 't_user.name', 't_review.user_name')
+    .where('t_review.user_name', username).as('userrate')
+  
+    return knex('t_work')
+      .select('id', 'userrate.rating', 'userrate.review_text', 'userrate.progress', 'userrate.created_at', 'userrate.updated_at')
+      .join(ratingSubQuery, 'userrate.work_id', 't_work.id');
+};
+
 module.exports = {
   knex, insertWorkMetadata, getWorkMetadata, removeWork, getWorksBy, getWorksByKeyWord, updateWorkMetadata, getLabels,
   createUser, updateUserPassword, resetUserPassword, deleteUser,
-  createUserFavorite, updateUserFavorite, deleteUserFavorites, getUserFavorites, updateUserReview, deleteUserReview, databaseExist
+  createUserFavorite, updateUserFavorite, deleteUserFavorites, getUserFavorites, 
+  getWorksWithReviews, updateUserReview, deleteUserReview, databaseExist
 };
