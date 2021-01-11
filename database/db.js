@@ -536,7 +536,7 @@ const deleteUserReview = (username, workid) => knex.transaction(trx => trx('t_re
   .del());
 
 // TODO 写migration
-const getWorksWithReviews = ({username = '', limit = 1000, offset = 0, orderBy = 'release', sortOption = 'desc'} = {}) => knex.transaction(async(trx) => {
+const getWorksWithReviews = ({username = '', limit = 1000, offset = 0, orderBy = 'release', sortOption = 'desc', filter} = {}) => knex.transaction(async(trx) => {
   await trx.raw(
     `CREATE VIEW IF NOT EXISTS userMetadata AS
     SELECT t_work.id,
@@ -572,9 +572,16 @@ const getWorksWithReviews = ({username = '', limit = 1000, offset = 0, orderBy =
     GROUP BY t_work.id
   `);
   
-  let works = await trx('userMetadata').where('user_name', '=', username)
-    .orderBy(orderBy, sortOption).orderBy([{ column: 'release', order: 'desc'}, { column: 'id', order: 'desc' }])
-    .limit(limit).offset(offset);
+  let works = [];
+  let query = () => trx('userMetadata').where('user_name', '=', username)
+  .orderBy(orderBy, sortOption).orderBy([{ column: 'release', order: 'desc'}, { column: 'id', order: 'desc' }])
+  .limit(limit).offset(offset);
+
+  if (filter) {
+    works = await query().where('progress', '=', filter);
+  } else {
+    works = await query();
+  }
 
   if (works.length > 0) {
     works.map(record => {

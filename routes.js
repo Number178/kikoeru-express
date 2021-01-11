@@ -184,9 +184,10 @@ router.get('/favourites', async (req, res, next) => {
   const sort = req.query.sort || 'desc';
   const offset = (currentPage - 1) * PAGE_SIZE;
   const username = config.auth ? req.user.name : 'admin';
+  const filter = req.query.filter;
   
   try {
-    const works = await db.getWorksWithReviews({username: username, limit: PAGE_SIZE, offset: offset, orderBy: order, sortOption: sort});
+    const works = await db.getWorksWithReviews({username: username, limit: PAGE_SIZE, offset: offset, orderBy: order, sortOption: sort, filter});
 
     res.send({
       works,

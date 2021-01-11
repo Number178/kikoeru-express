@@ -69,7 +69,7 @@ npm start
 - [x] 评价过的作品优先
 - [x] 星标前端 CRUD
 - [x] 星标后端 CRUD
-- [ ] 进度标记
+- [x] 进度标记页面
 - [ ] 用户评价
 - [ ] 重构WorkCard和WorkDetail
 - [x] 检查on delete cascade是否可用
