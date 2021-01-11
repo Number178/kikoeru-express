@@ -73,7 +73,7 @@ npm start
 - [x] 用户评价
 - [ ] 修复面条代码里的placeholders
 - [ ] 重构WorkCard和WorkDetail
-- [ ] 检查启用foreign key是否会出错
+- [x] 检查启用foreign key是否会出错
 - [ ] 重构config和schema，添加多用户支持（目前实际上仍然是单用户架构）
 - [x] Knex error catch
 - [x] 写迁移脚本
