@@ -511,10 +511,18 @@ const getUserFavorites = username => knex('t_favorite')
   }));
 
 // 添加星标或评语
-const updateUserReview = async (username, workid, rating, review_text = '', progress = '') => knex.transaction(async(trx) => {
+const updateUserReview = async (username, workid, rating, review_text = '', progress = '', starOnly = true, progressOnly= false) => knex.transaction(async(trx) => {
     //UPSERT
-    await trx.raw('UPDATE t_review SET rating = ?, review_text = ?, progress = ?, updated_at = CURRENT_TIMESTAMP WHERE user_name = ? AND work_id = ?;', [rating, review_text, progress, username, workid]);
-    await trx.raw('INSERT OR IGNORE INTO t_review (user_name, work_id, rating, review_text, progress) VALUES (?, ?, ?, ?, ?);', [username, workid, rating, review_text, progress]); 
+    if (starOnly) {
+      await trx.raw('UPDATE t_review SET rating = ?, updated_at = CURRENT_TIMESTAMP WHERE user_name = ? AND work_id = ?;', [rating, username, workid]);
+      await trx.raw('INSERT OR IGNORE INTO t_review (user_name, work_id, rating) VALUES (?, ?, ?);', [username, workid, rating]); 
+    } else if (progressOnly) {
+      await trx.raw('UPDATE t_review SET progress = ?, updated_at = CURRENT_TIMESTAMP WHERE user_name = ? AND work_id = ?;', [progress, username, workid]);
+      await trx.raw('INSERT OR IGNORE INTO t_review (user_name, work_id, progress) VALUES (?, ?, ?);', [username, workid, progress]); 
+    } else {
+      await trx.raw('UPDATE t_review SET rating = ?, review_text = ?, progress = ?, updated_at = CURRENT_TIMESTAMP WHERE user_name = ? AND work_id = ?;', [rating, review_text, progress, username, workid]);
+      await trx.raw('INSERT OR IGNORE INTO t_review (user_name, work_id, rating, review_text, progress) VALUES (?, ?, ?, ?, ?);', [username, workid, rating, review_text, progress]); 
+    }
 });
 
 // 删除星标及评语
@@ -523,7 +531,7 @@ const deleteUserReview = (username, workid) => knex.transaction(trx => trx('t_re
   .andWhere('work_id', '=', workid)
   .del());
 
-// TODO 增加排序列 写migration
+// TODO 写migration
 const getWorksWithReviews = ({username = '', limit = 1000, offset = 0, orderBy = 'release', sortOption = 'desc'} = {}) => knex.transaction(async(trx) => {
   await trx.raw(
     `CREATE VIEW IF NOT EXISTS userMetadata AS
@@ -531,6 +539,9 @@ const getWorksWithReviews = ({username = '', limit = 1000, offset = 0, orderBy =
       t_work.title,
       json_object('id', t_work.circle_id, 'name', t_circle.name) AS circleObj,
       t_work.release,
+      t_work.review_count,
+      t_work.dl_count,
+      t_work.nsfw,
       t_va.id AS vaid, 
       t_va.name AS vaname,
       userrate.userRating,
@@ -548,7 +559,7 @@ const getWorksWithReviews = ({username = '', limit = 1000, offset = 0, orderBy =
           t_review.rating AS userRating,
           t_review.review_text,
           t_review.progress,
-          t_review.updated_at,
+          strftime('%Y-%m-%d', t_review.updated_at, 'localtime') AS updated_at,
           t_review.user_name
         FROM t_review
           JOIN t_work on t_work.id = t_review.work_id
@@ -557,9 +568,9 @@ const getWorksWithReviews = ({username = '', limit = 1000, offset = 0, orderBy =
     GROUP BY t_work.id
   `);
   
-  let works = await trx('userMetadata').where('user_name', '=', username).orderBy(orderBy, sortOption).limit(limit).offset(offset);
-
-  console.log(trx('userMetadata').where('user_name', '=', username).orderBy(orderBy, sortOption).limit(limit).offset(offset).toString());
+  let works = await trx('userMetadata').where('user_name', '=', username)
+    .orderBy(orderBy, sortOption).orderBy([{ column: 'release', order: 'desc'}, { column: 'id', order: 'desc' }])
+    .limit(limit).offset(offset);
 
   if (works.length > 0) {
     works.map(record => {
@@ -567,7 +578,7 @@ const getWorksWithReviews = ({username = '', limit = 1000, offset = 0, orderBy =
       record.vas = JSON.parse(record.vaObj)['vas'];
     })
   }
-  works = {'works': works};
+
   return works;
 });
 

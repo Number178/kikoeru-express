@@ -186,18 +186,19 @@ router.get('/favourites', async (req, res, next) => {
   const username = config.auth ? req.user.name : 'admin';
   
   try {
-    // const query = () => db.getWorksWithReviews({username: username});
-    // const totalCount = await query().count('id as count');
-
-    // const works = await query().offset(offset).limit(PAGE_SIZE).orderBy(order, sort)
-    //   .orderBy([{ column: 'release', order: 'desc'}, { column: 'id', order: 'desc' }])
-
     const works = await db.getWorksWithReviews({username: username, limit: PAGE_SIZE, offset: offset, orderBy: order, sortOption: sort});
-    // console.log(db.getWorksWithReviews({username: username}).toString());
-    res.send(works);
+
+    res.send({
+      works,
+      pagination: {
+        currentPage,
+        pageSize: PAGE_SIZE,
+        totalCount: works.length
+      }
+    });
   } catch(err) {
     res.status(500).send({error: '查询过程中出错'});
-    console.log(err)
+    console.error(err)
   }
 });
 

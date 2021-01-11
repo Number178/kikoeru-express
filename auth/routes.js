@@ -203,7 +203,15 @@ router.get('/config', (req, res, next) => {
 // 提交用户评价
 router.put('/review', (req, res, next) => {
   let username = config.auth ? req.user.name : 'admin';
-  db.updateUserReview(username, req.body.work_id, req.body.rating, req.body.review_text, req.body.progress)
+  let starOnly = true;
+  let progressOnly = false;
+  if (req.query.starOnly === 'false') {
+    starOnly = false;
+  }
+  if (req.query.progressOnly === 'true') {
+    progressOnly = true
+  }
+  db.updateUserReview(username, req.body.work_id, req.body.rating, req.body.review_text, req.body.progress, starOnly, progressOnly)
       .then(() => {
         res.send({ message: '评价成功' });
       }).catch(() =>{
@@ -212,12 +220,12 @@ router.put('/review', (req, res, next) => {
 });
 
 // 删除用户评价
-router.delete('/user', (req, res, next) => {
+router.delete('/review', (req, res, next) => {
   let username = config.auth ? req.user.name : 'admin';
-  db.deleteUserReview(username, req.body.work_id)
+  db.deleteUserReview(username, req.query.work_id)
     .then(() => {
       res.send({message: '删除评价成功'});
-    }).catch(() => next(err));
+    }).catch((err) => next(err));
 });
 
 module.exports = router;
