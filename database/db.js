@@ -1,6 +1,7 @@
 const fs = require('fs');
 const path = require('path');
 const { config} = require('../config');
+const strftime = require('strftime') // not required in browsers
 
 const databaseFolderDir = config.databaseFolderDir;
 if (!fs.existsSync(databaseFolderDir)) {
@@ -562,7 +563,7 @@ const getWorksWithReviews = ({username = '', limit = 1000, offset = 0, orderBy =
           t_review.rating AS userRating,
           t_review.review_text,
           t_review.progress,
-          strftime('%Y-%m-%d', t_review.updated_at, 'localtime') AS updated_at,
+          strftime('%Y-%m-%d %H-%M-%S', t_review.updated_at, 'localtime') AS updated_at,
           t_review.user_name
         FROM t_review
           JOIN t_work on t_work.id = t_review.work_id
@@ -581,6 +582,7 @@ const getWorksWithReviews = ({username = '', limit = 1000, offset = 0, orderBy =
       record.vas = JSON.parse(record.vaObj)['vas'];
     })
   }
+  works.supdated_at = strftime('%Y-%m-%d', works.updated_at);
 
   return works;
 });
