@@ -186,6 +186,7 @@ const getWorkMetadata = (id, username) => new Promise((resolve, reject) => {
 
         work.userRating= result.rating;
         work.progress = result.progress;
+        work.review_text = result.review_text;
 
         resolve(work);
       })
