@@ -225,12 +225,12 @@ router.put('/review', (req, res, next) => {
       })
 });
 
-// 删除用户评价
+// 删除用户标记
 router.delete('/review', (req, res, next) => {
   let username = config.auth ? req.user.name : 'admin';
   db.deleteUserReview(username, req.query.work_id)
     .then(() => {
-      res.send({message: '删除评价成功'});
+      res.send({message: '删除标记成功'});
     }).catch((err) => next(err));
 });
 
