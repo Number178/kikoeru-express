@@ -259,7 +259,7 @@ const processFolder = (folder) => db.knex('t_work')
   .first()
   .then((res) => {
     const rjcode = (`000000${folder.id}`).slice(-6); // zero-pad to 6 digits
-    const coverTypes = ['main', 'sam', '240x240', '360x360'];
+    const coverTypes = ['main', 'sam', '240x240'];
     const count = res['count(*)'];
     if (count) { // 查询数据库，检查是否已经写入该音声的元数据
       // 已经成功写入元数据
