@@ -22,6 +22,11 @@ const knex = require('knex')({
     filename: path.join(databaseFolderDir, 'db.sqlite3'),
   },
   acquireConnectionTimeout: 5000, // 连接计时器
+  pool: {
+    afterCreate: (conn, cb) => {
+      conn.run('PRAGMA foreign_keys = ON', cb)
+    }
+  }
 });
 
 /**
