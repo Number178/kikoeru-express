@@ -65,14 +65,15 @@ npm start
 ### TODO
 - [x] 可拖动歌词控件
 - [x] 二级页面返回按钮
-- [x] 手动星标（不知道该放在哪里？）
+- [x] 手动星标
 - [x] 评价过的作品优先
 - [x] 星标前端 CRUD
 - [x] 星标后端 CRUD
 - [x] 进度标记页面
-- [ ] 用户评价
+- [x] 用户评价
+- [ ] 修复面条代码里的placeholders
 - [ ] 重构WorkCard和WorkDetail
-- [x] 检查on delete cascade是否可用
+- [ ] 检查启用foreign key是否会出错
 - [ ] 重构config和schema，添加多用户支持（目前实际上仍然是单用户架构）
 - [x] Knex error catch
 - [x] 写迁移脚本
