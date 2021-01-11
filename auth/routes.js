@@ -211,11 +211,17 @@ router.put('/review', (req, res, next) => {
   if (req.query.progressOnly === 'true') {
     progressOnly = true
   }
+  
   db.updateUserReview(username, req.body.work_id, req.body.rating, req.body.review_text, req.body.progress, starOnly, progressOnly)
       .then(() => {
-        res.send({ message: '评价成功' });
-      }).catch(() =>{
+        if (progressOnly) {
+          res.send({ message: '更新进度成功' });
+        } else {
+          res.send({ message: '评价成功' });
+        }
+      }).catch((err) =>{
         res.status(500).send({ error: '评价失败，服务器错误' });
+        console.error(err);
       })
 });
 

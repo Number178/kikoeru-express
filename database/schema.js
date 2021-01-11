@@ -73,7 +73,7 @@ const createSchema = () => knex.schema
     table.integer('rating'); // 用户评分1-5
     table.string('review_text'); // 用户评价文字
     table.timestamps(); // 时间戳created_at, updated_at
-    table.string('progress'); // ['marked', 'listening', 'listened', 'abandoned', null]
+    table.string('progress'); // ['marked', 'listening', 'listened', 'postponed', null]
     table.foreign('user_name').references('name').inTable('t_user'); // FOREIGN KEY 
     table.foreign('work_id').references('id').inTable('t_work'); // FOREIGN KEY 
     table.primary(['user_name', 'work_id']); // PRIMARY KEY

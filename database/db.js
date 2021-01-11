@@ -164,7 +164,6 @@ const getWorkMetadata = (id, username) => new Promise((resolve, reject) => {
         work.rate_average_2dp= result.rate_average_2dp;
         work.rate_count_detail= JSON.parse(result.rate_count_detail);
         work.rank= result.rank ? JSON.parse(result.rank) : null;
-        work.userRating= result.rating;
 
         // Get unique tags and vas records
         let tags = new Set();
@@ -183,6 +182,10 @@ const getWorkMetadata = (id, username) => new Promise((resolve, reject) => {
         }
         work.tags = tagRecord;
         work.vas = vasRecord;
+
+        work.userRating= result.rating;
+        work.progress = result.progress;
+
         resolve(work);
       })
     .catch(err => reject(err));
@@ -510,7 +513,7 @@ const getUserFavorites = username => knex('t_favorite')
     return favorite;
   }));
 
-// 添加星标或评语
+// 添加星标或评语或进度
 const updateUserReview = async (username, workid, rating, review_text = '', progress = '', starOnly = true, progressOnly= false) => knex.transaction(async(trx) => {
     //UPSERT
     if (starOnly) {

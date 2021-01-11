@@ -1,6 +1,6 @@
 exports.up = async function(knex) {
   await knex.schema.alterTable('t_review', function(table) {
-    table.string('progress'); // add column ['marked', 'listening', 'listened', 'abandoned', null]
+    table.string('progress'); // add column ['marked', 'listening', 'listened', 'postponed', null]
   });
 };
 
