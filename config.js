@@ -80,7 +80,7 @@ const updateConfig = () => {
   let countChanged = 0;
   for (let key in defaultConfig) {
     if (!cfg.hasOwnProperty(key)) {
-      cfg.log('写入设置', key);
+      console.log('写入设置', key);
       cfg[key] = defaultConfig[key];
       countChanged += 1;
     }
