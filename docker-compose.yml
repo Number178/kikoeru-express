@@ -11,5 +11,5 @@ services:
             - ./sqlite:/usr/src/kikoeru/sqlite
             - ./covers:/usr/src/kikoeru/covers
             - ./config:/usr/src/kikoeru/config
-        image: 'muveex/kikoeru:v0.4.1'
+        image: 'muveex/kikoeru:v0.5.0-alpha'
         restart: always
