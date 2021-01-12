@@ -6,8 +6,7 @@ const express = require('express');
 const db = require('./database/db');
 const { getTrackList, toTree } = require('./filesystem/utils');
 
-const { getConfig } = require('./config');
-const config = getConfig();
+const { config } = require('./config');
 
 const PAGE_SIZE = config.pageSize || 12;
 const router = express.Router();
@@ -15,7 +14,7 @@ const router = express.Router();
 // GET work cover image
 router.get('/cover/:id', (req, res, next) => {
   const rjcode = (`000000${req.params.id}`).slice(-6);
-  const type = req.query.type || 'main'; // 'main' or 'sam'
+  const type = req.query.type || 'main'; // 'main', 'sam', '240x240', '360x360'
   res.sendFile(path.join(config.coverFolderDir, `RJ${rjcode}_img_${type}.jpg`), (err) => {
     if (err) {
       res.sendFile(path.join(__dirname, './static/no-image.jpg'), (err2) => {
@@ -29,7 +28,11 @@ router.get('/cover/:id', (req, res, next) => {
 
 // GET work metadata
 router.get('/work/:id', (req, res, next) => {
-  db.getWorkMetadata(req.params.id)
+  let username = 'admin';
+  if (config.auth) {
+    username = req.user.name;
+  }
+  db.getWorkMetadata(req.params.id, username)
     .then(work => res.send(work))
     .catch(err => next(err));
 });
@@ -145,23 +148,19 @@ router.get('/check-lrc/:id/:index', (req, res, next) => {
 // GET list of work ids
 router.get('/works', async (req, res, next) => {
   const currentPage = parseInt(req.query.page) || 1;
-  // 通过 "音声id, 贩卖日, 售出数, 评论数量, 价格, 平均评价, 全年龄新作" 排序
-  // ['id', 'release', 'dl_count', 'review_count', 'price', 'rate_average_2dp, nsfw']
+  // 通过 "音声id, 贩卖日, 评价, 用户评价, 售出数, 评论数量, 价格, 平均评价, 全年龄新作， 评价" 排序
+  // ['id', 'release', 'rating', 'dl_count', 'review_count', 'price', 'rate_average_2dp, nsfw']
   const order = req.query.order || 'release';
   const sort = req.query.sort || 'desc';
   const offset = (currentPage - 1) * PAGE_SIZE;
+  const username = config.auth ? req.user.name : 'admin';
   
   try {
-    const query = () => db.getWorksBy();
+    const query = () => db.getWorksBy({username: username});
     const totalCount = await query().count('id as count');
 
-    let works = null;
-    if (order === 'nsfw') {
-      works = await query().offset(offset).limit(PAGE_SIZE).orderBy([{ column: 'nsfw', order: sort }, { column: 'release', order: 'desc' }]);
-    }
-    else {
-      works = await query().offset(offset).limit(PAGE_SIZE).orderBy(order, sort);
-    }
+    const works = await query().offset(offset).limit(PAGE_SIZE).orderBy(order, sort)
+      .orderBy([{ column: 'release', order: 'desc'}, { column: 'id', order: 'desc' }])
 
     res.send({
       works,
@@ -172,7 +171,35 @@ router.get('/works', async (req, res, next) => {
       }
     });
   } catch(err) {
+    res.status(500).send({error: '查询过程中出错'});
     next(err);
+  }
+});
+
+router.get('/favourites', async (req, res, next) => {
+  const currentPage = parseInt(req.query.page) || 1;
+  // 通过 "音声id, 贩卖日, 评价, 用户评价, 售出数, 评论数量, 价格, 平均评价, 全年龄新作" 排序
+  // ['id', 'release', 'rating', 'dl_count', 'review_count', 'price', 'rate_average_2dp, nsfw']
+  const order = req.query.order || 'release';
+  const sort = req.query.sort || 'desc';
+  const offset = (currentPage - 1) * PAGE_SIZE;
+  const username = config.auth ? req.user.name : 'admin';
+  const filter = req.query.filter;
+  
+  try {
+    const works = await db.getWorksWithReviews({username: username, limit: PAGE_SIZE, offset: offset, orderBy: order, sortOption: sort, filter});
+
+    res.send({
+      works,
+      pagination: {
+        currentPage,
+        pageSize: PAGE_SIZE,
+        totalCount: works.length
+      }
+    });
+  } catch(err) {
+    res.status(500).send({error: '查询过程中出错'});
+    console.error(err)
   }
 });
 
@@ -193,23 +220,19 @@ router.get('/get-name/:field/:id', (req, res, next) => {
 router.get('/search/:keyword?', async (req, res, next) => {
   const keyword = req.params.keyword ? req.params.keyword.trim() : '';
   const currentPage = parseInt(req.query.page) || 1;
-  // 通过 "音声id, 贩卖日, 售出数, 评论数量, 价格, 平均评价, 全年龄新作" 排序
-  // ['id', 'release', 'dl_count', 'review_count', 'price', 'rate_average_2dp', 'nsfw']
+  // 通过 "音声id, 贩卖日, 用户评价， 售出数, 评论数量, 价格, 平均评价, 全年龄新作" 排序
+  // ['id', 'release', 'rating', 'dl_count', 'review_count', 'price', 'rate_average_2dp', 'nsfw']
   const order = req.query.order || 'release';
   const sort = req.query.sort || 'desc';
   const offset = (currentPage - 1) * PAGE_SIZE;
+  const username = config.auth ? req.user.name : 'admin';
   
   try {
-    const query = () => db.getWorksByKeyWord(keyword);
+    const query = () => db.getWorksByKeyWord({keyword: keyword, username: username});
     const totalCount = await query().count('id as count');
 
-    let works = null;
-    if (order === 'nsfw') {
-      works = await query().offset(offset).limit(PAGE_SIZE).orderBy([{ column: 'nsfw', order: sort }, { column: 'release', order: 'desc' }]);
-    }
-    else {
-      works = await query().offset(offset).limit(PAGE_SIZE).orderBy(order, sort);
-    }
+    const works = await query().offset(offset).limit(PAGE_SIZE).orderBy(order, sort)
+      .orderBy([{ column: 'release', order: 'desc'}, { column: 'id', order: 'desc' }])
 
     res.send({
       works,
@@ -220,6 +243,7 @@ router.get('/search/:keyword?', async (req, res, next) => {
       }
     });
   } catch(err) {
+    res.status(500).send({error: '查询过程中出错'});
     next(err);
   }
 });
@@ -227,23 +251,19 @@ router.get('/search/:keyword?', async (req, res, next) => {
 // GET list of work ids, restricted by circle/tag/VA
 router.get('/:field/:id', async (req, res, next) => {
   const currentPage = parseInt(req.query.page) || 1;
-  // 通过 "音声id, 贩卖日, 售出数, 评论数量, 价格, 平均评价, 全年龄新作" 排序
-  // ['id', 'release', 'dl_count', 'review_count', 'price', 'rate_average_2dp, 'nsfw']
+  // 通过 "音声id, 贩卖日, 用户评价, 售出数, 评论数量, 价格, 平均评价, 全年龄新作" 排序
+  // ['id', 'release', 'rating', 'dl_count', 'review_count', 'price', 'rate_average_2dp, 'nsfw']
   let order = req.query.order || 'release';
   const sort = req.query.sort || 'desc'; // ['desc', 'asc]
   const offset = (currentPage - 1) * PAGE_SIZE;
+  const username = config.auth ? req.user.name : 'admin';
   
   try {
-    const query = () => db.getWorksBy(req.params.id, req.params.field);
+    const query = () => db.getWorksBy({id: req.params.id, field: req.params.field, username: username});
     const totalCount = await query().count('id as count');
 
-    let works = null;
-    if (order === 'nsfw') {
-      works = await query().offset(offset).limit(PAGE_SIZE).orderBy([{ column: 'nsfw', order: sort }, { column: 'release', order: 'desc' }]);
-    }
-    else {
-      works = await query().offset(offset).limit(PAGE_SIZE).orderBy(order, sort);
-    }
+    const works = await query().offset(offset).limit(PAGE_SIZE).orderBy(order, sort)
+      .orderBy([{ column: 'release', order: 'desc'}, { column: 'id', order: 'desc' }])
 
     res.send({
       works,
@@ -254,6 +274,7 @@ router.get('/:field/:id', async (req, res, next) => {
       }
     });
   } catch(err) {
+    res.status(500).send({error: '查询过程中出错'});
     next(err);
   }
 });

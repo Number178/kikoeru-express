@@ -1,4 +1,10 @@
-const { knex } = require('./db');
+const { knex, databaseExist, createUser } = require('./db');
+const knexMigrate = require('./knex-migrate');
+const { md5 } = require('../auth/utils');
+const pjson = require('../package.json');
+const compareVersions = require('compare-versions');
+
+const { config, updateConfig } = require('../config');
 
 // 数据库结构
 const createSchema = () => knex.schema
@@ -51,7 +57,7 @@ const createSchema = () => knex.schema
   .createTable('t_user', (table) => {
     table.string('name').notNullable();
     table.string('password').notNullable();
-    table.string('group').notNullable(); // USER ADMIN GAUST
+    table.string('group').notNullable(); // USER ADMIN guest
     table.primary(['name']); // PRIMARY KEYprimary 主键
   })
   .createTable('t_favorite', (table) => {
@@ -60,6 +66,17 @@ const createSchema = () => knex.schema
     table.text('works').notNullable(); // TEXT 类型 [评价分布明细]
     table.foreign('user_name').references('name').inTable('t_user'); // FOREIGN KEY 外键
     table.primary(['user_name', 'name']); // PRIMARY KEYprimary 主键
+  })
+  .createTable('t_review', (table) => {
+    table.string('user_name').notNullable();
+    table.string('work_id').notNullable();
+    table.integer('rating'); // 用户评分1-5
+    table.string('review_text'); // 用户评价文字
+    table.timestamps(); // 时间戳created_at, updated_at
+    table.string('progress'); // ['marked', 'listening', 'listened', 'postponed', null]
+    table.foreign('user_name').references('name').inTable('t_user'); // FOREIGN KEY 
+    table.foreign('work_id').references('id').inTable('t_work'); // FOREIGN KEY 
+    table.primary(['user_name', 'work_id']); // PRIMARY KEY
   })
   .then(() => {
     console.log(' * 成功构建数据库结构.');
@@ -86,5 +103,46 @@ const createSchema = () => knex.schema
    * }
    */
 
+const initApp = async () => {
+  let configVersion = config.version;
+  let currentVersion = pjson.version;
 
-module.exports = { createSchema };
+  // 迁移或创建数据库结构
+  async function runMigrations () {
+    const log = ({ action, migration }) => console.log('Doing ' + action + ' on ' + migration);
+    await knexMigrate('up', {}, log);
+  }
+
+  async function skipMigrations () {
+    await knexMigrate('skipAll', {});
+  }
+
+  // await skipMigrations();
+
+  if (databaseExist && compareVersions.compare(currentVersion, configVersion, '>')) {
+    console.log('升级中');
+    await runMigrations();
+    await updateConfig();
+  } else if (!databaseExist) {
+    await createSchema()
+    try { // 创建内置的管理员账号
+      await createUser({
+        name: 'admin',
+        password: md5('admin'),
+        group: 'administrator'
+      });
+    } catch(err) {{
+        console.error(err.message);
+        process.exit(1);
+      }
+    }
+    try {
+      await skipMigrations()
+    } catch {
+      console.error(` ! 在构建数据库结构过程中出错: ${err.message}`);
+      process.exit(1);
+    }
+  }
+}
+
+module.exports = { createSchema, initApp };

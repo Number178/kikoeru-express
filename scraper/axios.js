@@ -1,8 +1,8 @@
 const originAxios = require('axios');
 const { httpsOverHttp, httpOverHttp } = require('tunnel-agent');
 
-const { getConfig } = require('../config');
-const Config = getConfig();
+const { config } = require('../config');
+const Config = config;
 
 const axios = originAxios.create();
 // axios.defaults.timeout = Config.timeout || 2000; // 请求超时的毫秒数

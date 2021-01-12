@@ -65,13 +65,25 @@ npm start
 ### TODO
 - [x] 可拖动歌词控件
 - [x] 二级页面返回按钮
-- [ ] 手动星标（不知道该放在哪里？）
+- [x] 手动星标
+- [x] 评价过的作品优先
+- [x] 星标前端 CRUD
+- [x] 星标后端 CRUD
+- [x] 进度标记页面
+- [x] 用户评价
+- [x] 修复面条代码里的placeholders
+- [ ] 重构WorkCard和WorkDetail
+- [x] 检查启用foreign key是否会出错
 - [ ] 重构config和schema，添加多用户支持（目前实际上仍然是单用户架构）
-- [ ] 写迁移脚本
+- [x] Knex error catch
+- [x] 写迁移脚本
+- [x] 重写创建数据库逻辑（与迁移脚本冲突了）
 - [ ] 播放列表功能（目前只有一个）
-- [ ] 收藏功能
 - [ ] docker适当的权限与进程监控
 - [ ] 添加计划任务，定期更新音声的动态元数据
+- [ ] PM2 readme
+- [x] 首次扫描bug
+- [x] 扫描设置
 
 ### 感谢
 本项目的大部分后端代码来自于开源项目 [kikoeru](https://github.com/nortonandrews/kikoeru)

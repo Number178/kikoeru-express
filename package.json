@@ -1,6 +1,6 @@
 {
   "name": "kikoeru-express",
-  "version": "0.4.1",
+  "version": "0.4.3",
   "description": "server",
   "bin": "app.js",
   "pkg": {
@@ -10,12 +10,15 @@
     ],
     "assets": [
       "dist/**/*",
-      "static/**/*"
+      "static/**/*",
+      "database/migrations/*",
+      "database/knexfile.js",
+      "database/storage.js"
     ]
   },
   "scripts": {
     "start": "node app.js",
-    "dev": "nodemon app.js",
+    "dev": "nodemon --trace-warnings app.js",
     "scan": "node ./filesystem/scanner.js",
     "build": "pkg -t win package.json --out-path package"
   },
@@ -25,6 +28,7 @@
     "axios": "^0.19.2",
     "body-parser": "^1.19.0",
     "cheerio": "^1.0.0-rc.3",
+    "compare-versions": "^3.6.0",
     "connect-history-api-fallback": "^1.6.0",
     "express": "^4.17.1",
     "express-jwt": "^5.3.1",
@@ -32,7 +36,7 @@
     "htmlparser2": "^4.1.0",
     "jschardet": "^2.2.1",
     "jsonwebtoken": "^8.5.1",
-    "knex": "^0.20.11",
+    "knex": "^0.20.15",
     "knex-migrate": "^1.7.4",
     "limit-promise": "^1.0.4",
     "md5": "^2.2.1",
@@ -41,6 +45,7 @@
     "socket.io": "^2.3.0",
     "socketio-jwt-auth": "^0.1.0",
     "sqlite3": "^4.1.1",
+    "strftime": "^0.10.0",
     "string-random": "^0.1.3",
     "tunnel-agent": "^0.6.0"
   }
