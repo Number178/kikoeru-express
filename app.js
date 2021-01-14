@@ -108,7 +108,8 @@ io.on('connection', function (socket) {
 });
 
 // 返回错误响应
-app.use((err, req, res) => {
+// eslint-disable-next-line no-unused-vars
+app.use((err, req, res, next) => {
   if (err.name === 'UnauthorizedError') { 
     // 验证错误  
     res.status(401).send({ error: err.message });

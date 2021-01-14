@@ -49,7 +49,8 @@ if (config.auth) {
 }
 
 // 获取用户信息
-router.get('/me', (req, res) => {
+// eslint-disable-next-line no-unused-vars
+router.get('/me', (req, res, next) => {
   // 同时告诉客户端，服务器是否启用用户验证
   const auth = config.auth;
   const user = config.auth
@@ -201,7 +202,8 @@ router.get('/config', (req, res, next) => {
 });
 
 // 提交用户评价
-router.put('/review', (req, res) => {
+// eslint-disable-next-line no-unused-vars
+router.put('/review', (req, res, next) => {
   let username = config.auth ? req.user.name : 'admin';
   let starOnly = true;
   let progressOnly = false;

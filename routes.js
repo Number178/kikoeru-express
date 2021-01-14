@@ -176,7 +176,8 @@ router.get('/works', async (req, res, next) => {
   }
 });
 
-router.get('/favourites', async (req, res) => {
+// eslint-disable-next-line no-unused-vars
+router.get('/favourites', async (req, res, next) => {
   const currentPage = parseInt(req.query.page) || 1;
   // 通过 "音声id, 贩卖日, 评价, 用户评价, 售出数, 评论数量, 价格, 平均评价, 全年龄新作" 排序
   // ['id', 'release', 'rating', 'dl_count', 'review_count', 'price', 'rate_average_2dp, nsfw']
