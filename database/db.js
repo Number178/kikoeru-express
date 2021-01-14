@@ -1,7 +1,7 @@
 const fs = require('fs');
 const path = require('path');
-const { config} = require('../config');
-const strftime = require('strftime') // not required in browsers
+const { config } = require('../config');
+const { strftime } = require('./strftime')
 
 const databaseFolderDir = config.databaseFolderDir;
 if (!fs.existsSync(databaseFolderDir)) {
@@ -580,9 +580,9 @@ const getWorksWithReviews = ({username = '', limit = 1000, offset = 0, orderBy =
     works.map(record => {
       record.circle = JSON.parse(record.circleObj);
       record.vas = JSON.parse(record.vaObj)['vas'];
+      record.updated_at = strftime('%F', record.updated_at);
     })
   }
-  works.supdated_at = strftime('%Y-%m-%d', works.updated_at);
 
   return works;
 });
