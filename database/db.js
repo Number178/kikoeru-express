@@ -205,9 +205,7 @@ const getWorkMetadata = (id, username) => new Promise((resolve, reject) => {
  * @param {*} tags Array of tag ids to check.
  * @param {*} vas Array of VA ids to check.
  */
-
-// TODO: fix this mess (see eslint)
-const cleanupOrphans = (trx, circle, tags, vas) => new Promise(async (resolve, reject) => {
+const cleanupOrphans = async (trx, circle, tags, vas)  => {
   const getCount = (tableName, colName, colValue) => new Promise((resolveCount, rejectCount) => {
     trx(tableName)
       .select(colName)
@@ -261,49 +259,32 @@ const cleanupOrphans = (trx, circle, tags, vas) => new Promise(async (resolve, r
     }
   }
 
-  Promise.all(promises)
-    .then((results) => {
-      resolve(results);
-    })
-    .catch(err => reject(err));
-});
+  return Promise.all(promises);
+};
 
 /**
  * Removes a work and then its orphaned circles, tags & VAs from the database.
  * @param {Integer} id Work id.
  */
-// TODO: fix this mess (see eslint)
-const removeWork = id => new Promise(async (resolve, reject) => {
-  const trx = await knex.transaction();
-
+const removeWork = async (id) => {
+  await knex.transaction(async (trx) => {
   // Save circle, tags and VAs to array for later testing
-  const circle = await trx('t_work').select('circle_id').where('id', '=', id).first();
-  const tags = await trx('r_tag_work').select('tag_id').where('work_id', '=', id);
-  const vas = await trx('r_va_work').select('va_id').where('work_id', '=', id);
+    const circle = await trx('t_work').select('circle_id').where('id', '=', id).first();
+    const tags = await trx('r_tag_work').select('tag_id').where('work_id', '=', id);
+    const vas = await trx('r_va_work').select('va_id').where('work_id', '=', id);
 
-  // Remove work and its relationships
-  trx('r_tag_work')
-    .del() 
-    .where('work_id', '=', id)
-    .then(() => trx('r_va_work')
-      .del()
-      .where('work_id', '=', id))
-      .then(() => trx('t_review')
-        .del()
-        .where('work_id', '=', id))
-        .then(() => trx('t_work')
-          .del()
-          .where('id', '=', id))
-            .then(() => cleanupOrphans(
-              trx,
-              circle.circle_id,
-              tags.map(tag => tag.tag_id),
-              vas.map(va => va.va_id),
-            ))
-            .then(() => trx.commit())
-            .then(() => resolve())
-    .catch(err => reject(err));
-});
+    await trx('r_tag_work').del().where('work_id', '=', id);
+    await trx('r_va_work').del().where('work_id', '=', id);
+    await trx('t_review').del().where('work_id', '=', id);
+    await trx('t_work').del().where('id', '=', id);
+    await cleanupOrphans(
+      trx,
+      circle.circle_id,
+      tags.map(tag => tag.tag_id),
+      vas.map(va => va.va_id),
+    )
+  });
+};
 
 /**
  * Returns list of works by circle, tag or VA.
