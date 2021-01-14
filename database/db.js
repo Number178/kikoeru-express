@@ -23,9 +23,9 @@ const knex = require('knex')({
   },
   acquireConnectionTimeout: 5000, // 连接计时器
   pool: {
-    // afterCreate: (conn, cb) => {
-    //   conn.run('PRAGMA foreign_keys = ON', cb)
-    // }
+    afterCreate: (conn, cb) => {
+      conn.run('PRAGMA foreign_keys = ON', cb)
+    }
   }
 });
 
@@ -279,23 +279,26 @@ const removeWork = id => new Promise(async (resolve, reject) => {
   const vas = await trx('r_va_work').select('va_id').where('work_id', '=', id);
 
   // Remove work and its relationships
-  trx('t_work')
-    .del()
-    .where('id', '=', id)
-    .then(trx('r_tag_work')
+  trx('r_tag_work')
+    .del() 
+    .where('work_id', '=', id)
+    .then(() => trx('r_va_work')
       .del()
-      .where('work_id', '=', id)
-      .then(trx('r_va_work')
+      .where('work_id', '=', id))
+      .then(() => trx('t_review')
         .del()
-        .where('work_id', '=', id)
-        .then(() => cleanupOrphans(
-          trx,
-          circle.circle_id,
-          tags.map(tag => tag.tag_id),
-          vas.map(va => va.va_id),
-        ))
-        .then(trx.commit)
-        .then(() => resolve())))
+        .where('work_id', '=', id))
+        .then(() => trx('t_work')
+          .del()
+          .where('id', '=', id))
+            .then(() => cleanupOrphans(
+              trx,
+              circle.circle_id,
+              tags.map(tag => tag.tag_id),
+              vas.map(va => va.va_id),
+            ))
+            .then(() => trx.commit())
+            .then(() => resolve())
     .catch(err => reject(err));
 });
 
