@@ -23,9 +23,9 @@ const knex = require('knex')({
   },
   acquireConnectionTimeout: 5000, // 连接计时器
   pool: {
-    afterCreate: (conn, cb) => {
-      conn.run('PRAGMA foreign_keys = ON', cb)
-    }
+    // afterCreate: (conn, cb) => {
+    //   conn.run('PRAGMA foreign_keys = ON', cb)
+    // }
   }
 });
 
