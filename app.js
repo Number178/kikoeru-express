@@ -108,7 +108,7 @@ io.on('connection', function (socket) {
 });
 
 // 返回错误响应
-app.use((err, req, res, next) => {
+app.use((err, req, res) => {
   if (err.name === 'UnauthorizedError') { 
     // 验证错误  
     res.status(401).send({ error: err.message });

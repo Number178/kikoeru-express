@@ -5,6 +5,6 @@ exports.up = async function(knex) {
     .catch(err => console.error(err));
 };
 
-exports.down = async function(knex) {
+exports.down = async function() {
   // Do nothing
 };

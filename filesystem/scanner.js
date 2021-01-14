@@ -567,15 +567,16 @@ const updateMetadata = (id) => {
 
 const updateMetadataLimited = (id) => limitP.call(updateMetadata, id);
 
+// eslint-disable-next-line no-unused-vars
 const performUpdate = () => db.knex('t_work').select('id')
   .then((works) => {
     let processedNum = 0;
     const counts = {
       updated: 0,
       failed: 0,
-    };
+    }; 
 
-    for (work of works) {
+    for (let work of works) {
       updateMetadataLimited(work.id)
         .then((result) => { // 统计处理结果
           result === 'failed' ? counts['failed'] += 1 : counts['updated'] += 1;

@@ -138,7 +138,7 @@ const initApp = async () => {
     }
     try {
       await skipMigrations()
-    } catch {
+    } catch (err) {
       console.error(` ! 在构建数据库结构过程中出错: ${err.message}`);
       process.exit(1);
     }

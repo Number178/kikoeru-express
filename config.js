@@ -88,7 +88,7 @@ const updateConfig = () => {
   if (countChanged || cfg.version !== pjson.version) {
     cfg.version = pjson.version;
     setConfig(cfg)
-  };
+  }
 }
 
 module.exports = {

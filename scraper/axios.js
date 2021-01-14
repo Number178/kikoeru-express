@@ -69,14 +69,14 @@ axios.interceptors.request.use(function (config) {
 
 
 const retryGet = async (url, config) => {
-  let defaultLimit = Config.retry || 5;;
+  let defaultLimit = Config.retry || 5;
   let defaultRetryDelay = Config.retryDelay || 2000;
   let defaultTimeout = 10000;
 
   if (url.indexOf('dlsite') !== -1) {
     defaultTimeout = Config.dlsiteTimeout || defaultLimit;
   } else if (url.indexOf('hvdb') !== -1) {
-    defaultTimeout = Config.hvdbTimeout || defaultLimit;;
+    defaultTimeout = Config.hvdbTimeout || defaultLimit;
   }
 
   config.retry = {

@@ -20,7 +20,8 @@
     "start": "node app.js",
     "dev": "nodemon --trace-warnings app.js",
     "scan": "node ./filesystem/scanner.js",
-    "build": "pkg -t win package.json --out-path package"
+    "build": "pkg -t win package.json --out-path package",
+    "test": "node_modules/.bin/eslint ."
   },
   "author": "Watanuki-Kimihiro",
   "license": "GPL-3.0-or-later",
@@ -48,5 +49,8 @@
     "strftime": "^0.10.0",
     "string-random": "^0.1.3",
     "tunnel-agent": "^0.6.0"
+  },
+  "devDependencies": {
+    "eslint": "^7.17.0"
   }
 }

@@ -1,5 +1,5 @@
 exports.up = async function(knex) {
-  exist = await knex.schema.hasTable('t_review')
+  let exist = await knex.schema.hasTable('t_review')
   if (!exist) {
     await knex.schema.createTable("t_review", function(table) {
       table.string('user_name').notNullable();

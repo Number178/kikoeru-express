@@ -176,7 +176,7 @@ const getWorkMetadata = (id, username) => new Promise((resolve, reject) => {
         let vas = new Set();
         let tagRecord = [];
         let vasRecord = [];
-        for (record of res) {
+        for (let record of res) {
           if (!tags.has(record.tagname)) {
             tags.add(record.tagname);
             tagRecord.push({id: record.tagid, name: record.tagname});
@@ -205,6 +205,8 @@ const getWorkMetadata = (id, username) => new Promise((resolve, reject) => {
  * @param {*} tags Array of tag ids to check.
  * @param {*} vas Array of VA ids to check.
  */
+
+// TODO: fix this mess (see eslint)
 const cleanupOrphans = (trx, circle, tags, vas) => new Promise(async (resolve, reject) => {
   const getCount = (tableName, colName, colValue) => new Promise((resolveCount, rejectCount) => {
     trx(tableName)
@@ -270,6 +272,7 @@ const cleanupOrphans = (trx, circle, tags, vas) => new Promise(async (resolve, r
  * Removes a work and then its orphaned circles, tags & VAs from the database.
  * @param {Integer} id Work id.
  */
+// TODO: fix this mess (see eslint)
 const removeWork = id => new Promise(async (resolve, reject) => {
   const trx = await knex.transaction();
 
