@@ -154,13 +154,20 @@ router.get('/works', async (req, res, next) => {
   const sort = req.query.sort || 'desc';
   const offset = (currentPage - 1) * PAGE_SIZE;
   const username = config.auth ? req.user.name : 'admin';
+  const shuffleSeed = req.query.seed ? req.query.seed : 7;
   
   try {
     const query = () => db.getWorksBy({username: username});
     const totalCount = await query().count('id as count');
 
-    const works = await query().offset(offset).limit(PAGE_SIZE).orderBy(order, sort)
+    let works = null;
+
+    if (order === 'random') {
+      works = await query().offset(offset).limit(PAGE_SIZE).orderBy(db.knex.raw('id % ?', shuffleSeed));
+    } else {
+      works = await query().offset(offset).limit(PAGE_SIZE).orderBy(order, sort)
       .orderBy([{ column: 'release', order: 'desc'}, { column: 'id', order: 'desc' }])
+    }
 
     res.send({
       works,
@@ -227,13 +234,20 @@ router.get('/search/:keyword?', async (req, res, next) => {
   const sort = req.query.sort || 'desc';
   const offset = (currentPage - 1) * PAGE_SIZE;
   const username = config.auth ? req.user.name : 'admin';
+  const shuffleSeed = req.query.seed ? req.query.seed : 7;
   
   try {
     const query = () => db.getWorksByKeyWord({keyword: keyword, username: username});
     const totalCount = await query().count('id as count');
 
-    const works = await query().offset(offset).limit(PAGE_SIZE).orderBy(order, sort)
-      .orderBy([{ column: 'release', order: 'desc'}, { column: 'id', order: 'desc' }])
+    let works = null;
+
+    if (order === 'random') {
+      works = await query().offset(offset).limit(PAGE_SIZE).orderBy(db.knex.raw('id % ?', shuffleSeed));
+    } else {
+      works = await query().offset(offset).limit(PAGE_SIZE).orderBy(order, sort)
+        .orderBy([{ column: 'release', order: 'desc'}, { column: 'id', order: 'desc' }])
+    }
 
     res.send({
       works,
@@ -254,17 +268,24 @@ router.get('/:field/:id', async (req, res, next) => {
   const currentPage = parseInt(req.query.page) || 1;
   // 通过 "音声id, 贩卖日, 用户评价, 售出数, 评论数量, 价格, 平均评价, 全年龄新作" 排序
   // ['id', 'release', 'rating', 'dl_count', 'review_count', 'price', 'rate_average_2dp, 'nsfw']
-  let order = req.query.order || 'release';
+  const order = req.query.order || 'release';
   const sort = req.query.sort || 'desc'; // ['desc', 'asc]
   const offset = (currentPage - 1) * PAGE_SIZE;
   const username = config.auth ? req.user.name : 'admin';
-  
+  const shuffleSeed = req.query.seed ? req.query.seed : 7;
+
   try {
     const query = () => db.getWorksBy({id: req.params.id, field: req.params.field, username: username});
     const totalCount = await query().count('id as count');
 
-    const works = await query().offset(offset).limit(PAGE_SIZE).orderBy(order, sort)
+    let works = null;
+
+    if (order === 'random') {
+      works = await query().offset(offset).limit(PAGE_SIZE).orderBy(db.knex.raw('id % ?', shuffleSeed));
+    } else {
+      works = await query().offset(offset).limit(PAGE_SIZE).orderBy(order, sort)
       .orderBy([{ column: 'release', order: 'desc'}, { column: 'id', order: 'desc' }])
+    }
 
     res.send({
       works,
