@@ -72,6 +72,7 @@ npm start
 - [x] 进度标记页面
 - [x] 用户评价
 - [x] 修复面条代码里的placeholders
+- [ ] 整理路由等
 - [ ] Insersection Observer
 - [ ] 可编辑标签
 - [ ] Dark Mode
