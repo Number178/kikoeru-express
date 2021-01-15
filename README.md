@@ -72,6 +72,9 @@ npm start
 - [x] 进度标记页面
 - [x] 用户评价
 - [x] 修复面条代码里的placeholders
+- [ ] Insersection Observer
+- [ ] 可编辑标签
+- [ ] Dark Mode
 - [ ] 重构WorkCard和WorkDetail
 - [x] 检查启用foreign key是否会出错
 - [ ] 重构config和schema，添加多用户支持（目前实际上仍然是单用户架构）
