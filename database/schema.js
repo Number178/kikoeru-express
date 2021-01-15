@@ -72,7 +72,7 @@ const createSchema = () => knex.schema
     table.string('work_id').notNullable();
     table.integer('rating'); // 用户评分1-5
     table.string('review_text'); // 用户评价文字
-    table.timestamps(); // 时间戳created_at, updated_at
+    table.timestamps(true, true); // 时间戳created_at, updated_at
     table.string('progress'); // ['marked', 'listening', 'listened', 'postponed', null]
     table.foreign('user_name').references('name').inTable('t_user').onDelete('CASCADE'); // FOREIGN KEY 
     table.foreign('work_id').references('id').inTable('t_work').onDelete('CASCADE'); // FOREIGN KEY 
