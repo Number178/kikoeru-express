@@ -163,7 +163,11 @@ router.get('/works', async (req, res, next) => {
     let works = null;
 
     if (order === 'random') {
+      // 随机排序+分页 hack
       works = await query().offset(offset).limit(PAGE_SIZE).orderBy(db.knex.raw('id % ?', shuffleSeed));
+    } else if (order === 'betterRandom') {
+      // 随心听专用，不支持分页
+      works = await query().limit(1).orderBy(db.knex.raw('random()'));
     } else {
       works = await query().offset(offset).limit(PAGE_SIZE).orderBy(order, sort)
       .orderBy([{ column: 'release', order: 'desc'}, { column: 'id', order: 'desc' }])
