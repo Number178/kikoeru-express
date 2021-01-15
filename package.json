@@ -17,9 +17,9 @@
     ]
   },
   "scripts": {
-    "start": "node app.js",
+    "start": "node --trace-warnings app.js",
     "dev": "nodemon --trace-warnings app.js",
-    "scan": "node ./filesystem/scanner.js",
+    "scan": "node --trace-warnings ./filesystem/scanner.js",
     "build": "pkg -t win package.json --out-path package",
     "test": "node_modules/.bin/eslint ."
   },
