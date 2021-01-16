@@ -21,7 +21,7 @@ module.exports = (app) => {
   if (config.auth) {
     // expressJwt 中间件 
     // 验证指定 http 请求的 JsonWebTokens 的有效性, 如果有效就将 JsonWebTokens 的值设置到 req.user 里面, 然后路由到相应的 router
-    app.use('/api', expressJwt({ secret: config.jwtsecret, getToken }).unless({ path: ['/api/me'] }));
+    app.use('/api', expressJwt({ secret: config.jwtsecret, getToken, algorithms: ['HS256'] }).unless({ path: ['/api/me'] }));
   }
 
   app.use('/api', authRoutes);

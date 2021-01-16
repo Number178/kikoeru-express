@@ -45,7 +45,7 @@ router.post('/me', [
 });
 
 if (config.auth) {
-  router.get('/me', expressJwt({ secret: config.jwtsecret }));
+  router.get('/me', expressJwt({ secret: config.jwtsecret, algorithms: ['HS256'] }));
 }
 
 // 获取用户信息
