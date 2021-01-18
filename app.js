@@ -61,7 +61,8 @@ io.on('connection', function (socket) {
   // console.log('connection');
   socket.emit('success', {
     message: '成功登录管理后台.',
-    user: socket.request.user
+    user: socket.request.user,
+    auth: config.auth
   });
 
   // socket.on('disconnect', () => {
