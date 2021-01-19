@@ -259,7 +259,7 @@ const cleanupOrphans = async (trx, circle, tags, vas)  => {
     }
   }
 
-  return Promise.all(promises);
+  await Promise.all(promises);
 };
 
 /**
