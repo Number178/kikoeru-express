@@ -21,7 +21,7 @@ const knex = require('knex')({
   connection: { // 连接参数
     filename: path.join(databaseFolderDir, 'db.sqlite3'),
   },
-  acquireConnectionTimeout: 5000, // 连接计时器
+  acquireConnectionTimeout: 40000, // 连接计时器
   pool: {
     afterCreate: (conn, cb) => {
       conn.run('PRAGMA foreign_keys = ON', cb)
@@ -260,6 +260,10 @@ const cleanupOrphans = async (trx, circle, tags, vas)  => {
   }
 
   await Promise.all(promises);
+
+  // for (const promise of promises) {
+  //   await promise;
+  // }
 };
 
 /**
