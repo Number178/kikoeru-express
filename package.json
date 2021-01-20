@@ -16,6 +16,10 @@
       "database/storage.js"
     ]
   },
+  "nodemonConfig": {
+    "ignore": ["config/*", "sqlite/*"],
+    "delay": "2500"
+  },
   "scripts": {
     "start": "node --trace-warnings app.js",
     "dev": "nodemon --trace-warnings app.js",
