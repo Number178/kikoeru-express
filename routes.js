@@ -146,6 +146,7 @@ router.get('/check-lrc/:id/:index', (req, res, next) => {
 });
 
 // GET list of work ids
+// eslint-disable-next-line no-unused-vars
 router.get('/works', async (req, res, next) => {
   const currentPage = parseInt(req.query.page) || 1;
   // 通过 "音声id, 贩卖日, 评价, 用户评价, 售出数, 评论数量, 价格, 平均评价, 全年龄新作， 评价" 排序
@@ -183,7 +184,8 @@ router.get('/works', async (req, res, next) => {
     });
   } catch(err) {
     res.status(500).send({error: '查询过程中出错'});
-    next(err);
+    console.error(err)
+    // next(err);
   }
 });
 

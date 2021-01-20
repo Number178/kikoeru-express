@@ -34,7 +34,8 @@ const defaultConfig = {
   retryDelay: 2000,
   httpProxyHost: '',
   httpProxyPort: 0,
-  listenPort: 8888
+  listenPort: 8888,
+  skipCleanup: false
 };
 
 const initConfig = () => {

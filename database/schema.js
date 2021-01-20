@@ -122,7 +122,7 @@ const initApp = async () => {
   if (databaseExist && compareVersions.compare(currentVersion, configVersion, '>')) {
     console.log('升级中');
     await runMigrations();
-    await updateConfig();
+    updateConfig();
   } else if (!databaseExist) {
     await createSchema()
     try { // 创建内置的管理员账号

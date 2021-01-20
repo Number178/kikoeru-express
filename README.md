@@ -72,6 +72,8 @@ npm start
 - [x] 进度标记页面
 - [x] 用户评价
 - [x] 修复面条代码里的placeholders
+- [ ] 刷新元数据
+- [x] 不扫描文件夹
 - [ ] 整理路由等
 - [ ] 单元测试、CI
 - [ ] Insersection Observer
