@@ -1,4 +1,4 @@
-FROM node:12-slim
+FROM node:14-alpine as build-dep
 
 # Create app directory
 WORKDIR /usr/src/kikoeru
@@ -8,9 +8,15 @@ WORKDIR /usr/src/kikoeru
 # where available (npm@5+)
 COPY package*.json ./
 
-RUN npm ci --only=production
+RUN apk update && apk add python make gcc g++ && npm ci --only=production
 # If you are building your code for production
 # RUN npm ci --only=production
+
+FROM node:14-alpine
+
+WORKDIR /usr/src/kikoeru
+
+COPY --from=build-dep /usr/src/kikoeru /usr/src/kikoeru
 
 # Bundle app source
 COPY . .
@@ -19,10 +25,8 @@ COPY . .
 RUN find /usr/src/kikoeru/dist -type d -exec chmod 755 {} \; && find /usr/src/kikoeru/dist -type f -exec chmod 644 {} \;
 
 # Tini
-ENV TINI_VERSION v0.19.0
-ADD https://github.com/krallin/tini/releases/download/${TINI_VERSION}/tini /tini
-RUN chmod +x /tini
-ENTRYPOINT ["/tini", "--"]
+RUN apk add --no-cache tini
+ENTRYPOINT ["/sbin/tini", "--"]
 
 # 持久化
 VOLUME [ "/usr/src/kikoeru/sqlite", "/usr/src/kikoeru/config", "/usr/src/kikoeru/covers"]
