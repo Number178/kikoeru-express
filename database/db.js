@@ -21,7 +21,7 @@ const knex = require('knex')({
   connection: { // 连接参数
     filename: path.join(databaseFolderDir, 'db.sqlite3'),
   },
-  acquireConnectionTimeout: 40000, // 连接计时器
+  acquireConnectionTimeout: 5000, // 连接计时器
   pool: {
     afterCreate: (conn, cb) => {
       conn.run('PRAGMA foreign_keys = ON', cb)
@@ -205,7 +205,8 @@ const getWorkMetadata = (id, username) => new Promise((resolve, reject) => {
  * @param {*} tags Array of tag ids to check.
  * @param {*} vas Array of VA ids to check.
  */
-const cleanupOrphans = async (trx, circle, tags, vas)  => {
+const cleanupOrphans = async (trxProvider, circle, tags, vas)  => {
+  const trx = await trxProvider();
   const getCount = (tableName, colName, colValue) => new Promise((resolveCount, rejectCount) => {
     trx(tableName)
       .select(colName)
@@ -270,8 +271,8 @@ const cleanupOrphans = async (trx, circle, tags, vas)  => {
  * Removes a work and then its orphaned circles, tags & VAs from the database.
  * @param {Integer} id Work id.
  */
-const removeWork = async (id) => {
-  await knex.transaction(async (trx) => {
+const removeWork = async (id, trxProvider) => {
+  const trx = await trxProvider();
   // Save circle, tags and VAs to array for later testing
     const circle = await trx('t_work').select('circle_id').where('id', '=', id).first();
     const tags = await trx('r_tag_work').select('tag_id').where('work_id', '=', id);
@@ -282,12 +283,11 @@ const removeWork = async (id) => {
     await trx('t_review').del().where('work_id', '=', id);
     await trx('t_work').del().where('id', '=', id);
     await cleanupOrphans(
-      trx,
+      trxProvider,
       circle.circle_id,
       tags.map(tag => tag.tag_id),
       vas.map(va => va.va_id),
     )
-  });
 };
 
 /**
