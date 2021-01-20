@@ -47,7 +47,8 @@ router.get('/tracks/:id', (req, res, next) => {
       const rootFolder = config.rootFolders.find(rootFolder => rootFolder.name === work.root_folder);
       if (rootFolder) {
         getTrackList(req.params.id, path.join(rootFolder.path, work.dir))
-          .then(tracks => res.send(toTree(tracks, work.title)));
+          .then(tracks => res.send(toTree(tracks, work.title)))
+          .catch(() => res.status(500).send({error: '获取文件列表失败，请检查文件是否存在或重新扫描清理'}));
       } else {
         res.status(500).send({error: `找不到文件夹: "${work.root_folder}"，请尝试重启服务器或重新扫描.`});
       }
