@@ -117,10 +117,16 @@ const initApp = async () => {
     await knexMigrate('skipAll', {});
   }
 
-  // await skipMigrations();
+  // Fix a nasty bug introduced in v0.5.1
+  async function fixMigrations () {
+    if (compareVersions.compare(configVersion, 'v0.5.1', '>=') && compareVersions.compare(configVersion, 'v0.5.3', '<')) {
+      await knexMigrate('skipAll', {to: '20210108093032'});
+    }
+  }
 
   if (databaseExist && compareVersions.compare(currentVersion, configVersion, '>')) {
     console.log('升级中');
+    await fixMigrations();
     await runMigrations();
     updateConfig();
   } else if (!databaseExist) {

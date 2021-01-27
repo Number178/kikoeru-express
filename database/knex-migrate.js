@@ -65,7 +65,7 @@ function knexInit (flags) {
     config.useNullAsDefault = true
   }
 
-  config.pool = { max: 1, min: 0, idleTimeoutMillis: 1000 }
+  config.pool = { max: 10, min: 0, idleTimeoutMillis: 1000 }
 
   return knex(config)
 }
