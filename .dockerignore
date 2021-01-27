@@ -20,3 +20,7 @@ node_modules
 
 # Storage
 VoiceWork
+
+# HTTPS
+kikoeru.crt
+kikoeru.key

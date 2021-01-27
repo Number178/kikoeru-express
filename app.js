@@ -3,6 +3,8 @@ const express = require('express');
 const bodyParser = require('body-parser'); // 获取 req.body
 const history = require('connect-history-api-fallback');
 const http = require('http');
+const https = require('https');
+const fs = require('fs');
 const jwtAuth = require('socketio-jwt-auth'); // 用于 JWT 验证的 socket.io 中间件
 const child_process = require('child_process'); // 子进程
 const { initApp }= require('./database/schema');
@@ -34,79 +36,102 @@ api(app);
 app.use(express.static(path.join(__dirname, './dist')));
 
 const server = http.createServer(app);
-// websocket 握手依赖 http 服务
-const io = require('socket.io')(server);
-
-if (config.auth) {
-  io.use(jwtAuth.authenticate({
-    secret: config.jwtsecret
-  }, (payload, done) => {
-    const user = {
-      name: payload.name,
-      group: payload.group
-    };
-
-    if (user.name === 'admin') {
-      done(null, user);
-    } else {
-      done(null, false, '只有 admin 账号能登录管理后台.');
-    }
-  }));
+let httpsServer = null;
+let httpsSuccess = false;
+if (config.httpsEnabled) {
+  try {
+    httpsServer = https.createServer({
+      key: fs.readFileSync(config.httpsPrivateKey),
+      cert: fs.readFileSync(config.httpsCert),
+    },app);
+    httpsSuccess = true;
+  } catch (err) {
+    console.error('HTTPS服务器启动失败，请检查证书位置以及是否文件可读')
+    console.error(err);
+  }
 }
 
-let scanner = null;
+function initSocket (io) {
+  if (config.auth) {
+    io.use(jwtAuth.authenticate({
+      secret: config.jwtsecret
+    }, (payload, done) => {
+      const user = {
+        name: payload.name,
+        group: payload.group
+      };
 
-// 有新的客户端连接时触发
-io.on('connection', function (socket) {
-  // console.log('connection');
-  socket.emit('success', {
-    message: '成功登录管理后台.',
-    user: socket.request.user,
-    auth: config.auth
-  });
+      if (user.name === 'admin') {
+        done(null, user);
+      } else {
+        done(null, false, '只有 admin 账号能登录管理后台.');
+      }
+    }));
+  }
 
-  // socket.on('disconnect', () => {
-  //   console.log('disconnect');
-  // });
-  
-  socket.on('ON_SCANNER_PAGE', () => {
-    if (scanner) {
-      // 防止用户在扫描过程中刷新页面
+  let scanner = null;
+
+  // 有新的客户端连接时触发
+  io.on('connection', function (socket) {
+    // console.log('connection');
+    socket.emit('success', {
+      message: '成功登录管理后台.',
+      user: socket.request.user,
+      auth: config.auth
+    });
+
+    // socket.on('disconnect', () => {
+    //   console.log('disconnect');
+    // });
+    
+    socket.on('ON_SCANNER_PAGE', () => {
+      if (scanner) {
+        // 防止用户在扫描过程中刷新页面
+        scanner.send({
+          emit: 'SCAN_INIT_STATE'
+        });
+      }
+    });
+
+    socket.on('PERFORM_SCAN', () => {
+      if (!scanner) {
+        scanner = child_process.fork(path.join(__dirname, './filesystem/scanner.js'), { silent: false }); // 子进程
+        scanner.on('exit', (code) => {
+          scanner = null;
+          if (code) {
+            io.emit('SCAN_ERROR');
+          }
+        });
+        
+        scanner.on('message', (m) => {
+          if (m.event) {
+            io.emit(m.event, m.payload);
+          }
+        });
+      }   
+    });
+
+    socket.on('KILL_SCAN_PROCESS', () => {
       scanner.send({
-        emit: 'SCAN_INIT_STATE'
+        exit: 1
       });
-    }
-  });
+    });
 
-  socket.on('PERFORM_SCAN', () => {
-    if (!scanner) {
-      scanner = child_process.fork(path.join(__dirname, './filesystem/scanner.js'), { silent: false }); // 子进程
-      scanner.on('exit', (code) => {
-        scanner = null;
-        if (code) {
-          io.emit('SCAN_ERROR');
-        }
-      });
-      
-      scanner.on('message', (m) => {
-        if (m.event) {
-          io.emit(m.event, m.payload);
-        }
-      });
-    }   
-  });
-
-  socket.on('KILL_SCAN_PROCESS', () => {
-    scanner.send({
-      exit: 1
+    // 发生错误时触发
+    socket.on('error', (err) => {
+      console.error(err);
     });
   });
+}
 
-  // 发生错误时触发
-  socket.on('error', (err) => {
-    console.error(err);
-  });
-});
+// websocket 握手依赖 http 服务
+const io = require('socket.io')(server);
+initSocket(io);
+
+if (config.httpsEnabled) {
+  const ioSecure = require('socket.io')(httpsServer);
+  initSocket(ioSecure);
+}
 
 // 返回错误响应
 // eslint-disable-next-line no-unused-vars
@@ -134,3 +159,9 @@ listenPort = process.env.PORT || listenPort;
 server.listen(listenPort, () => {
   console.log(`Express listening on http://[::]:${listenPort}`)
 });
+
+if (config.httpsEnabled && httpsSuccess) {
+  httpsServer.listen(config.httpsPort, () => {
+    console.log(`Express listening on https://[::]:${config.httpsPort}`)
+  });
+}

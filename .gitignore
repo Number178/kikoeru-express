@@ -124,3 +124,6 @@ sqlite
 # VoiceWork
 VoiceWork
 
+# HTTPS
+kikoeru.crt
+kikoeru.key
