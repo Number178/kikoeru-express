@@ -60,14 +60,22 @@ module.exports = class KnexStorage {
   // Non standard
   async skipMigrations (migrationNames) {
     await this.ensureTable ()
-
     const currentBatch = await this.getCurrentBatch()
 
     let records = []
-    migrationNames.forEach((fileName) => {
-      records.push({name: fileName, batch: currentBatch + 1, migration_time: new Date()})
-    });
-    return this.knex(this.tableName).insert(records)
+    for (const fileName of migrationNames) {
+      const checkExist = await this.knex(this.tableName)
+        .count('id as count').where('name', fileName).first()
+      if (checkExist.count === 0) {
+        records.push({name: fileName, batch: currentBatch + 1, migration_time: new Date()})
+      }
+    }
+
+    // resolves with undefined if no records inserted
+    if (records.length) {
+      return this.knex(this.tableName).insert(records)
+    }
+    return;
   }
 
   unlogMigration (migrationName) {
