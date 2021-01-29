@@ -136,8 +136,8 @@ const getWorkMetadata = (id, username) => new Promise((resolve, reject) => {
       datetime(userrate.updated_at,'localtime')
     FROM t_work
       JOIN t_circle on t_circle.id = t_work.circle_id
-      JOIN r_tag_work on r_tag_work.work_id = t_work.id
-      JOIN t_tag on t_tag.id = r_tag_work.tag_id
+      LEFT JOIN r_tag_work on r_tag_work.work_id = t_work.id
+      LEFT JOIN t_tag on t_tag.id = r_tag_work.tag_id
       JOIN r_va_work on r_va_work.work_id = t_work.id
       join t_va on t_va.id = r_va_work.va_id
       LEFT JOIN (
