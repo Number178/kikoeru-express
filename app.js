@@ -1,5 +1,6 @@
 const path = require('path');
 const express = require('express');
+const compression = require('compression');
 const bodyParser = require('body-parser'); // 获取 req.body
 const history = require('connect-history-api-fallback');
 const http = require('http');
@@ -13,6 +14,10 @@ const { config } = require('./config');
 const api = require('./api');
 
 const app = express();
+
+if (config.enableGzip) {
+  app.use(compression());
+}
 
 // parse application/x-www-form-urlencoded
 app.use(bodyParser.urlencoded({ extended: true }));

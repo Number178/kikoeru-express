@@ -39,7 +39,8 @@ const defaultConfig = {
   httpsPrivateKey: 'kikoeru.key',
   httpsCert: 'kikoeru.crt',
   httpsPort: 8443,
-  skipCleanup: false
+  skipCleanup: false,
+  enableGzip: true
 };
 
 const initConfig = () => {
