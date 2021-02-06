@@ -60,13 +60,6 @@ const createSchema = () => knex.schema
     table.string('group').notNullable(); // USER ADMIN guest
     table.primary(['name']); // PRIMARY KEYprimary 主键
   })
-  .createTable('t_favorite', (table) => {
-    table.string('user_name').notNullable();
-    table.string('name').notNullable();
-    table.text('works').notNullable(); // TEXT 类型 [评价分布明细]
-    table.foreign('user_name').references('name').inTable('t_user'); // FOREIGN KEY 外键
-    table.primary(['user_name', 'name']); // PRIMARY KEYprimary 主键
-  })
   .createTable('t_review', (table) => {
     table.string('user_name').notNullable();
     table.string('work_id').notNullable();
