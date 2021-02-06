@@ -7,6 +7,9 @@ const db = require('./database/db');
 const { getTrackList, toTree } = require('./filesystem/utils');
 
 const { config } = require('./config');
+const axios = require('axios');
+const pjson = require('./package.json');
+const compareVersions = require('compare-versions');
 
 const PAGE_SIZE = config.pageSize || 12;
 const router = express.Router();
@@ -317,5 +320,26 @@ router.get('/(:field)s/', (req, res, next) => {
     .catch(err => next(err));
 });
 
+router.get('/version', (req, res, next) => {
+  axios.get('https://api.github.com/repos/umonaca/kikoeru-express/releases/latest')
+    .then(function (response) {
+      if (response.data && response.data.tag_name) {
+        const current = pjson.version;
+        const latest_stable = response.data.tag_name;
+        const newVerAvailable = compareVersions.compare(latest_stable, current, '>')
+        res.send({
+          current: current,
+          latest_stable: latest_stable,
+          update_available: newVerAvailable,
+          notifyUser: config.checkUpdate
+        });
+      } else {
+        res.send({current: pjson.version, latest: null});
+      }
+    })
+    .catch(function (error) {
+      next(error);
+    })
+});
 
 module.exports = router;

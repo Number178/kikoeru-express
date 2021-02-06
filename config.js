@@ -12,6 +12,7 @@ let config = {};
 
 const defaultConfig = {
   version: pjson.version,
+  checkUpdate: true,
   maxParallelism: 16,
   rootFolders: [
     // {
