@@ -5,8 +5,12 @@ const stringRandom = require('string-random');
 const configFolderDir = process.pkg ? path.join(process.execPath, '..', 'config') : path.join(__dirname, 'config');
 const configPath = path.join(configFolderDir, 'config.json');
 const pjson = require('./package.json');
+const compareVersions = require('compare-versions');
 
+// Before the following version, there is no version tracking
 const versionWithoutVerTracking = '0.4.1';
+// Before the following version, db path is using the absolute path in databaseFolderDir of config.json
+const versionDbRelativePath = '0.5.8';   
 
 let config = {};
 
@@ -111,6 +115,12 @@ const updateConfig = () => {
       countChanged += 1;
     }
   }
+
+  if (compareVersions.compare(cfg.version, versionDbRelativePath, '<')) {
+    console.log('数据库位置已设置为程序目录下的sqlite文件夹');
+    console.log('如需指定其它位置，请修改config.json，将dbUseDefaultPath改为false，然后手动指定databaseFolderDir');
+  }
+
   if (countChanged || cfg.version !== pjson.version) {
     cfg.version = pjson.version;
     setConfig(cfg)
