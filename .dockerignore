@@ -24,3 +24,6 @@ VoiceWork
 # HTTPS
 kikoeru.crt
 kikoeru.key
+
+# Release template
+Release-Template.md
