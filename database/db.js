@@ -508,14 +508,16 @@ const getWorksWithReviews = ({username = '', limit = 1000, offset = 0, orderBy =
   `);
   
   let works = [];
+  let totalCount = 0;
   let query = () => trx('userMetadata').where('user_name', '=', username)
-  .orderBy(orderBy, sortOption).orderBy([{ column: 'release', order: 'desc'}, { column: 'id', order: 'desc' }])
-  .limit(limit).offset(offset);
+  .orderBy(orderBy, sortOption).orderBy([{ column: 'release', order: 'desc'}, { column: 'id', order: 'desc' }]);
 
   if (filter) {
-    works = await query().where('progress', '=', filter);
+    totalCount = await query().where('progress', '=', filter).count('id as count');
+    works = await query().where('progress', '=', filter).limit(limit).offset(offset);
   } else {
-    works = await query();
+    totalCount = await query().count('id as count');
+    works = await query().limit(limit).offset(offset);
   }
 
   if (works.length > 0) {
@@ -526,7 +528,7 @@ const getWorksWithReviews = ({username = '', limit = 1000, offset = 0, orderBy =
     })
   }
 
-  return works;
+  return {works, totalCount};
 });
 
 module.exports = {

@@ -205,14 +205,14 @@ router.get('/favourites', async (req, res, next) => {
   const filter = req.query.filter;
   
   try {
-    const works = await db.getWorksWithReviews({username: username, limit: PAGE_SIZE, offset: offset, orderBy: order, sortOption: sort, filter});
+    const {works, totalCount} = await db.getWorksWithReviews({username: username, limit: PAGE_SIZE, offset: offset, orderBy: order, sortOption: sort, filter});
 
     res.send({
       works,
       pagination: {
         currentPage,
         pageSize: PAGE_SIZE,
-        totalCount: works.length
+        totalCount: totalCount[0]['count']
       }
     });
   } catch(err) {
