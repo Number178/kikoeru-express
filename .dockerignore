@@ -3,6 +3,7 @@
 
 # Package
 package/*
+package-macos/*
 
 # Config
 config/*
