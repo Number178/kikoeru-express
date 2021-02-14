@@ -8,8 +8,9 @@ const db = require('../database/db');
 const { createSchema } = require('../database/schema');
 const { getFolderList, deleteCoverImageFromDisk, saveCoverImageToDisk } = require('./utils');
 const { md5 } = require('../auth/utils');
+const { nameToUUID } = require('../scraper/utils');
 
-const { config } = require('../config');
+const { config, isLockFilePresent, lockFileConfig, removeLockFile } = require('../config');
 
 // 只有在子进程中 process 对象才有 send() 方法
 process.send = process.send || function () {};
@@ -387,6 +388,20 @@ const performScan = () => {
         }
       }
 
+      // Fix hash collision bug in t_va
+      // Scan to repopulate the Voice Actor data for those problematic works
+      // かの仔 and こっこ
+      if (isLockFilePresent && lockFileConfig.fixVA) {
+        console.log(' * 开始进行声优元数据修复，需要联网')
+        try {
+          await fixVoiceActorBug();
+          removeLockFile();
+          console.log(' * 完成元数据修复')
+        } catch (err) {
+          console.error(err);
+        }
+      }
+
       if (config.skipCleanup) {
         console.log(' * 根据设置跳过清理.');
       } else {
@@ -549,15 +564,22 @@ const performScan = () => {
 /**
  * 更新音声的动态元数据
  * @param {number} id work id
+ * @param {options = {}} options includeVA, includeTags
  */
-const updateMetadata = (id) => {
+const updateMetadata = (id, options = {}) => {
+  let scrapeProcessor = () => scrapeDynamicWorkMetadataFromDLsite(id);
+  if (options.includeVA || options.includeTags) {
+    // static + dynamic
+    scrapeProcessor = () => scrapeWorkMetadataFromDLsite(id, config.tagLanguage);
+  }
+
   const rjcode = (`000000${id}`).slice(-6); // zero-pad to 6 digits
-  return scrapeDynamicWorkMetadataFromDLsite(id) // 抓取该音声的元数据
+  return scrapeProcessor() // 抓取该音声的元数据
     .then((metadata) => {
       // 将抓取到的元数据插入到数据库
       console.log(` -> [RJ${rjcode}] 元数据抓取成功，准备更新元数据...`);
       metadata.id = id;
-      return db.updateWorkMetadata(metadata)
+      return db.updateWorkMetadata(metadata, options)
         .then(() => {
           console.log(` -> [RJ${rjcode}] 元数据更新成功`);
           return 'updated';
@@ -570,42 +592,44 @@ const updateMetadata = (id) => {
 };
 
 const updateMetadataLimited = (id) => limitP.call(updateMetadata, id);
+const updateVoiceActorLimited = (id) => limitP.call(updateMetadata, id, { includeVA: true });
 
 // eslint-disable-next-line no-unused-vars
-const performUpdate = () => db.knex('t_work').select('id')
-  .then((works) => {
-    let processedNum = 0;
+const performUpdate = () => {
+  const baseQuery = db.knex('t_work').select('id');
+  const processor = (id) => updateMetadataLimited(id);
+  return refreshWorks(baseQuery, 'id', processor);
+};
+
+const fixVoiceActorBug = () => {
+  const baseQuery = db.knex('r_va_work').select('va_id', 'work_id');
+  const filter = (query) => query.where('va_id', nameToUUID('かの仔')).orWhere('va_id', nameToUUID('こっこ'));
+  const processor = (id) => updateVoiceActorLimited(id);
+  return refreshWorks(filter(baseQuery), 'work_id', processor);
+};
+
+const refreshWorks = (query, idColumnName, processor) => {
+  return query.then(async (works) => {
     const counts = {
       updated: 0,
       failed: 0,
     }; 
 
-    for (let work of works) {
-      updateMetadataLimited(work.id)
+    const promises = works.map((work) => 
+      processor(work[idColumnName])
         .then((result) => { // 统计处理结果
           result === 'failed' ? counts['failed'] += 1 : counts['updated'] += 1;
-          processedNum += 1;
-          if (processedNum >= works.length) {
-            console.log(` * 完成元数据更新 ${counts.updated} and failed to update ${counts.failed} works.`);
-            process.exit(0);
-          }
-        });
+      })
+    );
+    await Promise.all(promises);
+    console.log(` * 完成元数据更新 ${counts.updated} 个，失败 ${counts.failed} 个.`);
+    if (counts.failed) {
+      throw new Error(' ! 未完成修复，请检查网络连接。或向作者报告错误');
     }
   });
+};
 
-  // process.send({
-  //   event: 'SCAN_ERROR',
-  //   payload: {
-  //     error: `在并行处理音声文件夹过程中出错: ${err.message}`
-  //   }
-  // });
-
+// Script entry, run as a child process
 performScan();
-
-// getCoverImage(250820, ['main', 'sam'])
-//   .then(res => {
-//     console.log(res)
-//   })
-//   .catch(err => {
-//     console.log(err)
-//   })
+// fixVoiceActorBug();
+// performUpdate();

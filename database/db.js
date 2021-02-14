@@ -101,17 +101,27 @@ const insertWorkMetadata = work => knex.transaction(trx => trx.raw(
  * 更新音声的动态元数据
  * @param {Object} work Work object.
  */
-const updateWorkMetadata = work => knex.transaction(trx => trx('t_work')
-  .where('id', '=', work.id)
-  .update({
-    dl_count: work.dl_count,
-    price: work.price,
-    review_count: work.review_count,
-    rate_count: work.rate_count,
-    rate_average_2dp: work.rate_average_2dp,
-    rate_count_detail: JSON.stringify(work.rate_count_detail),
-    rank: work.rank ? JSON.stringify(work.rank) : null
-  }));
+const updateWorkMetadata = (work, options = {}) => knex.transaction(async (trx) => {
+  await trx('t_work')
+    .where('id', '=', work.id)
+    .update({
+      dl_count: work.dl_count,
+      price: work.price,
+      review_count: work.review_count,
+      rate_count: work.rate_count,
+      rate_average_2dp: work.rate_average_2dp,
+      rate_count_detail: JSON.stringify(work.rate_count_detail),
+      rank: work.rank ? JSON.stringify(work.rank) : null
+    });
+  
+  if (options.includeVA) {
+    await trx('r_va_work').where('work_id', work.id).del();
+    for (const va of work.vas) {
+      await trx.raw('INSERT OR IGNORE INTO t_va(id, name) VALUES (?, ?)', [va.id, va.name]);
+      await trx.raw('INSERT OR IGNORE INTO r_va_work(va_id, work_id) VALUES (?, ?)', [va.id, work.id]);
+    }
+  }
+});
 
 
 /**

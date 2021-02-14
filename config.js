@@ -4,15 +4,19 @@ const stringRandom = require('string-random');
 
 const configFolderDir = process.pkg ? path.join(process.execPath, '..', 'config') : path.join(__dirname, 'config');
 const configPath = path.join(configFolderDir, 'config.json');
+const lockFilePath = path.join(configFolderDir, 'update.lock');
 const pjson = require('./package.json');
 const compareVersions = require('compare-versions');
 
 // Before the following version, there is no version tracking
 const versionWithoutVerTracking = '0.4.1';
 // Before the following version, db path is using the absolute path in databaseFolderDir of config.json
-const versionDbRelativePath = '0.5.8';   
+const versionDbRelativePath = '0.5.8';
+// Before the following version, there is a hash collision issue in the VA table
+const versionVAHashCollision = '0.6.0-rc.1'
 
 let config = {};
+let lockFileConfig = {};
 
 const defaultConfig = {
   version: pjson.version,
@@ -91,19 +95,6 @@ const getConfig = () => {
   }
 };
 
-if (!fs.existsSync(configPath)) {
-  if (!fs.existsSync(configFolderDir)) {
-    try {
-      fs.mkdirSync(configFolderDir, { recursive: true });
-    } catch(err) {
-      console.error(` ! 在创建存放配置文件的文件夹时出错: ${err.message}`);
-    }
-  }
-  initConfig();
-} else {
-  getConfig();
-}
-
 // Migrate config
 const updateConfig = () => {
   let cfg = JSON.parse(fs.readFileSync(configPath));
@@ -118,7 +109,15 @@ const updateConfig = () => {
 
   if (compareVersions.compare(cfg.version, versionDbRelativePath, '<')) {
     console.log('数据库位置已设置为程序目录下的sqlite文件夹');
-    console.log('如需指定其它位置，请修改config.json，将dbUseDefaultPath改为false，然后手动指定databaseFolderDir');
+    console.log('如需指定其它位置，请阅读0.6.0-rc.0更新说明');
+  }
+
+  if (compareVersions.compare(cfg.version, versionVAHashCollision, '<')) {
+    console.log('\n');
+    console.log(' ! 新版解决了旧版扫描时将かの仔和こっこ识别为同一个人的问题');
+    console.log(' ! 建议进行扫描以自动修复这一问题');
+    lockFileConfig['fixVA'] = true;
+    fs.writeFileSync(lockFilePath, JSON.stringify(lockFileConfig, null, "\t"));
   }
 
   if (countChanged || cfg.version !== pjson.version) {
@@ -127,6 +126,39 @@ const updateConfig = () => {
   }
 }
 
+let isLockFilePresent = fs.existsSync(lockFilePath);
+
+let getLockFileConfig = () => {
+  lockFileConfig = JSON.parse(fs.readFileSync(lockFilePath));
+}
+
+// Note: could be cached by Node, should only run once if it is called from outside
+const removeLockFile = () => {
+  if (isLockFilePresent) {
+    fs.unlinkSync(lockFilePath);
+  }
+  isLockFilePresent = false;
+  lockFileConfig = {};
+};
+
+// This part always runs when the module is initialized
+if (!fs.existsSync(configPath)) {
+  if (!fs.existsSync(configFolderDir)) {
+    try {
+      fs.mkdirSync(configFolderDir, { recursive: true });
+    } catch(err) {
+      console.error(` ! 在创建存放配置文件的文件夹时出错: ${err.message}`);
+    }
+  }
+  initConfig();
+} else {
+  getConfig();
+  if (isLockFilePresent) {
+    getLockFileConfig();
+  }
+}
+
 module.exports = {
-  setConfig, updateConfig, config
+  setConfig, updateConfig, config,
+  isLockFilePresent, removeLockFile, lockFileConfig
 };
