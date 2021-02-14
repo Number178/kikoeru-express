@@ -1,7 +1,7 @@
 const htmlparser = require('htmlparser2'); // 解析器
 
 const axios = require('./axios'); // 数据请求
-const { hashNameIntoInt } = require('./utils');
+const { nameToUUID } = require('./utils');
 
 /**
  * Scrapes work metadata from public HVDB page HTML.
@@ -61,7 +61,7 @@ const scrapeWorkMetadataFromHVDB = id => new Promise((resolve, reject) => {
               break;
             case 'va.name':
               work.vas[work.vas.length - 1].name = text;
-              work.vas[work.vas.length - 1].id = hashNameIntoInt(text);
+              work.vas[work.vas.length - 1].id = nameToUUID(text);
               break;
             default:
           }

@@ -1,7 +1,7 @@
 const cheerio = require('cheerio'); // 解析器
 
 const axios = require('./axios'); // 数据请求
-const { hashNameIntoInt, hasLetter } = require('./utils');
+const { nameToUUID, hasLetter } = require('./utils');
 const scrapeWorkMetadataFromHVDB = require('./hvdb');
 
 /**
@@ -114,7 +114,7 @@ const scrapeStaticWorkMetadataFromDLsite = (id, language) => new Promise((resolv
         }).parent().children('td').children('a').each(function() {
           const vaName = $(this).text();
           work.vas.push({
-            id: hashNameIntoInt(vaName),
+            id: nameToUUID(vaName),
             name: vaName
           });
         });

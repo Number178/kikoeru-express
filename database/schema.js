@@ -37,8 +37,9 @@ const createSchema = () => knex.schema
     table.string('name').notNullable(); // VARCHAR 类型 [标签名称]
   })
   .createTable('t_va', (table) => {
-    table.increments(); // id自增列(INTEGER 类型)，会被用作主键 [声优id]
+    table.string('id'); // UUID v5, 基于name生成的固定值
     table.string('name').notNullable(); // VARCHAR 类型 [声优名称]
+    table.primary('id');
   })
   .createTable('r_tag_work', (table) => {
     table.integer('tag_id');
@@ -48,10 +49,10 @@ const createSchema = () => knex.schema
     table.primary(['tag_id', 'work_id']); // PRIMARY KEYprimary 主键
   })
   .createTable('r_va_work', (table) => {
-    table.integer('va_id');
+    table.string('va_id');
     table.integer('work_id');
-    table.foreign('va_id').references('id').inTable('t_va'); // FOREIGN KEY 外键
-    table.foreign('work_id').references('id').inTable('t_work'); // FOREIGN KEY 外键
+    table.foreign('va_id').references('id').inTable('t_va').onUpdate('CASCADE').onDelete('CASCADE'); // FOREIGN KEY 外键
+    table.foreign('work_id').references('id').inTable('t_work').onUpdate('CASCADE').onDelete('CASCADE'); // FOREIGN KEY 外键
     table.primary(['va_id', 'work_id']); // PRIMARY KEYprimary 主键
   })
   .createTable('t_user', (table) => {

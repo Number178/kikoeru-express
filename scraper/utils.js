@@ -1,21 +1,8 @@
-/**
- * Generates a hash integer from a given string. Hopefully only temporary until
- * reshnix exposes VA ids for scraping.
- * @param {String} name
- */
-const hashNameIntoInt = (name) => {
-  let hash = '';
-  
-  for (let i = 0; i < name.length; i += 1) {
-    const char = name.charCodeAt(i);
-    // eslint-disable-next-line no-bitwise
-    hash = ((hash << 5) - hash) + char;
-  }
-  
-  // eslint-disable-next-line no-bitwise
-  hash |= 0;
-  hash = Math.abs(Math.round(hash / 1000));
-  return hash;
+const { v5: uuidv5 } = require('uuid');
+
+const nameToUUID = (name) => {
+  const namespace =  '699d9c07-b965-4399-bafd-18a3cacf073c';
+  return uuidv5(name, namespace);
 };
 
 /**
@@ -32,7 +19,6 @@ const hasLetter = (str) => {
   return false;
 };
 
-
 module.exports = {
-  hashNameIntoInt, hasLetter
+  nameToUUID, hasLetter
 };
