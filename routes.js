@@ -321,6 +321,8 @@ router.get('/(:field)s/', (req, res, next) => {
 });
 
 router.get('/version', (req, res, next) => {
+  const lockReason = '新版解决了旧版扫描时将かの仔和こっこ识别为同一个人的问题，建议进行扫描以自动修复这一问题'
+  
   axios.get('https://api.github.com/repos/umonaca/kikoeru-express/releases/latest')
     .then(function (response) {
       if (response.data && response.data.tag_name) {
@@ -333,14 +335,32 @@ router.get('/version', (req, res, next) => {
           update_available: newVerAvailable,
           notifyUser: config.checkUpdate,
           lockFileExists: updateLock.isLockFilePresent,
-          lockReason: '新版解决了旧版扫描时将かの仔和こっこ识别为同一个人的问题，建议进行扫描以自动修复这一问题'
+          lockReason: updateLock.isLockFilePresent ? lockReason : null
         });
       } else {
-        res.send({current: pjson.version, latest: null});
+        // Empty result or no tag
+        res.send({
+          current: pjson.version,
+          latest_stable: null,
+          update_available: false,
+          notifyUser: config.checkUpdate,
+          lockFileExists: updateLock.isLockFilePresent,
+          lockReason: updateLock.isLockFilePresent ? lockReason : null
+        });
       }
     })
-    .catch(function (error) {
-      next(error);
+    .catch(function () {
+      const current = pjson.version;
+      // In case API rate limit is hit
+      res.send({
+        current: current,
+        latest_stable: null,
+        update_available: false,
+        notifyUser: config.checkUpdate,
+        lockFileExists: updateLock.isLockFilePresent,
+        lockReason: updateLock.isLockFilePresent ? lockReason : null
+      });
+      // next(error);
     })
 });
 
