@@ -121,6 +121,15 @@ const updateWorkMetadata = (work, options = {}) => knex.transaction(async (trx) 
       await trx.raw('INSERT OR IGNORE INTO r_va_work(va_id, work_id) VALUES (?, ?)', [va.id, work.id]);
     }
   }
+  if (options.includeTags) {
+    if (options.purgeTags) {
+      await trx('r_tag_work').where('work_id', work.id).del();
+    }
+    for (const tag of work.tags) {
+      await trx.raw('INSERT OR IGNORE INTO t_tag(id, name) VALUES (?, ?)', [tag.id, tag.name]);
+      await trx.raw('INSERT OR IGNORE INTO r_tag_work(tag_id, work_id) VALUES (?, ?)', [tag.id, work.id]);
+    }
+  }
 });
 
 
@@ -271,10 +280,6 @@ const cleanupOrphans = async (trxProvider, circle, tags, vas)  => {
   }
 
   await Promise.all(promises);
-
-  // for (const promise of promises) {
-  //   await promise;
-  // }
 };
 
 /**
