@@ -6,7 +6,7 @@ const express = require('express');
 const db = require('./database/db');
 const { getTrackList, toTree } = require('./filesystem/utils');
 
-const { config } = require('./config');
+const { config, updateLock } = require('./config');
 const axios = require('axios');
 const pjson = require('./package.json');
 const compareVersions = require('compare-versions');
@@ -331,7 +331,9 @@ router.get('/version', (req, res, next) => {
           current: current,
           latest_stable: latest_stable,
           update_available: newVerAvailable,
-          notifyUser: config.checkUpdate
+          notifyUser: config.checkUpdate,
+          lockFileExists: updateLock.isLockFilePresent,
+          lockReason: '新版解决了旧版扫描时将かの仔和こっこ识别为同一个人的问题，建议进行扫描以自动修复这一问题'
         });
       } else {
         res.send({current: pjson.version, latest: null});

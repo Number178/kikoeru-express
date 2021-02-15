@@ -4,7 +4,6 @@ const stringRandom = require('string-random');
 
 const configFolderDir = process.pkg ? path.join(process.execPath, '..', 'config') : path.join(__dirname, 'config');
 const configPath = path.join(configFolderDir, 'config.json');
-const lockFilePath = path.join(configFolderDir, 'update.lock');
 const pjson = require('./package.json');
 const compareVersions = require('compare-versions');
 
@@ -16,7 +15,6 @@ const versionDbRelativePath = '0.5.8';
 const versionVAHashCollision = '0.6.0-rc.1'
 
 let config = {};
-let lockFileConfig = {};
 
 const defaultConfig = {
   version: pjson.version,
@@ -116,8 +114,8 @@ const updateConfig = () => {
     console.log('\n');
     console.log(' ! 新版解决了旧版扫描时将かの仔和こっこ识别为同一个人的问题');
     console.log(' ! 建议进行扫描以自动修复这一问题');
-    lockFileConfig['fixVA'] = true;
-    fs.writeFileSync(lockFilePath, JSON.stringify(lockFileConfig, null, "\t"));
+    const lockConfig = { fixVA: true };
+    updateLock.createLockFile(lockConfig);
   }
 
   if (countChanged || cfg.version !== pjson.version) {
@@ -125,21 +123,6 @@ const updateConfig = () => {
     setConfig(cfg)
   }
 }
-
-let isLockFilePresent = fs.existsSync(lockFilePath);
-
-let getLockFileConfig = () => {
-  lockFileConfig = JSON.parse(fs.readFileSync(lockFilePath));
-}
-
-// Note: could be cached by Node, should only run once if it is called from outside
-const removeLockFile = () => {
-  if (isLockFilePresent) {
-    fs.unlinkSync(lockFilePath);
-  }
-  isLockFilePresent = false;
-  lockFileConfig = {};
-};
 
 // This part always runs when the module is initialized
 if (!fs.existsSync(configPath)) {
@@ -153,12 +136,48 @@ if (!fs.existsSync(configPath)) {
   initConfig();
 } else {
   getConfig();
-  if (isLockFilePresent) {
-    getLockFileConfig();
+}
+
+// Upgrade lock for VA bug fix (maybe needed in the future)
+// Note: hosisted
+class upgradeLock {
+  constructor(fileName = 'update.lock') {
+    this.lockFileConfig = {}
+    this.lockFilePath = path.join(configFolderDir, fileName);
+    this._init();
+  }
+  _init() {
+    if (this.isLockFilePresent) {
+      this.readLockFileConfig();
+    }
+  }
+  get isLockFilePresent() {
+    return fs.existsSync(this.lockFilePath);
+  }
+  readLockFileConfig() {
+    this.lockFileConfig = JSON.parse(fs.readFileSync(this.lockFilePath));
+  }
+  createLockFile(lockConfig) {
+    this.lockFileConfig = lockConfig;
+    fs.writeFileSync(this.lockFilePath, JSON.stringify(this.lockFileConfig, null, "\t"));
+  }
+  updateLockFile(lockConfig) {
+    this.createLockFile(lockConfig);
+  }
+  removeLockFile() {
+    if (this.isLockFilePresent) {
+      fs.unlinkSync(this.lockFilePath);
+    }
+    this.lockFileConfig = {};
   }
 }
 
+const updateLock = new upgradeLock();
+
+// updateConfig();
+// updateLock.removeLockFile();
+
 module.exports = {
   setConfig, updateConfig, config,
-  isLockFilePresent, removeLockFile, lockFileConfig
+  updateLock
 };

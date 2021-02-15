@@ -10,7 +10,7 @@ const { getFolderList, deleteCoverImageFromDisk, saveCoverImageToDisk } = requir
 const { md5 } = require('../auth/utils');
 const { nameToUUID } = require('../scraper/utils');
 
-const { config, isLockFilePresent, lockFileConfig, removeLockFile } = require('../config');
+const { config, updateLock } = require('../config');
 
 // 只有在子进程中 process 对象才有 send() 方法
 process.send = process.send || function () {};
@@ -391,11 +391,11 @@ const performScan = () => {
       // Fix hash collision bug in t_va
       // Scan to repopulate the Voice Actor data for those problematic works
       // かの仔 and こっこ
-      if (isLockFilePresent && lockFileConfig.fixVA) {
+      if (updateLock.isLockFilePresent && updateLock.lockFileConfig.fixVA) {
         console.log(' * 开始进行声优元数据修复，需要联网')
         try {
           await fixVoiceActorBug();
-          removeLockFile();
+          updateLock.removeLockFile();
           console.log(' * 完成元数据修复')
         } catch (err) {
           console.error(err);
