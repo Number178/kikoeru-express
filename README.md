@@ -42,23 +42,28 @@ npm start
 
 ### 项目目录结构
 ```
-├── auth/                    # 用户认证相关路由
+├── routes/                  # 主要路由
 ├── config/                  # 存放配置文件
 ├── covers/                  # 存放音声封面
 ├── database/                # 操作数据库相关代码
-├── dist/                    # 存放前端项目 kikoeru-quasar 构建的 SPA
+├── dist/                    # 存放前端项目 kikoeru-quasar 构建的 PWA
 ├── filesystem/              # 存放扫描相关代码
 ├── package/                 # 存放 pkg 打包后的可执行文件
+├── package-macos/           # 存放 pkg 打包后的可执行文件
 ├── scraper/                 # 存放爬虫相关代码
 ├── sqlite/                  # 存放 sqlite 数据库文件
 ├── static/                  # 存放静态资源
 ├── .gitignore               # git 忽略路径
+├── .dockerignore            # Docker 忽略路径
 ├── api.js                   # 为 express 实例添加路由与 jwt 验证中间件
 ├── app.js                   # 项目入口文件
-├── config.js                # 用于生成与修改 config.json 配置文件
+├── socket.js                # 用于初始化socket.io
+├── config.js                # 用于生成与修改 config.json 配置文件，导出公共配置以及升级锁
 ├── Dockerfile               # 用于构建 docker 镜像的文本文件
+├── docker-compose.yml       # 用于使用docker-compose一键构建环境
 ├── package.json             # npm 脚本和依赖项
-└── routes.js                # 主要路由
+├── eslintrc.json            # ESLint
+├── Changelog.md             # 最近的版本历史
 ```
 
 
