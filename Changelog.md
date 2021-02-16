@@ -1,3 +1,32 @@
+## v0.6.0-rc.2
+
+### 更新历史
+- 修复上一个版本Docker打包错误的问题
+- 为了方便管理音声库，添加音声库的输入框现在会默认填充一个路径。可以根据需要自行修改
+
+### 更新说明
+如无特别说明，版本升级方法都是直接把新版程序覆盖旧版，或者置于同一目录下。数据库、设置迁移、bug修复等都是全自动的。如果从Safari打开新版网页，可能需要刷新两次页面。  
+此版本为测试版。计划写完手动编辑标签功能再发布v0.6.0正式版。
+
+修复了上一个版本Docker打包错误的问题。感谢komakomako报告。
+更新步骤：
+1. 把新版程序覆盖旧版，打开程序，打开[http://localhost:8888](http://localhost:8888)。
+2. 刷新两次页面。
+3. 前往扫描页面，点扫描，即可修复相关作品的声优信息。过程中需要连接DLsite。
+
+如果曾经运行过上一个版本扫描修复过，也请再次扫描一次。
+
+如果扫描在修复阶段报错，并且重复扫描无法解决，请在[GitHub issue](https://github.com/umonaca/kikoeru-express/issues)中报告作品名称和错误信息。可以手动删除`config`文件夹下的`update.lock`文件以清除本次升级提示，但不推荐。
+
+### 使用方法
+见[使用说明](https://github.com/umonaca/kikoeru-express/blob/unstable/%E7%94%A8%E6%88%B7%E6%96%87%E6%A1%A3.md)。
+简而言之，以下任选其一：
+- Windows用户下载`kikoeru-win-x64-v0.6.0-rc.2.zip`，直接解压即可使用。无需安装node等
+- Mac OS用户下载`kikoeru-darwin-x64-v0.6.0-rc.2.zip`，解压执行其中的`kikoeru-express`，并赋予其执行权限（可在命令行下`chmod +x kikoeru-express`）。遇到权限提示请选择允许
+- Docker镜像`kikoeru-docker-v0.6.0-rc.2.tar`，或者Docker Hub上的`muveex/kikoeru:v0.6.0-rc.2`
+- 也可使用[docker-compose](https://github.com/umonaca/kikoeru-express/blob/v0.6.0-rc.2/docker-compose.yml)。可自行编辑文件调整挂载位置
+- 源码安装：从[前端项目页面](https://github.com/umonaca/kikoeru-quasar/releases/tag/v0.6.0-rc.2)下载`spa-v0.6.0-rc.2.zip`或`pwa-v0.6.0-rc.2.zip`（如果不使用PWA或没有HTTPS证书，请使用`spa-v0.6.0-rc.2.zip`），然后解压到本项目`dist/`文件夹下。或者也可以手动quasar build前端页面，然后把前端项目文件夹下生成的`dist/spa/`的内容整个复制/软连接/挂载/NTFS Junction过来等。请使用`git checkout v0.6.0-rc.2`切换到此版本的源代码。
+
 ## v0.6.0-rc.1
 
 ### 更新历史
