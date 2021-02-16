@@ -77,7 +77,7 @@ npm start
 - [x] 不清理作品
 - [x] 修复扫描阻塞
 - [ ] 使用ID标识文件夹
-- [ ] 整理路由等
+- [x] 整理路由等
 - [ ] 单元测试、CI
 - [ ] Insersection Observer
 - [ ] 可编辑标签
