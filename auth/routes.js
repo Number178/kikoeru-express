@@ -209,39 +209,4 @@ router.get('/config/shared', (req, res, next) => {
   }
 });
 
-// 提交用户评价
-// eslint-disable-next-line no-unused-vars
-router.put('/review', (req, res, next) => {
-  let username = config.auth ? req.user.name : 'admin';
-  let starOnly = true;
-  let progressOnly = false;
-  if (req.query.starOnly === 'false') {
-    starOnly = false;
-  }
-  if (req.query.progressOnly === 'true') {
-    progressOnly = true
-  }
-  
-  db.updateUserReview(username, req.body.work_id, req.body.rating, req.body.review_text, req.body.progress, starOnly, progressOnly)
-      .then(() => {
-        if (progressOnly) {
-          res.send({ message: '更新进度成功' });
-        } else {
-          res.send({ message: '评价成功' });
-        }
-      }).catch((err) =>{
-        res.status(500).send({ error: '评价失败，服务器错误' });
-        console.error(err);
-      })
-});
-
-// 删除用户标记
-router.delete('/review', (req, res, next) => {
-  let username = config.auth ? req.user.name : 'admin';
-  db.deleteUserReview(username, req.query.work_id)
-    .then(() => {
-      res.send({message: '删除标记成功'});
-    }).catch((err) => next(err));
-});
-
 module.exports = router;
