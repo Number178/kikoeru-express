@@ -81,18 +81,15 @@ if (config.httpsEnabled) {
   initSocket(httpsServer);
 }
 
-let listenPort = 8888;
-if (config.listenPort) {
-  listenPort = config.listenPort;
-}
-listenPort = process.env.PORT || listenPort;
+const listenPort = process.env.PORT || config.listenPort || 8888;
+const localOnly = config.blockRemoteConnection;
 
-server.listen(listenPort, () => {
-  console.log(`Express listening on http://[::]:${listenPort}`)
+server.listen(listenPort, localOnly ? 'localhost': '::', () => {
+  console.log('Express server started on port %s at %s', server.address().port, server.address().address);
 });
 
 if (config.httpsEnabled && httpsSuccess) {
-  httpsServer.listen(config.httpsPort, () => {
-    console.log(`Express listening on https://[::]:${config.httpsPort}`)
+  httpsServer.listen(config.httpsPort, localOnly ? 'localhost': '::', () => {
+    console.log('Express server started on port %s at %s', httpsServer.address().port, httpsServer.address().address);
   });
 }
