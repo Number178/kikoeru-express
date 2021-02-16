@@ -13,7 +13,7 @@ router.get('/cover/:id', (req, res, next) => {
   const type = req.query.type || 'main'; // 'main', 'sam', '240x240', '360x360'
   res.sendFile(path.join(config.coverFolderDir, `RJ${rjcode}_img_${type}.jpg`), (err) => {
     if (err) {
-      res.sendFile(path.join(__dirname, './static/no-image.jpg'), (err2) => {
+      res.sendFile(path.join(__dirname, '../static/no-image.jpg'), (err2) => {
         if (err2) {
           next(err2);
         }
