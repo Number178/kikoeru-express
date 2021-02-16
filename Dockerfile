@@ -14,6 +14,8 @@ RUN apk update && apk add python make gcc g++ && npm ci --only=production
 
 FROM node:14-alpine
 
+ENV IS_DOCKER=true
+
 WORKDIR /usr/src/kikoeru
 
 COPY --from=build-dep /usr/src/kikoeru /usr/src/kikoeru

@@ -16,6 +16,16 @@ const versionVAHashCollision = '0.6.0-rc.2'
 
 let config = {};
 
+const voiceWorkDefaultPath = () => {
+  if (process.env.IS_DOCKER) {
+    return '/usr/src/kikoeru/VoiceWork';
+  } else if (process.pkg) {
+    return path.join(process.execPath, '..', 'VoiceWork');
+  } else {
+    return path.join(__dirname, 'VoiceWork');
+  }
+}
+
 const defaultConfig = {
   version: pjson.version,
   checkUpdate: true,
@@ -30,6 +40,7 @@ const defaultConfig = {
   databaseFolderDir: process.pkg ? path.join(process.execPath, '..', 'sqlite') : path.join(__dirname, 'sqlite'),
   coverUseDefaultPath: false, // Ignores coverFolderDir if set to true
   dbUseDefaultPath: true, // Ignores databaseFolderDir if set to true
+  voiceWorkDefaultPath: voiceWorkDefaultPath(),
   auth: false,
   md5secret: stringRandom(14),
   jwtsecret: stringRandom(14),
