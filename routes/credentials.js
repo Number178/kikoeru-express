@@ -111,7 +111,8 @@ router.delete('/user', (req, res, next) => {
 
 // 获取所有用户
 router.get('/users', (req, res, next) => {
-  db.knex('t_user')
+  if (!config.auth || req.user.name === 'admin') {
+    db.knex('t_user')
     .select('name', 'group')
     .then((users) => {
       res.send({ users });
@@ -119,6 +120,9 @@ router.get('/users', (req, res, next) => {
     .catch((err) => {
       next(err);
     });
+  } else {
+    res.status(401).send({ error: '只有 admin 账号能浏览用户.' });
+  }
 });
 
 module.exports = router;
