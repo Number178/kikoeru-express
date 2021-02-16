@@ -5,7 +5,7 @@ const expressJwt = require('express-jwt'); // 把 JWT 的 payload 部分赋值�
 const { signtoken, md5 } = require('./utils');
 const db = require('../database/db');
 
-const { config, setConfig } = require('../config');
+const { config, setConfig, sharedConfigHandle } = require('../config');
 
 const router = express.Router();
 
@@ -175,7 +175,7 @@ router.get('/users', (req, res, next) => {
 });
 
 // 修改配置文件
-router.put('/config', (req, res, next) => {
+router.put('/config/admin', (req, res, next) => {
   if (!config.auth || req.user.name === 'admin') {
     try {
       setConfig(req.body.config);
@@ -189,7 +189,7 @@ router.put('/config', (req, res, next) => {
 });
 
 // 获取配置文件
-router.get('/config', (req, res, next) => {
+router.get('/config/admin', (req, res, next) => {
   if (!config.auth || req.user.name === 'admin') {
     try {
       res.send({ config: config });
@@ -197,7 +197,15 @@ router.get('/config', (req, res, next) => {
       next(err);
     }
   } else {
-    res.status(401).send({ error: '只有 admin 账号能读取配置文件.' });
+    res.status(401).send({ error: '只有 admin 账号能读取管理配置文件.' });
+  }
+});
+
+router.get('/config/shared', (req, res, next) => {
+  try {
+    res.send({ sharedConfig: sharedConfigHandle.export() });
+  } catch(err) {
+    next(err);
   }
 });
 

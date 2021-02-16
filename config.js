@@ -49,7 +49,9 @@ const defaultConfig = {
   httpsCert: 'kikoeru.crt',
   httpsPort: 8443,
   skipCleanup: false,
-  enableGzip: true
+  enableGzip: true,
+  rewindSeekTime: 5,
+  forwardSeekTime: 30
 };
 
 const initConfig = () => {
@@ -124,20 +126,6 @@ const updateConfig = () => {
   }
 }
 
-// This part always runs when the module is initialized
-if (!fs.existsSync(configPath)) {
-  if (!fs.existsSync(configFolderDir)) {
-    try {
-      fs.mkdirSync(configFolderDir, { recursive: true });
-    } catch(err) {
-      console.error(` ! 在创建存放配置文件的文件夹时出错: ${err.message}`);
-    }
-  }
-  initConfig();
-} else {
-  getConfig();
-}
-
 // Upgrade lock for VA bug fix (maybe needed in the future)
 // Note: hosisted
 class upgradeLock {
@@ -174,10 +162,38 @@ class upgradeLock {
 
 const updateLock = new upgradeLock();
 
-// updateConfig();
-// updateLock.removeLockFile();
+class publicConfig {
+  get rewindSeekTime() {
+    return config.rewindSeekTime;
+  }
+  get forwardSeekTime() {
+    return config.forwardSeekTime;
+  }
+  export() {
+    return {
+      rewindSeekTime: this.rewindSeekTime,
+      forwardSeekTime: this.forwardSeekTime
+    }
+  }
+}
+
+const sharedConfigHandle = new publicConfig();
+
+// This part always runs when the module is initialized
+if (!fs.existsSync(configPath)) {
+  if (!fs.existsSync(configFolderDir)) {
+    try {
+      fs.mkdirSync(configFolderDir, { recursive: true });
+    } catch(err) {
+      console.error(` ! 在创建存放配置文件的文件夹时出错: ${err.message}`);
+    }
+  }
+  initConfig();
+} else {
+  getConfig();
+}
 
 module.exports = {
-  setConfig, updateConfig, config,
+  setConfig, updateConfig, config, sharedConfigHandle,
   updateLock
 };
