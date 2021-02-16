@@ -12,7 +12,7 @@ const versionWithoutVerTracking = '0.4.1';
 // Before the following version, db path is using the absolute path in databaseFolderDir of config.json
 const versionDbRelativePath = '0.5.8';
 // Before the following version, there is a hash collision issue in the VA table
-const versionVAHashCollision = '0.6.0-rc.1'
+const versionVAHashCollision = '0.6.0-rc.2'
 
 let config = {};
 
