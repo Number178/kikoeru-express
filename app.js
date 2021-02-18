@@ -84,12 +84,18 @@ if (config.httpsEnabled) {
 const listenPort = process.env.PORT || config.listenPort || 8888;
 const localOnly = config.blockRemoteConnection;
 
-server.listen(listenPort, localOnly ? 'localhost': '::', () => {
+// Note: for some unknown reasons, :: does not always work 
+localOnly ? server.listen(listenPort, 'localhost') : server.listen(listenPort)
+if (config.httpsEnabled && httpsSuccess) {
+  localOnly ? httpsServer.listen(config.httpsPort, 'localhost') : httpsServer.listen(config.httpsPort)
+}
+
+server.on('listening', () => {
   console.log('Express server started on port %s at %s', server.address().port, server.address().address);
-});
+})
 
 if (config.httpsEnabled && httpsSuccess) {
-  httpsServer.listen(config.httpsPort, localOnly ? 'localhost': '::', () => {
+  httpsServer.on('listening', () => {
     console.log('Express server started on port %s at %s', httpsServer.address().port, httpsServer.address().address);
-  });
+  })
 }
