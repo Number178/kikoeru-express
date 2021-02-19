@@ -30,7 +30,7 @@
     "dev": "nodemon --trace-warnings app.js",
     "scan": "node --trace-warnings ./filesystem/scanner.js",
     "build": "pkg -t win package.json --out-path package && pkg -t macos package.json --out-path package-macos",
-    "test": "node_modules/.bin/eslint ."
+    "test": "eslint ."
   },
   "author": "Watanuki-Kimihiro",
   "license": "GPL-3.0-or-later",
