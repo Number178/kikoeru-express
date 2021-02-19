@@ -29,6 +29,7 @@ const voiceWorkDefaultPath = () => {
 const defaultConfig = {
   version: pjson.version,
   checkUpdate: true,
+  checkBetaUpdate: false,
   maxParallelism: 16,
   rootFolders: [
     // {
