@@ -8,14 +8,14 @@
   "pkg": {
     "scripts": [
       "filesystem/scanner.js",
-      "dist/**/*.js"
-    ],
-    "assets": [
-      "dist/**/*",
-      "static/**/*",
+      "dist/**/*.js",
       "database/migrations/*",
       "database/knexfile.js",
       "database/storage.js"
+    ],
+    "assets": [
+      "dist/**/*",
+      "static/**/*"
     ]
   },
   "nodemonConfig": {
@@ -62,6 +62,7 @@
     "uuid": "^8.3.2"
   },
   "devDependencies": {
-    "eslint": "^7.20.0"
+    "eslint": "^7.20.0",
+    "eslint-plugin-import": "^2.22.1"
   }
 }

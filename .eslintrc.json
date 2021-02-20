@@ -4,11 +4,15 @@
         "es2021": true,
         "node": true
     },
+    "plugins": [
+      "import"
+    ],
     "extends": "eslint:recommended",
     "parserOptions": {
         "ecmaVersion": 12
     },
     "rules": {
-      "no-prototype-builtins": "off"
+      "no-prototype-builtins": "off",
+      "import/no-unresolved": ["error", {"commonjs": true, "amd": true}]
     }
 }
