@@ -4,9 +4,6 @@
         "es2021": true,
         "node": true
     },
-    "plugins": [
-      "import"
-    ],
     "extends": [
       "eslint:recommended",
       "plugin:node/recommended"
@@ -16,7 +13,6 @@
     },
     "rules": {
       "no-prototype-builtins": "off",
-      "import/no-unresolved": ["error", {"commonjs": true, "amd": true}],
       "no-process-exit": "off"
     }
 }
