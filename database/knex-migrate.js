@@ -1,4 +1,3 @@
-#!/usr/bin/env node
 // 来自knex-migrate，用于解决knex migratio API和knex-migrate在Windows上打包后
 // 仍然使用绝对路径导致找不到文件的问题
 
