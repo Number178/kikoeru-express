@@ -10,7 +10,7 @@ const http = require('http');
 const https = require('https');
 const fs = require('fs');
 
-const { initApp }= require('./database/schema');
+const { initApp }= require('./database/init');
 const { config } = require('./config');
 const api = require('./api');
 const app = express();
