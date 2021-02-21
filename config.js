@@ -11,8 +11,6 @@ const compareVersions = require('compare-versions');
 const versionWithoutVerTracking = '0.4.1';
 // Before the following version, db path is using the absolute path in databaseFolderDir of config.json
 const versionDbRelativePath = '0.5.8';
-// Before the following version, there is a hash collision issue in the VA table
-const versionVAHashCollision = '0.6.0-rc.2'
 
 let config = {};
 
@@ -125,55 +123,12 @@ const updateConfig = () => {
     console.log('如需指定其它位置，请阅读0.6.0-rc.0更新说明');
   }
 
-  if (compareVersions.compare(cfg.version, versionVAHashCollision, '<')) {
-    console.log('\n');
-    console.log(' ! 新版解决了旧版扫描时将かの仔和こっこ识别为同一个人的问题');
-    console.log(' ! 建议进行扫描以自动修复这一问题');
-    const lockConfig = { fixVA: true };
-    updateLock.createLockFile(lockConfig);
-  }
 
   if (countChanged || cfg.version !== pjson.version) {
     cfg.version = pjson.version;
     setConfig(cfg)
   }
 }
-
-// Upgrade lock for VA bug fix (maybe needed in the future)
-// Note: hosisted
-class upgradeLock {
-  constructor(fileName = 'update.lock') {
-    this.lockFileConfig = {}
-    this.lockFilePath = path.join(configFolderDir, fileName);
-    this._init();
-  }
-  _init() {
-    if (this.isLockFilePresent) {
-      this.readLockFileConfig();
-    }
-  }
-  get isLockFilePresent() {
-    return fs.existsSync(this.lockFilePath);
-  }
-  readLockFileConfig() {
-    this.lockFileConfig = JSON.parse(fs.readFileSync(this.lockFilePath));
-  }
-  createLockFile(lockConfig) {
-    this.lockFileConfig = lockConfig;
-    fs.writeFileSync(this.lockFilePath, JSON.stringify(this.lockFileConfig, null, "\t"));
-  }
-  updateLockFile(lockConfig) {
-    this.createLockFile(lockConfig);
-  }
-  removeLockFile() {
-    if (this.isLockFilePresent) {
-      fs.unlinkSync(this.lockFilePath);
-    }
-    this.lockFileConfig = {};
-  }
-}
-
-const updateLock = new upgradeLock();
 
 class publicConfig {
   get rewindSeekTime() {
@@ -207,6 +162,5 @@ if (!fs.existsSync(configPath)) {
 }
 
 module.exports = {
-  setConfig, updateConfig, config, sharedConfigHandle,
-  updateLock
+  setConfig, updateConfig, config, sharedConfigHandle, configFolderDir
 };

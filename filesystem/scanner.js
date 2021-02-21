@@ -10,7 +10,8 @@ const { getFolderList, deleteCoverImageFromDisk, saveCoverImageToDisk } = requir
 const { md5 } = require('../auth/utils');
 const { nameToUUID } = require('../scraper/utils');
 
-const { config, updateLock } = require('../config');
+const { config } = require('../config');
+const { updateLock } = require('../upgrade');
 
 // 只有在子进程中 process 对象才有 send() 方法
 process.send = process.send || function () {};

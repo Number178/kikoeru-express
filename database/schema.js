@@ -5,6 +5,7 @@ const pjson = require('../package.json');
 const compareVersions = require('compare-versions');
 
 const { config, updateConfig } = require('../config');
+const { applyFix } = require('../upgrade');
 
 // 数据库结构
 const createSchema = () => knex.schema
@@ -120,9 +121,16 @@ const initApp = async () => {
 
   if (databaseExist && compareVersions.compare(currentVersion, configVersion, '>')) {
     console.log('升级中');
-    await fixMigrations();
-    await runMigrations();
-    updateConfig();
+    const oldVersion = config.version;
+    try {
+      await applyFix(oldVersion);
+      await fixMigrations();
+      await runMigrations();
+      updateConfig();
+    } catch (error) {
+      console.log('升级迁移过程中出错，请在GitHub issues中报告作者')
+      console.error(error);
+    }
   } else if (!databaseExist) {
     await createSchema()
     try { // 创建内置的管理员账号
@@ -141,6 +149,10 @@ const initApp = async () => {
     } catch (err) {
       console.error(` ! 在构建数据库结构过程中出错: ${err.message}`);
       process.exit(1);
+    }
+    if (compareVersions.compare(currentVersion, configVersion, '>')) {
+      // Update config only. Do not apply fix to database.
+      updateConfig();
     }
   }
 }
