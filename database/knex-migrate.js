@@ -3,12 +3,10 @@
 
 const { join } = require('path')
 const { existsSync} = require('fs')
-const Umzug = require('umzug')
+const Umzug = require('@umonaca/umzug')
 const { omitBy, isNil} = require('lodash')
 const Promise = require('bluebird')
 const knex = require('knex')
-const { promisify } = require('util')
-const readdir = promisify(require('fs').readdir)
 
 function normalizeFlags (flags) {
   flags.knexfile = flags.knexfile || 'knexfile.js'
@@ -78,13 +76,18 @@ function umzugKnex (flags, connection) {
       path: flags.migrations,
       pattern: /^\d+_.+\.[j|t]s$/,
       wrap: fn => (knex, Promise) => {
+        if (flags.skip) {
+          // Non standard. Mark as executed without actually executing the migration
+          return Promise.resolve()
+        }
         if (flags.raw) {
           return Promise.resolve(fn(knex, Promise))
         } else {
           return knex.transaction(tx => Promise.resolve(fn(tx, Promise)))
         }
       }
-    }
+    },
+    skipTargetMigrationCheck: true
   })
 }
 
@@ -172,8 +175,10 @@ async function knexMigrate (command, flags, progress) {
     
     // Non standard, used in this project only
     skipAll: async () => {
-      let files  = await readdir(flags.migrations)
-      return umzug.storage.skipMigrations(files).catch(err => console.error(err))
+      flags.skip = true
+      const opts = await umzugOptions('up', flags, umzug)
+      await umzug.storage.ensureTable()
+      return umzug.up(opts)
     }
   }
 
