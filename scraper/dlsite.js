@@ -61,15 +61,16 @@ const scrapeStaticWorkMetadataFromDLsite = (id, language) => new Promise((resolv
         ? { id: parseInt(circleUrl.substr(-10,5)), name: circleName }
         : {};
 
+      const workOutline = $('#work_outline');
       // NSFW
-      const R18 = $('#work_outline').children('tbody').children('tr').children('th')
+      const R18 = workOutline.children('tbody').children('tr').children('th')
         .filter(function() {
           return $(this).text() === AGE_RATINGS;
         }).parent().children('td').text();
       work.nsfw = R18 === '18禁';
 
       // 贩卖日 (YYYY-MM-DD)
-      const release = $('#work_outline').children('tbody').children('tr').children('th')
+      const release = workOutline.children('tbody').children('tr').children('th')
         .filter(function() {
           return $(this).text() === RELEASE;
         }).parent().children('td').text().replace(/[^0-9]/ig,'');
@@ -78,7 +79,7 @@ const scrapeStaticWorkMetadataFromDLsite = (id, language) => new Promise((resolv
         : '';
 
       // 系列
-      const seriesElement = $('#work_outline').children('tbody').children('tr').children('th')
+      const seriesElement = workOutline.children('tbody').children('tr').children('th')
         .filter(function() {
           return $(this).text() === SERIES;
         }).parent().children('td').children('a');
@@ -93,7 +94,7 @@ const scrapeStaticWorkMetadataFromDLsite = (id, language) => new Promise((resolv
       }
       
       // 标签
-      $('#work_outline').children('tbody').children('tr').children('th')
+        workOutline.children('tbody').children('tr').children('th')
         .filter(function() {
           return $(this).text() === GENRE;
         }).parent().children('td').children('div').children('a').each(function() {
@@ -108,7 +109,7 @@ const scrapeStaticWorkMetadataFromDLsite = (id, language) => new Promise((resolv
         });
       
       // 声优
-      $('#work_outline').children('tbody').children('tr').children('th')
+        workOutline.children('tbody').children('tr').children('th')
         .filter(function() {
           return $(this).text() === VA;
         }).parent().children('td').children('a').each(function() {
