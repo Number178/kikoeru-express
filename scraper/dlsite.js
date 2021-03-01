@@ -172,9 +172,9 @@ const scrapeDynamicWorkMetadataFromDLsite = id => new Promise((resolve, reject) 
     .then(response => response.data[`RJ${rjcode}`])
     .then((data) => {
       const work = {};
-      work.dl_count = data.dl_count; // 售出数
-      work.rate_average_2dp = data.rate_average_2dp; // 平均评价
-      work.rate_count = data.rate_count; // 评价数量
+      work.dl_count = data.dl_count ? data.dl_count : "0"; // 售出数
+      work.rate_average_2dp = data.rate_average_2dp ? data.rate_average_2dp : 0.0; // 平均评价
+      work.rate_count = data.rate_count ? data.rate_count : 0; // 评价数量
       work.rate_count_detail = data.rate_count_detail; // 评价分布明细
       work.review_count = data.review_count; // 评论数量
       work.price = data.price; // 价格
