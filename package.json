@@ -57,7 +57,7 @@
     "knex": "^0.21.17",
     "knex-migrate": "^1.7.4",
     "limit-promise": "^1.0.4",
-    "lodash": "^4.17.20",
+    "lodash": "^4.17.21",
     "md5": "^2.3.0",
     "natural-orderby": "^2.0.3",
     "recursive-readdir": "^2.2.2",

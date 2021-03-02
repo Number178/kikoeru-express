@@ -70,9 +70,11 @@ const initConfig = () => {
   fs.writeFileSync(configPath, JSON.stringify(defaultConfig, null, "\t"));
 }
 
-const setConfig = newConfig => {
+const setConfig = (newConfig) => {
+  newConfig.md5secret = config.md5secret;
+  newConfig.jwtsecret = config.jwtsecret;
   config = Object.assign(config, newConfig);
-  fs.writeFileSync(configPath, JSON.stringify(newConfig, null, "\t"));
+  fs.writeFileSync(configPath, JSON.stringify(config, null, "\t"));
 }
 
 // Get or use default value
