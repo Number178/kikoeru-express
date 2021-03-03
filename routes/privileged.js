@@ -1,7 +1,9 @@
 // This file is designated for dangerous routes which will trigger side effects
 // such as opening folder on host system, shuting down the host system, etc.
 const router = require('express').Router();
+const { check, validationResult } = require('express-validator');
 const { config } = require('../config');
+const db = require('../database/db');
 
 // Validation middleware
 router.use('/', (req, res, next) => {
@@ -28,7 +30,12 @@ router.use('/', (req, res, next) => {
 });
 
 // eslint-disable-next-line no-unused-vars
-router.get('/host/folder/open', (req, res, next) => {
+router.get('/works/:id/openfolder', check('id').isNumeric(), (req, res, next) => {
+  const errors = validationResult(req);
+  console.log(errors)
+  if (!errors.isEmpty()) {
+    return res.status(400).json({ errors: errors.array() });
+  }
 
   console.log('GOT HERE');
   res.send({message: '已打开文件夹'});
