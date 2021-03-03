@@ -57,7 +57,8 @@ app.use(express.static(path.join(__dirname, './dist')));
 // eslint-disable-next-line no-unused-vars
 app.use((err, req, res, next) => {
   if (err.name === 'UnauthorizedError') { 
-    // 验证错误  
+    // 验证错误
+    res.set("WWW-Authenticate", "Bearer realm=\"Authorization Required\"");
     res.status(401).send({ error: err.message });
   } else if (err.code === 'SQLITE_ERROR') {
     if (err.message.indexOf('no such table') !== -1) {

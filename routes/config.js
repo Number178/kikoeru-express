@@ -21,7 +21,7 @@ router.put('/admin', (req, res, next) => {
       next(err);
     }
   } else {
-    res.status(401).send({ error: '只有 admin 账号能修改配置文件.' });
+    res.status(403).send({ error: '只有 admin 账号能修改配置文件.' });
   }
 });
 
@@ -34,7 +34,7 @@ router.get('/admin', (req, res, next) => {
       next(err);
     }
   } else {
-    res.status(401).send({ error: '只有 admin 账号能读取管理配置文件.' });
+    res.status(403).send({ error: '只有 admin 账号能读取管理配置文件.' });
   }
 });
 

@@ -33,6 +33,7 @@ router.post('/me', [
     .first()
     .then((user) => {
       if (!user) {
+        res.set("WWW-Authenticate", "Bearer realm=\"Authorization Required\"");
         res.status(401).send({error: '用户名或密码错误.'});
       } else {
         const token = signtoken(user);

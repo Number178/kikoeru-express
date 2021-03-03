@@ -49,7 +49,7 @@ router.post('/user', [
         }
       });
   } else {
-    res.status(401).send({ error: '只有 admin 账号能创建新用户.' });
+    res.status(403).send({ error: '只有 admin 账号能创建新用户.' });
   }
 });
 
@@ -78,7 +78,7 @@ router.put('/user', [
       .then(() => res.send({ message: '密码修改成功.' }))
       .catch((err) => {
         if (err.message.indexOf('用户名错误.') !== -1) {
-          res.status(401).send({ error: '用户名错误.' });
+          res.status(403).send({ error: '用户名错误.' });
         } else {
           next(err);
         }
@@ -105,7 +105,7 @@ router.delete('/user', (req, res, next) => {
       res.status(403).send({ error: '不能删除内置的管理员账号.' });
     }
   } else {
-    res.status(401).send({ error: '只有 admin 账号能删除用户.' });
+    res.status(403).send({ error: '只有 admin 账号能删除用户.' });
   }
 });
 
@@ -121,7 +121,7 @@ router.get('/users', (req, res, next) => {
       next(err);
     });
   } else {
-    res.status(401).send({ error: '只有 admin 账号能浏览用户.' });
+    res.status(403).send({ error: '只有 admin 账号能浏览用户.' });
   }
 });
 
