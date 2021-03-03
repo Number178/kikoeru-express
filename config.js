@@ -26,6 +26,7 @@ const voiceWorkDefaultPath = () => {
 
 const defaultConfig = {
   version: pjson.version,
+  production: process.env.NODE_ENV === 'production' ? true : false,
   checkUpdate: true,
   checkBetaUpdate: false,
   maxParallelism: 16,
@@ -40,7 +41,7 @@ const defaultConfig = {
   coverUseDefaultPath: false, // Ignores coverFolderDir if set to true
   dbUseDefaultPath: true, // Ignores databaseFolderDir if set to true
   voiceWorkDefaultPath: voiceWorkDefaultPath(),
-  auth: false,
+  auth: process.env.NODE_ENV === 'production' ? true : false,
   md5secret: stringRandom(14),
   jwtsecret: stringRandom(14),
   expiresIn: 2592000,
@@ -72,8 +73,15 @@ const initConfig = () => {
 }
 
 const setConfig = (newConfig) => {
+  // Prevent changing some values, overwrite with old ones
+  newConfig.production = config.production;
+  if (process.env.NODE_ENV === 'production' || config.production) {
+    newConfig.auth = true;
+  }
   newConfig.md5secret = config.md5secret;
   newConfig.jwtsecret = config.jwtsecret;
+
+  // Merge config
   config = Object.assign(config, newConfig);
   fs.writeFileSync(configPath, JSON.stringify(config, null, "\t"));
 }
@@ -106,6 +114,10 @@ const getConfig = () => {
   }
   if (config.dbUseDefaultPath) {
     config.databaseFolderDir = process.pkg ? path.join(process.execPath, '..', 'sqlite') : path.join(__dirname, 'sqlite');
+  }
+
+  if (process.env.NODE_ENV === 'production' || config.production) {
+    config.auth = true;
   }
 };
 
