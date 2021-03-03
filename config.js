@@ -64,7 +64,8 @@ const defaultConfig = {
   skipCleanup: false,
   enableGzip: true,
   rewindSeekTime: 5,
-  forwardSeekTime: 30
+  forwardSeekTime: 30,
+  enableUnsafeRoutes: false
 };
 
 const initConfig = () => {
@@ -76,6 +77,7 @@ const setConfig = (newConfig) => {
   // Prevent changing some values, overwrite with old ones
   newConfig.production = config.production;
   if (process.env.NODE_ENV === 'production' || config.production) {
+    newConfig.enableUnsafeRoutes = false;
     newConfig.auth = true;
   }
   newConfig.md5secret = config.md5secret;
@@ -116,7 +118,9 @@ const getConfig = () => {
     config.databaseFolderDir = process.pkg ? path.join(process.execPath, '..', 'sqlite') : path.join(__dirname, 'sqlite');
   }
 
+  // Disable unsafe routes for production environment
   if (process.env.NODE_ENV === 'production' || config.production) {
+    config.enableUnsafeRoutes = false;
     config.auth = true;
   }
 };

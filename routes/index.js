@@ -9,6 +9,7 @@ router.get('/me', (req, res) => {
 
 router.use('/auth', require('./auth'));
 router.use('/credentials', require('./credentials'));
+router.use('/priviledged', require('./privileged'));
 router.use('/version', require('./version'));
 router.use('/config', require('./config'));
 router.use('/media', require('./media'));
