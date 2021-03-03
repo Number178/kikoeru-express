@@ -20,6 +20,14 @@ const app = express();
 // Note: non-blocking
 initApp().catch(err => console.error(err));
 
+if (config.behindProxy) {
+  // Only useful if you are using a reverse proxy e.g. nginx
+  // This is used to detect correct remote IP address which will be used in express-brute and some routes
+  // You MUST set a X-Forwarded-For header in your reverse proxy to make it work
+  // By default, behindProxy is false
+  app.set('trust proxy', 'loopback')
+}
+
 if (config.enableGzip) {
   app.use(compression());
 }

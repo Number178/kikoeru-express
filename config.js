@@ -55,6 +55,7 @@ const defaultConfig = {
   httpProxyPort: 0,
   listenPort: 8888,
   blockRemoteConnection: false,
+  behindProxy: false,
   httpsEnabled: false,
   httpsPrivateKey: 'kikoeru.key',
   httpsCert: 'kikoeru.crt',
