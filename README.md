@@ -1,5 +1,5 @@
 # Kikoeru
-一个同人音声专用的音乐流媒体服务器，详细的使用说明见[**用户文档**](./%E7%94%A8%E6%88%B7%E6%96%87%E6%A1%A3.md)
+一个同人音声专用的音乐流媒体服务器，详细的使用说明见[**用户文档**](https://github.com/umonaca/kikoeru-express/wiki/%E4%BD%BF%E7%94%A8%E8%AF%B4%E6%98%8E)
 
 ![截图.png](https://i.loli.net/2020/04/22/hjXW4PdsaoIt97U.png)
 
@@ -28,7 +28,7 @@ npm start
 PWA的优点：基本页面零延迟，可以像手机APP一样通过浏览器“添加到桌面”的方式安装成App。作者自己使用的前端版本。  
 缺点：更新新版本时需要至少多刷新一次。  
 
-本项目还有打包好的 **Windows 系统下可用的 exe 可执行文件**与 **docker 镜像**版本，docker镜像及docker-compose的使用说明详见[**用户文档**](./%E7%94%A8%E6%88%B7%E6%96%87%E6%A1%A3.md)  
+本项目还有打包好的 **Windows 系统下可用的 exe 可执行文件**与 **docker 镜像**版本，docker镜像及docker-compose的使用说明详见[**用户文档**](https://github.com/umonaca/kikoeru-express/wiki/%E4%BD%BF%E7%94%A8%E8%AF%B4%E6%98%8E)  
 使用docker-compose只需调整`docker-compose.yml`内的挂载位置以符合您的存储路径即可。
 
 ### 技术栈
