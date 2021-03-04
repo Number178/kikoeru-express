@@ -1,5 +1,6 @@
 #!/usr/bin/env node
 
+require('dotenv').config()
 const path = require('path');
 const express = require('express');
 const initSocket = require('./socket');

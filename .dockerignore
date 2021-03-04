@@ -31,3 +31,6 @@ Release-Template.md
 
 # GitHub
 .github
+
+# Env
+.env
