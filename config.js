@@ -1,6 +1,6 @@
 const fs = require('fs');
 const path = require('path');
-const stringRandom = require('string-random');
+const crypto = require('crypto')
 
 const configFolderDir = process.pkg ? path.join(process.execPath, '..', 'config') : path.join(__dirname, 'config');
 const configPath = path.join(configFolderDir, 'config.json');
@@ -42,8 +42,8 @@ const defaultConfig = {
   dbUseDefaultPath: true, // Ignores databaseFolderDir if set to true
   voiceWorkDefaultPath: voiceWorkDefaultPath(),
   auth: process.env.NODE_ENV === 'production' ? true : false,
-  md5secret: stringRandom(14),
-  jwtsecret: stringRandom(14),
+  md5secret: crypto.randomBytes(32).toString('hex'),
+  jwtsecret: crypto.randomBytes(32).toString('hex'),
   expiresIn: 2592000,
   scannerMaxRecursionDepth: 2,
   pageSize: 12,

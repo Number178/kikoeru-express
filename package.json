@@ -46,6 +46,7 @@
     "compare-versions": "^3.6.0",
     "compression": "^1.7.4",
     "connect-history-api-fallback": "^1.6.0",
+    "crypto": "^1.0.1",
     "express": "^4.17.1",
     "express-jwt": "^6.0.0",
     "express-validator": "^6.9.2",
