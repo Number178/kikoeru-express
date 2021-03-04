@@ -496,8 +496,6 @@ const getWorksWithReviews = ({username = '', limit = 1000, offset = 0, orderBy =
       t_work.review_count,
       t_work.dl_count,
       t_work.nsfw,
-      t_va.id AS vaid, 
-      t_va.name AS vaname,
       userrate.userRating,
       userrate.review_text,
       userrate.progress,
@@ -519,7 +517,7 @@ const getWorksWithReviews = ({username = '', limit = 1000, offset = 0, orderBy =
           JOIN t_work on t_work.id = t_review.work_id
         ) AS userrate
     ON userrate.work_id = t_work.id
-    GROUP BY t_work.id
+    GROUP BY t_work.id, userrate.user_name
   `);
   
   let works = [];
