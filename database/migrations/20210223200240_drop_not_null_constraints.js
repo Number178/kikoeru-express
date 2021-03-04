@@ -2,10 +2,10 @@
 // This migration tries to fix the inconsistency
 exports.up = async function(knex) {
   try {
-    knex.raw('DROP INDEX IF EXISTS t_work_circle_id_release_dl_count_review_count_price_rate_average_2dp_index');
-    knex.raw('DROP INDEX IF EXISTS t_work_index');
+    await knex.raw('DROP INDEX IF EXISTS t_work_circle_id_release_dl_count_review_count_price_rate_average_2dp_index');
+    await knex.raw('DROP INDEX IF EXISTS t_work_index');
     // Will be recreated by the main program
-    knex.raw('DROP VIEW IF EXISTS userMetadata');
+    await knex.raw('DROP VIEW IF EXISTS userMetadata');
 
     // SQLite allows DDL in transaction
     await knex.schema.createTable('t_work_new', (table) => {
