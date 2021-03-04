@@ -38,6 +38,12 @@ app.use(bodyParser.urlencoded({ extended: true }));
 // parse application/json
 app.use(bodyParser.json());
 
+// For dev purpose only
+if (process.env.NODE_ENV === 'development') {
+  // eslint-disable-next-line node/no-unpublished-require
+  app.use('/media', express.static(path.join(__dirname, 'VoiceWork')), require('serve-index')('VoiceWork', {'icons': true}));
+}
+
 // connect-history-api-fallback 中间件后所有的 GET 请求都会变成 index (default: './index.html').
 app.use(history({
   // 将所有带 api 的 GET 请求都代理到 parsedUrl.path, 其实就是原来的路径
