@@ -65,7 +65,10 @@ const defaultConfig = {
   enableGzip: true,
   rewindSeekTime: 5,
   forwardSeekTime: 30,
-  enableUnsafeRoutes: false
+  enableUnsafeRoutes: false,
+  offloadMedia: false,
+  offloadStreamPath: '/media/stream/',
+  offloadDownloadPath: '/media/download/'
 };
 
 const initConfig = () => {

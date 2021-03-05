@@ -41,7 +41,9 @@ app.use(bodyParser.json());
 // For dev purpose only
 if (process.env.NODE_ENV === 'development') {
   // eslint-disable-next-line node/no-unpublished-require
-  app.use('/media', express.static(path.join(__dirname, 'VoiceWork')), require('serve-index')('VoiceWork', {'icons': true}));
+  app.use('/media/stream/VoiceWork', express.static('VoiceWork'), require('serve-index')('VoiceWork', {'icons': true}));
+  // eslint-disable-next-line node/no-unpublished-require
+  app.use('/media/download/VoiceWork', express.static('VoiceWork'), require('serve-index')('VoiceWork', {'icons': true}));
 }
 
 // connect-history-api-fallback 中间件后所有的 GET 请求都会变成 index (default: './index.html').
