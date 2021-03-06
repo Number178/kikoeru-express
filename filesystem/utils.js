@@ -54,7 +54,7 @@ const getTrackList = (id, dir) => recursiveReaddir(dir)
  * @param {Array} tracks 
  * @param {String} workTitle 
  */
-const toTree = (tracks, workTitle) => {
+const toTree = (tracks, workTitle, workDir, rootFolder) => {
   const tree = [];
 
   // 插入文件夹
@@ -73,35 +73,63 @@ const toTree = (tracks, workTitle) => {
       fatherFolder = fatherFolder.find(item => item.type === 'folder' && item.title === folderName).children;
     });
   });
-  
+
   // 插入文件
   tracks.forEach(track => {
     let fatherFolder = tree;
-    const path = track.subtitle ? track.subtitle.split('\\') : [];
-    path.forEach(folderName => {
+    const paths = track.subtitle ? track.subtitle.split('\\') : [];
+    paths.forEach(folderName => {
       fatherFolder = fatherFolder.find(item => item.type === 'folder' && item.title === folderName).children;
     });
+
+    // Path controlled by config.offloadMedia, config.offloadStreamPath and config.offloadDownloadPath
+    // By default:
+    // /media/stream/RJ123456/subdirs/track.mp3
+    // /media/download/RJ123456/subdirs/track.mp3
+    //
+    // If the folder is deeper:
+    // /media/stream/second/RJ123456/subdirs/track.mp3
+    // /media/download/second/RJ123456/subdirs/track.mp3
+    // console.log(rootFolder.name, workDir, track.subtitle, track.title)
+    let offloadStreamUrl = path.join(config.offloadStreamPath, rootFolder.name, workDir, track.subtitle || '', track.title);
+    let offloadDownloadUrl = path.join(config.offloadDownloadPath, rootFolder.name, workDir, track.subtitle || '', track.title);
+    if (process.platform === 'win32') {
+      offloadStreamUrl = offloadStreamUrl.replace(/\\/g, '/');
+      offloadDownloadUrl = offloadDownloadUrl.replace(/\\/g, '/');
+    }
+  
+    const textBaseUrl = '/api/media/stream/'
+    const textStreamBaseUrl = textBaseUrl + track.hash;    // Handle charset detection internally with jschardet
+    const textDownloadBaseUrl = config.offloadMedia ? offloadDownloadUrl : config.mediaDownloadBaseUrl + track.hash;
+    const mediaStreamUrl = config.offloadMedia ? offloadStreamUrl : config.mediaStreamBaseUrl + track.hash;
+    const mediaDownloadUrl = config.offloadMedia ? offloadDownloadUrl : config.mediaDownloadBaseUrl + track.hash;
 
     if (track.ext === '.txt' || track.ext === '.lrc' || track.ext === '.srt' || track.ext === '.ass') {
       fatherFolder.push({
         type: 'text',
         hash: track.hash,
         title: track.title,
-        workTitle
+        workTitle,
+        mediaStreamUrl: textStreamBaseUrl,
+        mediaDownloadUrl: textDownloadBaseUrl
       });
     } else if (track.ext === '.jpg' || track.ext === '.jpeg' || track.ext === '.png' || track.ext === '.webp' ) {
       fatherFolder.push({
         type: 'image',
         hash: track.hash,
         title: track.title,
-        workTitle
+        workTitle,
+        mediaStreamUrl,
+        mediaDownloadUrl
       });
     } else {
       fatherFolder.push({
         type: 'file',
         hash: track.hash,
         title: track.title,
-        workTitle
+        workTitle,
+        mediaStreamUrl,
+        mediaDownloadUrl
       });
     }
   });

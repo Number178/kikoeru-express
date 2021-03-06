@@ -67,8 +67,10 @@ const defaultConfig = {
   forwardSeekTime: 30,
   enableUnsafeRoutes: false,
   offloadMedia: false,
-  offloadStreamPath: '/media/stream/',
-  offloadDownloadPath: '/media/download/'
+  offloadStreamPath: '/media/stream/',          // /media/stream/RJ123456/subdirs/track.mp3
+  offloadDownloadPath: '/media/download/',      // /media/download/RJ123456/subdirs/track.mp3
+  mediaStreamBaseUrl: '/api/media/stream/',     // /api/media/stream/123456/2  This setting will be ignored if offloadMedia = true 
+  mediaDownloadBaseUrl: '/api/media/download/', // /api/media/download/123456/2 This setting will be ignored if offloadMedia = true
 };
 
 const initConfig = () => {
