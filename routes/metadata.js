@@ -90,7 +90,7 @@ router.get('/works', async (req, res, next) => {
       }
     });
   } catch(err) {
-    res.status(500).send({error: '查询过程中出错'});
+    res.status(500).send({error: '服务器错误'});
     console.error(err)
     // next(err);
   }
@@ -144,7 +144,8 @@ router.get('/search/:keyword?', async (req, res, next) => {
     });
   } catch(err) {
     res.status(500).send({error: '查询过程中出错'});
-    next(err);
+    console.error(err);
+    // next(err);
   }
 });
 
@@ -182,7 +183,8 @@ router.get('/:field/:id', async (req, res, next) => {
     });
   } catch(err) {
     res.status(500).send({error: '查询过程中出错'});
-    next(err);
+    console.error(err);
+    // next(err);
   }
 });
 

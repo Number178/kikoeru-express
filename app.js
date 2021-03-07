@@ -74,6 +74,7 @@ app.use((err, req, res, next) => {
       res.status(500).send({ error: '数据库结构尚未建立，请先执行扫描.'});
     }
   } else {
+    console.error(err);
     res.status(500).send({ error: err.message || err });
   }
 });

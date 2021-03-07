@@ -57,7 +57,8 @@ router.get('/stream/:id/:index', (req, res, next) => {
       } else {
         res.status(500).send({error: `找不到文件夹: "${work.root_folder}"，请尝试重启服务器或重新扫描.`});
       }
-    });
+    })
+    .catch(err => next(err));
 });
 
 router.get('/download/:id/:index', (req, res, next) => {
@@ -131,7 +132,8 @@ router.get('/check-lrc/:id/:index', (req, res, next) => {
       } else {
         res.status(500).send({error: `找不到文件夹: "${work.root_folder}"，请尝试重启服务器或重新扫描.`});
       }
-    });
+    })
+    .catch(err => next(err));
 });
 
 module.exports = router;
