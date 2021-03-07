@@ -1,7 +1,6 @@
 const fs = require('fs');
 const path = require('path');
 const { config } = require('../config');
-const { strftime } = require('./strftime')
 
 const databaseFolderDir = config.databaseFolderDir;
 if (!fs.existsSync(databaseFolderDir)) {
@@ -146,84 +145,25 @@ const updateWorkMetadata = (work, options = {}) => knex.transaction(async (trx) 
  * @param {Number} id Work identifier.
  * @param {String} username 'admin' or other usernames for current user
  */
-const getWorkMetadata = (id, username) => new Promise((resolve, reject) => {
+const getWorkMetadata = async (id, username) => {
   // TODO: do this all in a single transaction?
   // <= Yes, WTF is this
+  // I think we are done.
 
-    knex.raw(`
-    SELECT t_work.*,
-      t_circle.name AS circlename,
-      t_tag.id AS tagid,
-      t_tag.name AS tagname,
-      t_va.id AS vaid,
-      t_va.name AS vaname,
-      userrate.rating,
-      userrate.review_text,
-      userrate.progress,
-      datetime(userrate.updated_at,'localtime')
-    FROM t_work
-      JOIN t_circle on t_circle.id = t_work.circle_id
-      LEFT JOIN r_tag_work on r_tag_work.work_id = t_work.id
-      LEFT JOIN t_tag on t_tag.id = r_tag_work.tag_id
-      JOIN r_va_work on r_va_work.work_id = t_work.id
-      join t_va on t_va.id = r_va_work.va_id
-      LEFT JOIN (
-        SELECT t_review.work_id,
-          t_review.rating,
-          t_review.review_text,
-          t_review.progress,
-          t_review.updated_at
-        FROM t_review
-          JOIN t_work on t_work.id = t_review.work_id
-          JOIN t_user on t_review.user_name = t_user.name
-        WHERE t_review.user_name = ?
-      ) AS userrate
-      ON userrate.work_id = t_work.id
-    WHERE t_work.id = ?;`, [username, id])
-      .then(res => {
-        if (res.length === 0) throw new Error(`There is no work with id ${id} in the database.`);
-        let work = {};
-        let result = res[0];
-        work.id= result.id;
-        work.title= result.title;
-        work.circle= {id: result.circle_id, name: result.circlename};
-        work.nsfw= Boolean(result.nsfw);
-        work.release= result.release;
+    const ratingSubQuery = knex('t_review')
+    .select(['t_review.work_id', 't_review.rating AS userRating', 't_review.review_text', 't_review.progress', knex.raw('strftime(\'%Y-%m-%d %H-%M-%S\', t_review.updated_at, \'localtime\') AS updated_at'), 't_review.user_name'])
+    .join('t_work', 't_work.id', 't_review.work_id')
+    .where('t_review.user_name', username).as('userrate');
 
-        work.dl_count= result.dl_count;
-        work.price= result.price;
-        work.review_count= result.review_count;
-        work.rate_count= result.rate_count;
-        work.rate_average_2dp= result.rate_average_2dp;
-        work.rate_count_detail= JSON.parse(result.rate_count_detail);
-        work.rank= result.rank ? JSON.parse(result.rank) : null;
+    let query = () => knex('staticMetadata')
+      .select(['staticMetadata.*', 'userrate.userRating', 'userrate.review_text', 'userrate.progress', 'userrate.updated_at', 'userrate.user_name'])
+      .leftJoin(ratingSubQuery, 'userrate.work_id', 'staticMetadata.id')
+      .where('id', '=', id);
 
-        // Get unique tags and vas records
-        let tags = new Set();
-        let vas = new Set();
-        let tagRecord = [];
-        let vasRecord = [];
-        for (let record of res) {
-          if (!tags.has(record.tagname)) {
-            tags.add(record.tagname);
-            tagRecord.push({id: record.tagid, name: record.tagname});
-          }
-          if (!vas.has(record.vaname)) {
-            vas.add(record.vaname);
-            vasRecord.push({id: record.vaid, name: record.vaname});
-          }
-        }
-        work.tags = tagRecord;
-        work.vas = vasRecord;
-
-        work.userRating= result.rating;
-        work.progress = result.progress;
-        work.review_text = result.review_text;
-
-        resolve(work);
-      })
-    .catch(err => reject(err));
-});
+    const work = await query();
+    if (work.length === 0) throw new Error(`There is no work with id ${id} in the database.`);
+    return work;
+};
 
 /**
  * Tests if the given circle, tags and VAs are orphans and if so, removes them.
@@ -323,34 +263,29 @@ const getWorksBy = ({id, field, username = ''} = {}) => {
   const ratingSubQuery = knex('t_review')
     .select(['t_review.work_id', 't_review.rating'])
     .join('t_work', 't_work.id', 't_review.work_id')
-    .join('t_user', 't_user.name', 't_review.user_name')
     .where('t_review.user_name', username).as('userrate')
   
   switch (field) {
     case 'circle':
-      return knex('t_work')
-        .select('id')
-        .leftJoin(ratingSubQuery, 'userrate.work_id', 't_work.id')
+      return knex('staticMetadata').select(['staticMetadata.*', 'userrate.rating AS userRating'])
+        .leftJoin(ratingSubQuery, 'userrate.work_id', 'staticMetadata.id')
         .where('circle_id', '=', id);
 
     case 'tag':
       workIdQuery = knex('r_tag_work').select('work_id').where('tag_id', '=', id);
-      return knex('t_work')
-        .select('id')
-        .leftJoin(ratingSubQuery, 'userrate.work_id', 't_work.id')
+      return knex('staticMetadata').select(['staticMetadata.*', 'userrate.rating AS userRating'])
+        .leftJoin(ratingSubQuery, 'userrate.work_id', 'staticMetadata.id')
         .where('id', 'in', workIdQuery);
 
     case 'va':
       workIdQuery = knex('r_va_work').select('work_id').where('va_id', '=', id);
-      return knex('t_work')
-        .select('id')
-        .leftJoin(ratingSubQuery, 'userrate.work_id', 't_work.id')
+      return knex('staticMetadata').select(['staticMetadata.*', 'userrate.rating AS userRating'])
+        .leftJoin(ratingSubQuery, 'userrate.work_id', 'staticMetadata.id')
         .where('id', 'in', workIdQuery);
 
     default:
-      return knex('t_work')
-        .select('id')
-        .leftJoin(ratingSubQuery, 'userrate.work_id', 't_work.id');
+      return knex('staticMetadata').select(['staticMetadata.*', 'userrate.rating AS userRating'])
+        .leftJoin(ratingSubQuery, 'userrate.work_id', 'staticMetadata.id');
   }
 };
 
@@ -362,14 +297,12 @@ const getWorksByKeyWord = ({keyword, username = 'admin'} = {}) => {
   const ratingSubQuery = knex('t_review')
   .select(['t_review.work_id', 't_review.rating'])
   .join('t_work', 't_work.id', 't_review.work_id')
-  .join('t_user', 't_user.name', 't_review.user_name')
   .where('t_review.user_name', username).as('userrate')
 
   const workid = keyword.match(/((R|r)(J|j))?(\d{6})/) ? keyword.match(/((R|r)(J|j))?(\d{6})/)[4] : '';
   if (workid) {
-    return knex('t_work')
-      .select('id', 'release', 'rating', 'dl_count', 'review_count', 'price', 'rate_average_2dp')
-      .leftJoin(ratingSubQuery, 'userrate.work_id', 't_work.id')
+    return knex('staticMetadata').select(['staticMetadata.*', 'userrate.rating AS userRating'])
+      .leftJoin(ratingSubQuery, 'userrate.work_id', 'staticMetadata.id')
       .where('id', '=', workid);
   }
 
@@ -383,9 +316,8 @@ const getWorksByKeyWord = ({keyword, username = 'admin'} = {}) => {
   ]);
 
 
-  return knex('t_work')
-    .select('id', 'rating', 'release', 'dl_count', 'review_count', 'price', 'rate_average_2dp', 'nsfw')
-    .leftJoin(ratingSubQuery, 'userrate.work_id', 't_work.id')
+  return knex('staticMetadata').select(['staticMetadata.*', 'userrate.rating AS userRating'])
+    .leftJoin(ratingSubQuery, 'userrate.work_id', 'staticMetadata.id')
     .where('title', 'like', `%${keyword}%`)
     .orWhere('circle_id', 'in', circleIdQuery)
     .orWhere('id', 'in', workIdQuery);
@@ -487,18 +419,26 @@ const updateUserReview = async (username, workid, rating, review_text = '', prog
     }
 });
 
-// 删除星标及评语
+// 删除星标、评语及进度
 const deleteUserReview = (username, workid) => knex.transaction(trx => trx('t_review')
   .where('user_name', '=', username)
   .andWhere('work_id', '=', workid)
   .del());
 
-// TODO 写migration
-const getWorksWithReviews = ({username = '', limit = 1000, offset = 0, orderBy = 'release', sortOption = 'desc', filter} = {}) => knex.transaction(async(trx) => {
+// 读取星标及评语 + 作品元数据
+const getWorksWithReviews = async ({username = '', limit = 1000, offset = 0, orderBy = 'release', sortOption = 'desc', filter} = {}) => {
   let works = [];
   let totalCount = 0;
-  let query = () => knex('userMetadata').where('user_name', '=', username)
-  .orderBy(orderBy, sortOption).orderBy([{ column: 'release', order: 'desc'}, { column: 'id', order: 'desc' }]);
+
+  const ratingSubQuery = knex('t_review')
+  .select(['t_review.work_id', 't_review.rating AS userRating', 't_review.review_text', 't_review.progress', knex.raw('strftime(\'%Y-%m-%d %H-%M-%S\', t_review.updated_at, \'localtime\') AS updated_at'), 't_review.user_name'])
+  .join('t_work', 't_work.id', 't_review.work_id')
+  .where('t_review.user_name', username).as('userrate');
+
+  let query = () => knex('staticMetadata')
+    .select(['staticMetadata.*', 'userrate.userRating', 'userrate.review_text', 'userrate.progress', 'userrate.updated_at', 'userrate.user_name'])
+    .join(ratingSubQuery, 'userrate.work_id', 'staticMetadata.id')
+    .orderBy(orderBy, sortOption).orderBy([{ column: 'release', order: 'desc'}, { column: 'id', order: 'desc' }]);
 
   if (filter) {
     totalCount = await query().where('progress', '=', filter).count('id as count');
@@ -506,14 +446,6 @@ const getWorksWithReviews = ({username = '', limit = 1000, offset = 0, orderBy =
   } else {
     totalCount = await query().count('id as count');
     works = await query().limit(limit).offset(offset);
-  }
-
-  if (works.length > 0) {
-    works.map(record => {
-      record.circle = JSON.parse(record.circleObj);
-      record.vas = JSON.parse(record.vaObj)['vas'];
-      record.updated_at = strftime('%F', record.updated_at);
-    })
   }
 
   return {works, totalCount};

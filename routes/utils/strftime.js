@@ -72,6 +72,4 @@ function strftime(sFormat, date) {
   });
 }
 
-module.exports = {
-  strftime
-};
+module.exports = strftime;

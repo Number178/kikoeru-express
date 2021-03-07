@@ -2,6 +2,7 @@ const express = require('express');
 const router = express.Router();
 const { config } = require('../config');
 const db = require('../database/db');
+const normalize = require('./utils/normalize');
 
 const PAGE_SIZE = config.pageSize || 12;
 
@@ -18,6 +19,8 @@ router.get('/', async (req, res, next) => {
   
   try {
     const {works, totalCount} = await db.getWorksWithReviews({username: username, limit: PAGE_SIZE, offset: offset, orderBy: order, sortOption: sort, filter});
+
+    normalize(works, {dateOnly: true});
 
     res.send({
       works,
