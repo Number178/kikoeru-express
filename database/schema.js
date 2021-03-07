@@ -66,41 +66,6 @@ const createSchema = () => knex.schema
     table.foreign('work_id').references('id').inTable('t_work').onDelete('CASCADE'); // FOREIGN KEY 
     table.primary(['user_name', 'work_id']); // PRIMARY KEY
   })
-  .raw(
-    // TODO: Refactor this to something more readable so that others can cooperate
-    // TODO: Break into multiple steps, use Javascript rather than json_group_array
-    `CREATE VIEW IF NOT EXISTS userMetadata AS
-      SELECT t_work.id,
-        t_work.title,
-        json_object('id', t_work.circle_id, 'name', t_circle.name) AS circleObj,
-        t_work.release,
-        t_work.review_count,
-        t_work.dl_count,
-        t_work.nsfw,
-        userrate.userRating,
-        userrate.review_text,
-        userrate.progress,
-        userrate.updated_at,
-        json_object('vas', json_group_array(json_object('id', t_va.id, 'name', t_va.name))) AS vaObj,
-        userrate.user_name
-      FROM t_work
-      JOIN t_circle on t_circle.id = t_work.circle_id
-      JOIN r_va_work on r_va_work.work_id = t_work.id
-      join t_va on t_va.id = r_va_work.va_id
-      JOIN (
-          SELECT t_review.work_id,
-            t_review.rating AS userRating,
-            t_review.review_text,
-            t_review.progress,
-            strftime('%Y-%m-%d %H-%M-%S', t_review.updated_at, 'localtime') AS updated_at,
-            t_review.user_name
-          FROM t_review
-            JOIN t_work on t_work.id = t_review.work_id
-          ) AS userrate
-      ON userrate.work_id = t_work.id
-      GROUP BY t_work.id, userrate.user_name
-    `
-  )
   .then(() => {
     console.log(' * 成功构建数据库结构.');
   })
