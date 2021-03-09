@@ -11,7 +11,6 @@ const filterConfig = (_config, option = 'read') => {
   if (option === 'write') {
     delete configClone.production;
     if (process.env.NODE_ENV === 'production' || currentConfig.production) {
-      delete configClone.enableUnsafeRoutes;
       delete configClone.auth;
     }
   }

@@ -66,7 +66,6 @@ const defaultConfig = {
   enableGzip: true,
   rewindSeekTime: 5,
   forwardSeekTime: 30,
-  enableUnsafeRoutes: false,
   offloadMedia: false,
   offloadStreamPath: '/media/stream/',          // /media/stream/RJ123456/subdirs/track.mp3
   offloadDownloadPath: '/media/download/',      // /media/download/RJ123456/subdirs/track.mp3
@@ -83,7 +82,6 @@ const setConfig = (newConfig) => {
   // Prevent changing some values, overwrite with old ones
   newConfig.production = config.production;
   if (process.env.NODE_ENV === 'production' || config.production) {
-    newConfig.enableUnsafeRoutes = false;
     newConfig.auth = true;
   }
   newConfig.md5secret = config.md5secret;
@@ -124,9 +122,7 @@ const getConfig = () => {
     config.databaseFolderDir = process.pkg ? path.join(process.execPath, '..', 'sqlite') : path.join(__dirname, 'sqlite');
   }
 
-  // Disable unsafe routes for production environment
   if (process.env.NODE_ENV === 'production' || config.production) {
-    config.enableUnsafeRoutes = false;
     config.auth = true;
   }
 };
