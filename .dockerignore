@@ -34,3 +34,6 @@ Release-Template.md
 
 # Env
 .env
+
+# Use build artifact from muveex/kikoeru-quasar instead
+dist

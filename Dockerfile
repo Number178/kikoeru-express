@@ -1,3 +1,12 @@
+# This dockerfile generates a single-container application
+# It copies build artifacts the from front-end image
+# If you want to separate the front-end from the back-end, it should work as well
+
+# Use build-args to set a specific version
+# Example: if you want to use the build artifacts from muveex/kikoeru-quasar:v0.6.0, then you should set this to "v0.6.0"
+ARG FRONTEND_VERSION="dev"
+FROM muveex/kikoeru-quasar:${FRONTEND_VERSION} as frontend
+
 FROM node:14-alpine as build-dep
 
 # Create app directory
@@ -18,13 +27,12 @@ ENV IS_DOCKER=true
 
 WORKDIR /usr/src/kikoeru
 
+# Copy build artifacts
 COPY --from=build-dep /usr/src/kikoeru /usr/src/kikoeru
+COPY --from=frontend /var/www /usr/src/kikoeru/dist
 
 # Bundle app source
 COPY . .
-
-# Make it easier for me to pack things up on Windoze
-RUN find /usr/src/kikoeru/dist -type d -exec chmod 755 {} \; && find /usr/src/kikoeru/dist -type f -exec chmod 644 {} \;
 
 # Tini
 RUN apk add --no-cache tini
