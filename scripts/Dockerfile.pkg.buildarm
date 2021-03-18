@@ -1,0 +1,35 @@
+# This dockerfile builds pkg binary at /kikoeru/package and node bindings for ARM64 and ARMv7
+# It's for cross architecture build on GitHub Actions'
+# You shouldn't run this dockerfile unless you know what you are doing
+ARG FRONTEND_VERSION="dev"
+FROM muveex/kikoeru-quasar:${FRONTEND_VERSION} as frontend
+
+FROM node:14.4.0-buster as build-dep
+
+RUN npm install -g pkg
+
+# Download the pkg prebuilt binary
+ARG PKG_BINARY_URL_ARM64="https://github.com/yao-pkg/pkg-binaries/releases/download/node14/fetched-v14.4.0-linux-arm64"
+ARG PKG_BINARY_URL_ARMv7="https://github.com/kikoeru-project/pkg-binaries/releases/download/node14/fetched-v14.4.0-linux-armv7"
+ADD ${PKG_BINARY_URL_ARM64} /root/.pkg-cache/v2.6/
+ADD ${PKG_BINARY_URL_ARMv7} /root/.pkg-cache/v2.6/
+
+RUN apt-get update && apt-get install -y -q python build-essential 
+
+# Create app directory
+WORKDIR /kikoeru
+
+COPY package.json package-lock.json ./
+RUN npm ci --only=production
+
+# Copy frontend artifacts
+COPY --from=frontend /var/www /kikoeru/dist
+
+# Bundle app source
+COPY . .
+
+# Silence pkg warnings
+RUN mkdir -p config sqlite covers VoiceWork
+# Build pkg single binary to /kikoeru/package
+RUN pkg package.json -t node14-arm64-linux --out-path package
+
