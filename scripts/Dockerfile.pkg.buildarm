@@ -4,7 +4,12 @@
 ARG FRONTEND_VERSION="unstable"
 FROM muveex/kikoeru-quasar:${FRONTEND_VERSION} as frontend
 
-FROM node:14.4.0-buster as build-dep
+# Note: pkg prebuilt base binaries are based on Node v14.4.0
+# node:14.4.0-buster uses GLIBC 2.28
+# This GLIBC version will be used when building node-sqlite3 bindings (the node_sqlite3.node)
+# However, GLIBC of Ubuntu:18.04 is 2.27, which is lower
+# So I changed this line to node:14.4.0-stretch, which has GLIBC 2.24
+FROM node:14.4.0-stretch as build-dep
 
 RUN npm install -g pkg
 
@@ -31,5 +36,5 @@ COPY . .
 # Silence pkg warnings
 RUN mkdir -p config sqlite covers VoiceWork
 # Build pkg single binary to /kikoeru/package
-RUN pkg package.json -t node14-arm64-linux --out-path package
-
+ARG PKG_TARGET_PLATFORM="node14-arm64-linux"
+RUN pkg package.json -t ${PKG_TARGET_PLATFORM} --out-path package
