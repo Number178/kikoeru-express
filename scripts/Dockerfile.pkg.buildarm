@@ -1,7 +1,7 @@
 # This dockerfile builds pkg binary at /kikoeru/package and node bindings for ARM64 and ARMv7
 # It's for cross architecture build on GitHub Actions'
 # You shouldn't run this dockerfile unless you know what you are doing
-ARG FRONTEND_VERSION="dev"
+ARG FRONTEND_VERSION="unstable"
 FROM muveex/kikoeru-quasar:${FRONTEND_VERSION} as frontend
 
 FROM node:14.4.0-buster as build-dep

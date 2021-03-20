@@ -71,6 +71,32 @@ jobs:
       - name: Install pkg
         run: npm install -g pkg
 
+      - name: Make empty dirs to suppress pkg warnings
+        run: mkdir config sqlite covers VoiceWork
+
+      - uses: haya14busa/action-cond@v1
+        name: Decide front-end version
+        id: front_version
+        with:
+          cond: startsWith(github.ref, 'refs/tags/')
+          if_true: ${{ steps.source_name.outputs.SOURCE_NAME }}
+          if_false: "unstable"
+
+      - name: Show conditional value from pervious step
+        run: echo "${{ steps.front_version.outputs.value }}"
+
+      - name: Download front-end artifact
+        uses: dawidd6/action-download-artifact@v2
+        with:
+          workflow: build-and-publish.yml
+          branch: unstable
+          name: PWA-${{ steps.front_version.outputs.value }}
+          path: dist
+          repo: kikoeru-project/kikoeru-quasar
+
+      - name: Check front-end artifacts
+        run: ls -al dist/
+
       - name: Package to executables
         run: pkg package.json -t ${pkg_target} --out-path package
         env:
@@ -84,7 +110,7 @@ jobs:
         env:
           archive_name: ${{ matrix.archive_name_prefix }}-${{ steps.source_name.outputs.SOURCE_NAME }}
 
-      - name: 'Upload release archive'
+      - name: 'Prepare release archive'
         uses: actions/upload-artifact@v2
         with:
           name: ${{ matrix.archive_name_prefix }}-${{ steps.source_name.outputs.SOURCE_NAME }}
@@ -139,18 +165,32 @@ jobs:
         id: source_name
         run: echo ::set-output name=SOURCE_NAME::${GITHUB_REF##*/}
 
+      - uses: haya14busa/action-cond@v1
+        name: Decide front-end version
+        id: front_version
+        with:
+          cond: startsWith(github.ref, 'refs/tags/')
+          if_true: ${{ steps.source_name.outputs.SOURCE_NAME }}
+          if_false: "unstable"
+
+      - name: Show conditional value from pervious step
+        run: echo "${{ steps.front_version.outputs.value }}"
+
       - name: Build and push
         uses: docker/build-push-action@v2
         with:
           file: scripts/Dockerfile.pkg.buildarm
           platforms: ${{ matrix.platform }}
           push: false
+          pull: true
           tags: |
             muveex/kikoeru-express:${{ steps.source_name.outputs.SOURCE_NAME }}-${{ matrix.arch }}
           cache-from: type=local,src=/tmp/.buildx-cache
           cache-to: type=local,dest=/tmp/.buildx-cache-new
           # There is a bug in buildx that sometimes prevents output type=local from working
           outputs: type=tar,dest=out.tar
+          build-args:
+            FRONTEND_VERSION=${{ steps.front_version.outputs.value }}
 
       - name: Extract files
         run: mkdir outdir && tar xvf out.tar -C outdir/
@@ -182,7 +222,7 @@ jobs:
         env:
           archive_name: ${{ matrix.archive_name_prefix }}-${{ steps.source_name.outputs.SOURCE_NAME }}
 
-      - name: 'Upload release archive'
+      - name: 'Prepare release archive'
         uses: actions/upload-artifact@v2
         with:
           name: ${{ matrix.archive_name_prefix }}-${{ steps.source_name.outputs.SOURCE_NAME }}
@@ -230,11 +270,23 @@ jobs:
         id: source_name
         run: echo ::set-output name=SOURCE_NAME::${GITHUB_REF##*/}
 
+      - uses: haya14busa/action-cond@v1
+        name: Decide front-end version
+        id: front_version
+        with:
+          cond: startsWith(github.ref, 'refs/tags/')
+          if_true: ${{ steps.source_name.outputs.SOURCE_NAME }}
+          if_false: "unstable"
+
+      - name: Show conditional value from pervious step
+        run: echo "${{ steps.front_version.outputs.value }}"
+
       - name: Build and push
         uses: docker/build-push-action@v2
         with:
           platforms: linux/amd64,linux/arm64,linux/arm/v7
           push: true
+          pull: true
           tags: |
             muveex/kikoeru-express:${{ steps.source_name.outputs.SOURCE_NAME }}
             muveex/kikoeru-express:dev
@@ -242,6 +294,8 @@ jobs:
             muveex/kikoeru:dev
           cache-from: type=local,src=/tmp/.buildx-cache
           cache-to: type=local,dest=/tmp/.buildx-cache-new
+          build-args:
+            FRONTEND_VERSION=${{ steps.front_version.outputs.value }}
 
       # Temp fix according to official document at
       # https://github.com/docker/build-push-action/blob/master/docs/advanced/cache.md#registry-cache
@@ -251,11 +305,67 @@ jobs:
           rm -rf /tmp/.buildx-cache
           mv /tmp/.buildx-cache-new /tmp/.buildx-cache
 
+  test-pkg-archive:
+    runs-on: ${{ matrix.os }}
+    needs: [build]
+
+    defaults:
+      run:
+        shell: bash
+    strategy:
+      fail-fast: false
+      matrix:
+        include:
+          - os: ubuntu-18.04
+            archive_name_prefix: kikoeru-linux-x64
+
+          - os: macos-10.15
+            archive_name_prefix: kikoeru-darwin-x64
+          
+          - os: windows-2019
+            archive_name_prefix: kikoeru-win-x64
+    name: Test pkg archives on ${{ matrix.os }} x64
+    steps:
+      - name: Get branch or tag name
+        id: source_name
+        run: echo ::set-output name=SOURCE_NAME::${GITHUB_REF##*/}
+
+      - name: Download artifacts
+        uses: actions/download-artifact@v2
+        with:
+          name: ${{ matrix.archive_name_prefix }}-${{ steps.source_name.outputs.SOURCE_NAME }}
+
+      - name: List files
+        run: ls -al .
+
+      - name: Test pkg binary on *nix
+        if: ${{ matrix.os == 'ubuntu-18.04' ||  matrix.os == 'macos-10.15' }}
+        run: |
+          set -e
+          chmod +x ./kikoeru-express
+          nohup ./kikoeru-express &
+          sleep 10 &&
+          curl --fail -I http://localhost:8888/
+          pkill -TERM kikoeru-express
+      
+      - name: Test pkg binary on Windows
+        if: ${{ matrix.os == 'windows-2019' }}
+        shell: pwsh
+        run: |
+          $PSVersionTable
+          Start-Job { ./kikoeru-express.exe }
+          sleep 5 &&
+          Get-Job | Receive-Job
+          sleep 5 &&
+          curl --fail -I http://localhost:8888/
+          Get-Job | Stop-Job
+          Get-job | Remove-Job
+
   publish:
     runs-on: ubuntu-18.04
     name: Prepare release draft
     if: startsWith(github.ref, 'refs/tags/')
-    needs: [build, build-arm]
+    needs: [build, build-arm, test-pkg-archive]
 
     steps:
       - name: Download artifacts
