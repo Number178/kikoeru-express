@@ -32,7 +32,7 @@
     "start": "node --trace-warnings app.js",
     "dev": "nodemon --trace-warnings app.js",
     "scan": "node --trace-warnings ./filesystem/scanner.js",
-    "build": "pkg -t win package.json --out-path package && pkg -t macos package.json --out-path package-macos",
+    "build": "pkg package.json --out-path package",
     "test": "eslint ."
   },
   "author": "Watanuki-Kimihiro",

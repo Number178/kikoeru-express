@@ -4,7 +4,7 @@
 
 # Use build-args to set a specific version
 # Example: if you want to use the build artifacts from muveex/kikoeru-quasar:v0.6.0, then you should set this to "v0.6.0"
-ARG FRONTEND_VERSION="dev"
+ARG FRONTEND_VERSION="unstable"
 FROM muveex/kikoeru-quasar:${FRONTEND_VERSION} as frontend
 
 FROM node:14-alpine as build-dep

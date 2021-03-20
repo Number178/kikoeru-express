@@ -1,0 +1,463 @@
+name: Build artifacts
+
+on:
+  push:
+    branches-ignore:
+      - "dependabot/**"
+    tags:
+      - v*
+
+jobs:
+  build:
+    runs-on: ${{ matrix.os }}
+    defaults:
+      run:
+        shell: bash
+    strategy:
+      fail-fast: false
+      matrix:
+        include:
+          - os: ubuntu-18.04
+            node_version: 14
+            architecture: x64
+            pkg_target: node14-linux-x64
+            archive_name_prefix: kikoeru-linux-x64
+
+          - os: macos-10.15
+            node_version: 14
+            architecture: x64
+            pkg_target: node14-macos-x64
+            archive_name_prefix: kikoeru-darwin-x64
+
+          - os: windows-2019
+            node_version: 14
+            architecture: x64
+            pkg_target: node14-win-x64
+            archive_name_prefix: kikoeru-win-x64
+
+    name: Node ${{ matrix.node_version }} - ${{ matrix.architecture }} on ${{ matrix.os }}
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v2
+
+      - name: Setup node
+        uses: actions/setup-node@v2
+        with:
+          node-version: ${{ matrix.node_version }}
+          architecture: ${{ matrix.architecture }}
+
+      - run: npm install
+
+      - run: npm test
+
+      - name: check node-sqlite3 bindings
+        run: echo $(ls node_modules/sqlite3/lib/binding)
+
+      - name: 'Upload bindings'
+        uses: actions/upload-artifact@v2
+        with:
+          name: node-${{ matrix.node_version }}-${{ matrix.architecture }}-${{ matrix.os }}-binding
+          path: node_modules/sqlite3/lib/binding
+          if-no-files-found: error
+
+      # refs/tags/v1.2.3 => v1.2.3
+      # refs/heads/unstable => unstable
+      # refs/heads/feature/foo => foo
+      # refs/pull/421/merge => merge
+      - name: Get branch or tag name
+        id: source_name
+        run: echo ::set-output name=SOURCE_NAME::${GITHUB_REF##*/}
+
+      - name: Install pkg
+        run: npm install -g pkg
+
+      - name: Make empty dirs to suppress pkg warnings
+        run: mkdir config sqlite covers VoiceWork
+
+      - uses: haya14busa/action-cond@v1
+        name: Decide front-end version
+        id: front_version
+        with:
+          cond: startsWith(github.ref, 'refs/tags/')
+          if_true: ${{ steps.source_name.outputs.SOURCE_NAME }}
+          if_false: "unstable"
+
+      - name: Show conditional value from pervious step
+        run: echo "${{ steps.front_version.outputs.value }}"
+
+      - name: Download front-end artifact
+        uses: dawidd6/action-download-artifact@v2
+        with:
+          workflow: build-and-publish.yml
+          branch: unstable
+          name: PWA-${{ steps.front_version.outputs.value }}
+          path: dist
+          repo: kikoeru-project/kikoeru-quasar
+
+      - name: Check front-end artifacts
+        run: ls -al dist/
+
+      - name: Package to executables
+        run: pkg package.json -t ${pkg_target} --out-path package
+        env:
+          pkg_target: ${{ matrix.pkg_target }}
+
+      - name: Create archive
+        run: |
+          mkdir ${archive_name}
+          cp package/* ${archive_name}/
+          cp node_modules/sqlite3/lib/binding/*/*.node ${archive_name}/
+        env:
+          archive_name: ${{ matrix.archive_name_prefix }}-${{ steps.source_name.outputs.SOURCE_NAME }}
+
+      - name: 'Prepare release archive'
+        uses: actions/upload-artifact@v2
+        with:
+          name: ${{ matrix.archive_name_prefix }}-${{ steps.source_name.outputs.SOURCE_NAME }}
+          path: ${{ matrix.archive_name_prefix }}-${{ steps.source_name.outputs.SOURCE_NAME }}
+          if-no-files-found: error
+
+  build-arm:
+    runs-on: ubuntu-18.04
+    strategy:
+      fail-fast: false
+      matrix:
+        include:
+          - platform: linux/arm64
+            arch: arm64
+            archive_name_prefix: kikoeru-linux-arm64
+            pkg_target_platform: node14-arm64-linux
+
+          - platform: linux/arm/v7
+            arch: armv7
+            archive_name_prefix: kikoeru-linux-armv7
+            pkg_target_platform: node14-armv7-linux
+    name: Build for ${{ matrix.platform }}
+    steps:
+      - name: Login to DockerHub
+        uses: docker/login-action@v1 
+        with:
+          username: ${{ secrets.DOCKERHUB_USERNAME }}
+          password: ${{ secrets.DOCKERHUB_TOKEN }}
+
+      - name: Set up QEMU for cross platform builds
+        id: qemu
+        uses: docker/setup-qemu-action@v1
+
+      - name: Available platforms
+        run: echo ${{ steps.qemu.outputs.platforms }}
+
+      - name: Set up Docker Buildx
+        uses: docker/setup-buildx-action@v1
+
+      - name: Cache Docker layers
+        uses: actions/cache@v2
+        with:
+          path: /tmp/.buildx-cache
+          key: ${{ runner.os }}-buildx-${{ github.sha }}
+          restore-keys: |
+            ${{ runner.os }}-buildx-
+
+      # Convert to a valid docker tagname
+      # refs/tags/v1.2.3 => v1.2.3
+      # refs/heads/unstable => unstable
+      # refs/heads/feature/foo => foo
+      # refs/pull/421/merge => merge
+      - name: Get branch or tag name
+        id: source_name
+        run: echo ::set-output name=SOURCE_NAME::${GITHUB_REF##*/}
+
+      - uses: haya14busa/action-cond@v1
+        name: Decide front-end version
+        id: front_version
+        with:
+          cond: startsWith(github.ref, 'refs/tags/')
+          if_true: ${{ steps.source_name.outputs.SOURCE_NAME }}
+          if_false: "unstable"
+
+      - name: Show conditional value from pervious step
+        run: echo "${{ steps.front_version.outputs.value }}"
+
+      - name: Cross-build pkg binaries inside Docker container
+        uses: docker/build-push-action@v2
+        with:
+          file: scripts/Dockerfile.pkg.buildarm
+          platforms: ${{ matrix.platform }}
+          push: false
+          pull: true
+          tags: |
+            muveex/kikoeru-express:${{ steps.source_name.outputs.SOURCE_NAME }}-${{ matrix.arch }}
+          cache-from: type=local,src=/tmp/.buildx-cache
+          cache-to: type=local,dest=/tmp/.buildx-cache-new
+          # There is a bug in buildx that sometimes prevents output type=local from working
+          outputs: type=tar,dest=out.tar
+          build-args: |
+            FRONTEND_VERSION=${{ steps.front_version.outputs.value }}
+            PKG_TARGET_PLATFORM=${{ matrix.pkg_target_platform }}
+
+      - name: Extract files
+        run: mkdir outdir && tar xvf out.tar -C outdir/
+
+      # Temp fix according to official document at
+      # https://github.com/docker/build-push-action/blob/master/docs/advanced/cache.md#registry-cache
+      # They are working to refactor with GitHub cache backend
+      - name: Move cache
+        run: |
+          rm -rf /tmp/.buildx-cache
+          mv /tmp/.buildx-cache-new /tmp/.buildx-cache
+      
+      - name: Check bindings
+        run: |
+          echo $(ls outdir/kikoeru/node_modules/sqlite3/lib/binding)
+
+      - name: 'Upload bindings'
+        uses: actions/upload-artifact@v2
+        with:
+          name: node-14-${{ matrix.arch }}-linux-binding
+          path: outdir/kikoeru/node_modules/sqlite3/lib/binding
+          if-no-files-found: error
+
+      - name: Create archive
+        run: |
+          mkdir ${archive_name}
+          cp outdir/kikoeru/package/* ${archive_name}/
+          cp outdir/kikoeru/node_modules/sqlite3/lib/binding/*/*.node ${archive_name}/
+        env:
+          archive_name: ${{ matrix.archive_name_prefix }}-${{ steps.source_name.outputs.SOURCE_NAME }}
+
+      - name: 'Prepare release archive'
+        uses: actions/upload-artifact@v2
+        with:
+          name: ${{ matrix.archive_name_prefix }}-${{ steps.source_name.outputs.SOURCE_NAME }}
+          path: |
+            ${{ matrix.archive_name_prefix }}-${{ steps.source_name.outputs.SOURCE_NAME }}
+          if-no-files-found: error
+
+  build-docker:
+    runs-on: ubuntu-18.04
+    name: Prepare multiarch docker images
+    if: contains(fromJson('["refs/heads/unstable", "refs/tags/", "refs/heads/stable", "refs/heads/feature-github-actions"]'), github.ref)
+    needs: build
+
+    steps:
+      - name: Login to DockerHub
+        uses: docker/login-action@v1 
+        with:
+          username: ${{ secrets.DOCKERHUB_USERNAME }}
+          password: ${{ secrets.DOCKERHUB_TOKEN }}
+
+      - name: Set up QEMU for cross platform builds
+        id: qemu
+        uses: docker/setup-qemu-action@v1
+
+      - name: Available platforms
+        run: echo ${{ steps.qemu.outputs.platforms }}
+
+      - name: Set up Docker Buildx
+        uses: docker/setup-buildx-action@v1
+
+      - name: Cache Docker layers
+        uses: actions/cache@v2
+        with:
+          path: /tmp/.buildx-cache
+          key: ${{ runner.os }}-buildx-${{ github.sha }}
+          restore-keys: |
+            ${{ runner.os }}-buildx-
+
+      # Convert to a valid docker tagname
+      # refs/tags/v1.2.3 => v1.2.3
+      # refs/heads/unstable => unstable
+      # refs/heads/feature/foo => foo
+      # refs/pull/421/merge => merge
+      - name: Get branch or tag name
+        id: source_name
+        run: echo ::set-output name=SOURCE_NAME::${GITHUB_REF##*/}
+
+      - uses: haya14busa/action-cond@v1
+        name: Decide front-end version
+        id: front_version
+        with:
+          cond: startsWith(github.ref, 'refs/tags/')
+          if_true: ${{ steps.source_name.outputs.SOURCE_NAME }}
+          if_false: "unstable"
+
+      - name: Show conditional value from pervious step
+        run: echo "${{ steps.front_version.outputs.value }}"
+
+      - name: Build and push
+        uses: docker/build-push-action@v2
+        with:
+          platforms: linux/amd64,linux/arm64,linux/arm/v7
+          push: true
+          pull: true
+          tags: |
+            muveex/kikoeru-express:${{ steps.source_name.outputs.SOURCE_NAME }}
+            muveex/kikoeru-express:dev
+            muveex/kikoeru:${{ steps.source_name.outputs.SOURCE_NAME }}
+            muveex/kikoeru:dev
+          cache-from: type=local,src=/tmp/.buildx-cache
+          cache-to: type=local,dest=/tmp/.buildx-cache-new
+          build-args:
+            FRONTEND_VERSION=${{ steps.front_version.outputs.value }}
+
+      # Temp fix according to official document at
+      # https://github.com/docker/build-push-action/blob/master/docs/advanced/cache.md#registry-cache
+      # They are working to refactor with GitHub cache backend
+      - name: Move cache
+        run: |
+          rm -rf /tmp/.buildx-cache
+          mv /tmp/.buildx-cache-new /tmp/.buildx-cache
+
+  test-pkg-archive:
+    runs-on: ${{ matrix.os }}
+    name: Test pkg release archives on ${{ matrix.os }} x64
+    needs: [build]
+
+    defaults:
+      run:
+        shell: bash
+    strategy:
+      fail-fast: false
+      matrix:
+        include:
+          - os: ubuntu-18.04
+            archive_name_prefix: kikoeru-linux-x64
+
+          - os: macos-10.15
+            archive_name_prefix: kikoeru-darwin-x64
+          
+          - os: windows-2019
+            archive_name_prefix: kikoeru-win-x64
+
+    steps:
+      - name: Get branch or tag name
+        id: source_name
+        run: echo ::set-output name=SOURCE_NAME::${GITHUB_REF##*/}
+
+      - name: Download artifacts
+        uses: actions/download-artifact@v2
+        with:
+          name: ${{ matrix.archive_name_prefix }}-${{ steps.source_name.outputs.SOURCE_NAME }}
+
+      - name: List files
+        run: ls -al .
+
+      - name: Test pkg binary on *nix
+        if: ${{ matrix.os == 'ubuntu-18.04' ||  matrix.os == 'macos-10.15' }}
+        run: |
+          set -e
+          chmod +x ./kikoeru-express
+          nohup ./kikoeru-express &
+          sleep 10 && cat nohup.out 2>/dev/null &&
+          curl --fail -I http://localhost:8888/
+          pkill -TERM kikoeru-express
+      
+      - name: Test pkg binary on Windows
+        if: ${{ matrix.os == 'windows-2019' }}
+        shell: pwsh
+        run: |
+          $PSVersionTable
+          Start-Job { ./kikoeru-express.exe }
+          sleep 5 &&
+          Get-Job | Receive-Job
+          sleep 5 &&
+          curl --fail -I http://localhost:8888/
+          Get-Job | Stop-Job
+          Get-job | Remove-Job
+
+  test-pkg-archive-arm:
+    # The host should always be linux
+    runs-on: ubuntu-18.04
+    name: Test pkg release archives on ${{ matrix.distro }} ${{ matrix.arch }}
+    needs: [build-arm]
+
+    # Run steps on a matrix of 3 arch/distro combinations
+    strategy:
+      fail-fast: false
+      matrix:
+        include:
+          - arch: aarch64
+            distro: ubuntu18.04
+            archive_name_prefix: kikoeru-linux-arm64
+          - arch: armv7
+            distro: ubuntu18.04
+            archive_name_prefix: kikoeru-linux-armv7
+
+    steps:
+      - name: Get branch or tag name
+        id: source_name
+        run: echo ::set-output name=SOURCE_NAME::${GITHUB_REF##*/}
+
+      - name: Download artifacts
+        uses: actions/download-artifact@v2
+        with:
+          name: ${{ matrix.archive_name_prefix }}-${{ steps.source_name.outputs.SOURCE_NAME }}
+          path: artifacts
+
+      - name: List files
+        run: ls -al .
+
+      - uses: uraimo/run-on-arch-action@v2.0.5
+        name: Test pkg archives
+        id: run-pkg
+        with:
+          arch: ${{ matrix.arch }}
+          distro: ${{ matrix.distro }}
+
+          # Mount the artifacts directory as /artifacts in the container
+          dockerRunArgs: |
+            --volume "${PWD}/artifacts:/artifacts"
+
+          # The shell to run commands with in the container
+          shell: /bin/bash
+
+          # Produce a binary artifact and place it in the mounted volume
+          run: |
+            set -e
+            apt-get update && apt-get install libatomic1 curl -y -q
+            cd artifacts
+            chmod +x ./kikoeru-express
+            nohup ./kikoeru-express &
+            sleep 10 && cat nohup.out 2>/dev/null &&
+            curl --fail -I http://localhost:8888/
+            pkill -TERM kikoeru-express
+
+  test-docker-image:
+    runs-on: ubuntu-latest
+    name: Test Docker image on linux/amd64
+    needs: build-docker
+    container: 'muveex/kikoeru:dev'
+
+    steps:
+      - name: Show running process
+        run: ps -a
+
+      - name: Test
+        run: |
+          set -e
+          apk update && apk add curl
+          nohup node /usr/src/kikoeru/app.js &
+          sleep 10 && cat nohup.out 2>/dev/null &&
+          curl --fail -I http://localhost:8888/
+          pkill -TERM node
+
+  publish:
+    runs-on: ubuntu-18.04
+    name: Prepare release draft
+    if: startsWith(github.ref, 'refs/tags/')
+    needs: [test-pkg-archive, test-pkg-archive-arm]
+
+    steps:
+      - name: Download artifacts
+        uses: actions/download-artifact@v2
+        with:
+          path: artifacts/
+
+      - name: Release
+        uses: softprops/action-gh-release@v1
+        with:
+          draft: true
+          files:
+            artifacts/kikoeru-*
+        env:
+          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}

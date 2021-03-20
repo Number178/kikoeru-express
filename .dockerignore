@@ -37,3 +37,6 @@ Release-Template.md
 
 # Use build artifact from muveex/kikoeru-quasar instead
 dist
+
+# GitHub Actions
+.github
