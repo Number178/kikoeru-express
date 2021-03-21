@@ -4,8 +4,30 @@ const { config } = require('../config');
 const db = require('../database/db');
 const fs = require('fs');
 const path = require('path');
+const urljoin = require('url-join');
 const jschardet = require('jschardet');
 const { getTrackList } = require('../filesystem/utils');
+
+// work.dir and track.subtitle may contain '/' or '\' if they have subfolders
+// ["RJ123456", "画像/好きな人?"] => ["RJ123456", "%E7%94%BB%E5%83%8F", "%E5%A5%BD%E3%81%8D%E3%81%AA%E4%BA%BA%3F"]
+const encodeSplitFragments = (fragments) => {
+  // On windows, replace "dir\RJ123456" => "dir/RJ123456"
+  const expandedFragments = fragments.map(fragment => fragment.replace(/\\/g, '/').split('/'))
+  return expandedFragments.flat().map(fragment => encodeURIComponent(fragment));
+}
+
+const joinFragments = (baseUrl, ...fragments) => {
+  const pattern = new RegExp(/^https?:\/\//);
+  const encodedFragments = encodeSplitFragments(fragments);
+
+  // http(s)://example.com/
+  if (pattern.test(baseUrl)) {
+    return urljoin(baseUrl, ...encodedFragments);
+  } else {
+    // /media/stream/
+    return path.join(baseUrl, ...fragments);
+  }
+}
 
 // GET (stream) a specific track from work folder
 router.get('/stream/:id/:index', (req, res, next) => {
@@ -20,7 +42,7 @@ router.get('/stream/:id/:index', (req, res, next) => {
           .then((tracks) => {
             const track = tracks[req.params.index];
 
-            const fileName = path.join(rootFolder.path, work.dir, track.subtitle || '', encodeURIComponent(track.title));
+            const fileName = path.join(rootFolder.path, work.dir, track.subtitle || '', track.title);
             const extName = path.extname(fileName);
             if (extName === '.txt' || extName === '.lrc') {
               const fileBuffer = fs.readFileSync(fileName);
@@ -42,7 +64,7 @@ router.get('/stream/:id/:index', (req, res, next) => {
               // By default: /media/stream/RJ123456/subdirs/track.mp3
               // If the folder is deeper: /media/stream/second/RJ123456/subdirs/track.mp3
               const baseUrl = config.offloadStreamPath;
-              let offloadUrl = path.join(baseUrl, rootFolder.name, work.dir, track.subtitle || '', encodeURIComponent(track.title));
+              let offloadUrl = joinFragments(baseUrl, rootFolder.name, work.dir, track.subtitle || '', track.title);
               if (process.platform === 'win32') {
                 offloadUrl = offloadUrl.replace(/\\/g, '/');
               }
@@ -79,7 +101,7 @@ router.get('/download/:id/:index', (req, res, next) => {
               // By default: /media/download/RJ123456/subdirs/track.mp3
               // If the folder is deeper: /media/download/second/RJ123456/subdirs/track.mp3
               const baseUrl = config.offloadDownloadPath;
-              let offloadUrl = path.join(baseUrl, rootFolder.name, work.dir, track.subtitle || '', encodeURIComponent(track.title));
+              let offloadUrl = joinFragments(baseUrl, rootFolder.name, work.dir, track.subtitle || '', track.title);
               if (process.platform === 'win32') {
                 offloadUrl = offloadUrl.replace(/\\/g, '/');
               }
@@ -89,7 +111,7 @@ router.get('/download/:id/:index', (req, res, next) => {
               res.redirect(offloadUrl);
             } else {
               // By default, serve file through express
-              res.download(path.join(rootFolder.path, work.dir, track.subtitle || '', encodeURIComponent(track.title)));
+              res.download(path.join(rootFolder.path, work.dir, track.subtitle || '', track.title));
             }
           })
           .catch(err => next(err));
