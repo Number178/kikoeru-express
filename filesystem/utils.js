@@ -83,14 +83,13 @@ const toTree = (tracks, workTitle, workDir, rootFolder) => {
     });
 
     // Path controlled by config.offloadMedia, config.offloadStreamPath and config.offloadDownloadPath
-    // By default:
-    // /media/stream/RJ123456/subdirs/track.mp3
-    // /media/download/RJ123456/subdirs/track.mp3
+    // If config.offloadMedia is enabled, by default, the paths are:
+    // /media/stream/VoiceWork/RJ123456/subdirs/track.mp3
+    // /media/download//VoiceWork/RJ123456/subdirs/track.mp3
     //
     // If the folder is deeper:
-    // /media/stream/second/RJ123456/subdirs/track.mp3
-    // /media/download/second/RJ123456/subdirs/track.mp3
-    // console.log(rootFolder.name, workDir, track.subtitle, track.title)
+    // /media/stream/VoiceWork/second/RJ123456/subdirs/track.mp3
+    // /media/download/VoiceWork/second/RJ123456/subdirs/track.mp3
     let offloadStreamUrl = path.join(config.offloadStreamPath, rootFolder.name, workDir, track.subtitle || '', track.title);
     let offloadDownloadUrl = path.join(config.offloadDownloadPath, rootFolder.name, workDir, track.subtitle || '', track.title);
     if (process.platform === 'win32') {
