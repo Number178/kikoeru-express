@@ -98,10 +98,12 @@ const toTree = (tracks, workTitle, workDir, rootFolder) => {
     }
   
     const textBaseUrl = '/api/media/stream/'
+    const mediaStreamBaseUrl = '/api/media/stream/'
+    const mediaDownloadBaseUrl = '/api/media/download/'
     const textStreamBaseUrl = textBaseUrl + track.hash;    // Handle charset detection internally with jschardet
-    const textDownloadBaseUrl = config.offloadMedia ? offloadDownloadUrl : config.mediaDownloadBaseUrl + track.hash;
-    const mediaStreamUrl = config.offloadMedia ? offloadStreamUrl : config.mediaStreamBaseUrl + track.hash;
-    const mediaDownloadUrl = config.offloadMedia ? offloadDownloadUrl : config.mediaDownloadBaseUrl + track.hash;
+    const textDownloadBaseUrl = config.offloadMedia ? offloadDownloadUrl : mediaDownloadBaseUrl + track.hash;
+    const mediaStreamUrl = config.offloadMedia ? offloadStreamUrl : mediaStreamBaseUrl + track.hash;
+    const mediaDownloadUrl = config.offloadMedia ? offloadDownloadUrl : mediaDownloadBaseUrl + track.hash;
 
     if (track.ext === '.txt' || track.ext === '.lrc' || track.ext === '.srt' || track.ext === '.ass') {
       fatherFolder.push({

@@ -68,9 +68,7 @@ const defaultConfig = {
   forwardSeekTime: 30,
   offloadMedia: false,
   offloadStreamPath: '/media/stream/',          // /media/stream/RJ123456/subdirs/track.mp3
-  offloadDownloadPath: '/media/download/',      // /media/download/RJ123456/subdirs/track.mp3
-  mediaStreamBaseUrl: '/api/media/stream/',     // /api/media/stream/123456/2  This setting will be ignored if offloadMedia = true 
-  mediaDownloadBaseUrl: '/api/media/download/', // /api/media/download/123456/2 This setting will be ignored if offloadMedia = true
+  offloadDownloadPath: '/media/download/'      // /media/download/RJ123456/subdirs/track.mp3
 };
 
 const initConfig = (writeConfigToFile = !process.env.FREEZE_CONFIG_FILE) => {
