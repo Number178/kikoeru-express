@@ -18,7 +18,7 @@ const joinFragments = (baseUrl, ...fragments) => {
     return urljoin(baseUrl, ...encodedFragments);
   } else {
     // /media/stream/
-    return path.join(baseUrl, ...fragments);
+    return path.join(baseUrl, ...fragments).replace(/\\/g, '/');
   }
 }
 
