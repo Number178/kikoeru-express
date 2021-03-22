@@ -126,6 +126,7 @@ const readConfig = () => {
 
   if (process.env.NODE_ENV === 'production' || config.production) {
     config.auth = true;
+    config.production = true;
   }
 };
 
