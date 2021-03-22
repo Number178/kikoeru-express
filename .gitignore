@@ -131,3 +131,6 @@ kikoeru.key
 
 # Release template
 Release-Template.md
+
+# Dependecy graph
+graph.svg
