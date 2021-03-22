@@ -20,6 +20,7 @@ const getTrackList = (id, dir) => recursiveReaddir(dir)
       return (ext === '.mp3' || ext === '.ogg' || ext === '.opus' || ext === '.wav' || ext === '.aac'
         || ext === '.flac' || ext === '.webm' || ext === '.mp4'|| ext === '.m4a' 
         || ext === '.txt' || ext === '.lrc' || ext === '.srt' || ext === '.ass'
+        || ext === '.pdf'
         || ext === '.jpg' || ext === '.jpeg' || ext === '.png' || ext === '.webp');
     });
 
@@ -117,6 +118,15 @@ const toTree = (tracks, workTitle, workDir, rootFolder) => {
     } else if (track.ext === '.jpg' || track.ext === '.jpeg' || track.ext === '.png' || track.ext === '.webp' ) {
       fatherFolder.push({
         type: 'image',
+        hash: track.hash,
+        title: track.title,
+        workTitle,
+        mediaStreamUrl,
+        mediaDownloadUrl
+      });
+    } else if (track.ext === '.pdf') {
+      fatherFolder.push({
+        type: 'other',
         hash: track.hash,
         title: track.title,
         workTitle,
