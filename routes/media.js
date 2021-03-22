@@ -40,8 +40,8 @@ router.get('/stream/:id/:index', (req, res, next) => {
             // so that the browser properly renders them
             if (config.offloadMedia && extName !== '.txt' && extName !== '.lrc') {
               // Path controlled by config.offloadMedia and config.offloadStreamPath
-              // By default: /media/stream/RJ123456/subdirs/track.mp3
-              // If the folder is deeper: /media/stream/second/RJ123456/subdirs/track.mp3
+              // By default: /media/stream/VoiceWork/RJ123456/subdirs/track.mp3
+              // If the folder is deeper: /media/stream/VoiceWork/second/RJ123456/subdirs/track.mp3
               const baseUrl = config.offloadStreamPath;
               let offloadUrl = joinFragments(baseUrl, rootFolder.name, work.dir, track.subtitle || '', track.title);
               if (process.platform === 'win32') {
@@ -77,8 +77,8 @@ router.get('/download/:id/:index', (req, res, next) => {
             // Offload from express, 302 redirect to a virtual directory in a reverse proxy like Nginx
             if (config.offloadMedia) {
               // Path controlled by config.offloadMedia and config.offloadDownloadPath
-              // By default: /media/download/RJ123456/subdirs/track.mp3
-              // If the folder is deeper: /media/download/second/RJ123456/subdirs/track.mp3
+              // By default: /media/download/VoiceWork/RJ123456/subdirs/track.mp3
+              // If the folder is deeper: /media/download/VoiceWork/second/RJ123456/subdirs/track.mp3
               const baseUrl = config.offloadDownloadPath;
               let offloadUrl = joinFragments(baseUrl, rootFolder.name, work.dir, track.subtitle || '', track.title);
               if (process.platform === 'win32') {
