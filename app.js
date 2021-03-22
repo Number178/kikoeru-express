@@ -75,7 +75,12 @@ app.use((err, req, res, next) => {
     }
   } else {
     console.error(new Date().toJSON(), 'Kikoeru log:', err);
-    res.status(500).send({ error: err.message || err });
+    if (process.env.NODE_ENV === 'production' || config.production) {
+      // Do not send excess error messages to the client on production mode
+      res.status(500).send({ error: '服务器错误' });
+    } else {
+      res.status(500).send({ error: err.message || err });
+    }
   }
 });
 
