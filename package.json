@@ -33,7 +33,7 @@
     "dev": "nodemon --trace-warnings app.js",
     "scan": "node --trace-warnings ./filesystem/scanner.js",
     "build": "pkg package.json --out-path package",
-    "test": "eslint ."
+    "test": "eslint . && mocha test/"
   },
   "author": "Watanuki-Kimihiro",
   "license": "GPL-3.0-or-later",
