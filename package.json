@@ -72,8 +72,10 @@
     "uuid": "^8.3.2"
   },
   "devDependencies": {
+    "chai": "^4.3.4",
     "eslint": "^7.20.0",
     "eslint-plugin-node": "^11.1.0",
+    "mocha": "^8.3.2",
     "serve-index": "^1.9.1"
   }
 }
