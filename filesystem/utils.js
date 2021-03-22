@@ -135,7 +135,7 @@ const toTree = (tracks, workTitle, workDir, rootFolder) => {
       });
     } else {
       fatherFolder.push({
-        type: 'file',
+        type: 'audio',
         hash: track.hash,
         title: track.title,
         workTitle,
