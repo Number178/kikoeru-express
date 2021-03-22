@@ -73,12 +73,14 @@ const defaultConfig = {
   mediaDownloadBaseUrl: '/api/media/download/', // /api/media/download/123456/2 This setting will be ignored if offloadMedia = true
 };
 
-const initConfig = () => {
+const initConfig = (writeConfigToFile = !process.env.FREEZE_CONFIG_FILE) => {
   config = Object.assign(config, defaultConfig);
-  fs.writeFileSync(configPath, JSON.stringify(defaultConfig, null, "\t"));
+  if (writeConfigToFile) {
+    fs.writeFileSync(configPath, JSON.stringify(defaultConfig, null, "\t"));
+  }
 }
 
-const setConfig = (newConfig) => {
+const setConfig = (newConfig, writeConfigToFile = !process.env.FREEZE_CONFIG_FILE) => {
   // Prevent changing some values, overwrite with old ones
   newConfig.production = config.production;
   if (process.env.NODE_ENV === 'production' || config.production) {
@@ -89,11 +91,13 @@ const setConfig = (newConfig) => {
 
   // Merge config
   config = Object.assign(config, newConfig);
-  fs.writeFileSync(configPath, JSON.stringify(config, null, "\t"));
+  if (writeConfigToFile) {
+    fs.writeFileSync(configPath, JSON.stringify(config, null, "\t"));
+  }
 }
 
 // Get or use default value
-const getConfig = () => {
+const readConfig = () => {
   config = JSON.parse(fs.readFileSync(configPath));
   for (let key in defaultConfig) {
     if (!config.hasOwnProperty(key)) {
@@ -128,7 +132,7 @@ const getConfig = () => {
 };
 
 // Migrate config
-const updateConfig = () => {
+const updateConfig = (writeConfigToFile = !process.env.FREEZE_CONFIG_FILE) => {
   let cfg = JSON.parse(fs.readFileSync(configPath));
   let countChanged = 0;
   for (let key in defaultConfig) {
@@ -147,7 +151,7 @@ const updateConfig = () => {
 
   if (countChanged || cfg.version !== pjson.version) {
     cfg.version = pjson.version;
-    setConfig(cfg)
+    setConfig(cfg, writeConfigToFile)
   }
 }
 
@@ -168,7 +172,8 @@ class publicConfig {
 
 const sharedConfigHandle = new publicConfig();
 
-// This part always runs when the module is initialized
+// This part runs when the module is initialized
+// TODO: refactor global side effect
 if (!fs.existsSync(configPath)) {
   if (!fs.existsSync(configFolderDir)) {
     try {
@@ -177,9 +182,10 @@ if (!fs.existsSync(configPath)) {
       console.error(` ! 在创建存放配置文件的文件夹时出错: ${err.message}`);
     }
   }
-  initConfig();
+  const writeConfigToFile = !process.env.FREEZE_CONFIG_FILE;
+  initConfig(writeConfigToFile);
 } else {
-  getConfig();
+  readConfig();
 }
 
 module.exports = {
