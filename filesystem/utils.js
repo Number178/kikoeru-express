@@ -2,7 +2,7 @@ const fs = require('fs');
 const path = require('path');
 const recursiveReaddir = require('recursive-readdir');
 const { orderBy } = require('natural-orderby');
-
+const { joinFragments } = require('../routes/utils/url')
 const { config } = require('../config');
 
 /**
@@ -91,8 +91,8 @@ const toTree = (tracks, workTitle, workDir, rootFolder) => {
     // If the folder is deeper:
     // /media/stream/VoiceWork/second/RJ123456/subdirs/track.mp3
     // /media/download/VoiceWork/second/RJ123456/subdirs/track.mp3
-    let offloadStreamUrl = path.join(config.offloadStreamPath, rootFolder.name, workDir, track.subtitle || '', track.title);
-    let offloadDownloadUrl = path.join(config.offloadDownloadPath, rootFolder.name, workDir, track.subtitle || '', track.title);
+    let offloadStreamUrl = joinFragments(config.offloadStreamPath, rootFolder.name, workDir, track.subtitle || '', track.title);
+    let offloadDownloadUrl = joinFragments(config.offloadDownloadPath, rootFolder.name, workDir, track.subtitle || '', track.title);
     if (process.platform === 'win32') {
       offloadStreamUrl = offloadStreamUrl.replace(/\\/g, '/');
       offloadDownloadUrl = offloadDownloadUrl.replace(/\\/g, '/');
