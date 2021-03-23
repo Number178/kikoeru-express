@@ -106,16 +106,27 @@ router.get('/works', async (req, res, next) => {
 });
 
 // GET name of a circle/tag/VA
-router.get('/get-name/:field/:id', (req, res, next) => {
-  if (req.params.field === 'undefined') {
-    return res.send(null);
+router.get('/:field(circle|tag|va)s/:id', (req, res, next) => {
+  // In case regex matching goes wrong
+  const validFields = ['circle', 'tag', 'va'];
+  if (!validFields.includes(req.params.field)) {
+    const err = new Error(`无效的查询域：field: ${req.originalUrl}`)
+    return next(err)
   }
 
-  return db.knex(`t_${req.params.field}`)
-    .select('name')
-    .where('id', '=', req.params.id)
-    .first()
-    .then(name => res.send(name.name))
+  return db.getMetadata({field: req.params.field, id: req.params.id})
+    .then(item => {
+      if (item) {
+        res.send(item) 
+      } else {
+        const errorMessage= {
+          'circle': `社团${req.params.id}不存在`,
+          'tag': `标签${req.params.id}不存在`,
+          'va': `声优${req.params.id}不存在`
+        }
+        res.status(404).send({error: errorMessage[req.params.field]})
+      }
+    })
     .catch(err => next(err));
 });
 
@@ -163,7 +174,14 @@ router.get('/search/:keyword?', async (req, res, next) => {
 
 // GET list of work ids, restricted by circle/tag/VA
 // eslint-disable-next-line no-unused-vars
-router.get('/:field/:id', async (req, res, next) => {
+router.get('/:field(circle|tag|va)s/:id/works', async (req, res, next) => {
+  // In case regex matching goes wrong
+  const validFields = ['circle', 'tag', 'va'];
+  if (!validFields.includes(req.params.field)) {
+    const err = new Error(`无效的查询域：${req.originalUrl}`)
+    return next(err)
+  }
+
   const currentPage = parseInt(req.query.page) || 1;
   // 通过 "音声id, 贩卖日, 用户评价, 售出数, 评论数量, 价格, 平均评价, 全年龄新作" 排序
   // ['id', 'release', 'rating', 'dl_count', 'review_count', 'price', 'rate_average_2dp, 'nsfw']
@@ -204,7 +222,14 @@ router.get('/:field/:id', async (req, res, next) => {
 });
 
 // GET list of circles/tags/VAs
-router.get('/(:field)s/', (req, res, next) => {
+router.get('/:field(circle|tag|va)s/', (req, res, next) => {
+  // In case regex matching goes wrong
+  const validFields = ['circle', 'tag', 'va'];
+  if (!validFields.includes(req.params.field)) {
+    const err = new Error(`无效的查询域：${req.originalUrl}`)
+    return next(err)
+  }
+
   const field = req.params.field;
   db.getLabels(field)
     .orderBy(`name`, 'asc')

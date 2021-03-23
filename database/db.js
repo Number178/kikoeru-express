@@ -451,8 +451,19 @@ const getWorksWithReviews = async ({username = '', limit = 1000, offset = 0, ord
   return {works, totalCount};
 };
 
+const getMetadata = ({field = 'circle', id} = {}) => {
+  const validFields = ['circle', 'tag', 'va'];
+  if (!validFields.includes(field)) throw new Error('无效的查询域');
+  return knex(`t_${field}`)
+    .select('*')
+    .where('id', '=', id)
+    .first()
+}
+
 module.exports = {
-  knex, insertWorkMetadata, getWorkMetadata, removeWork, getWorksBy, getWorksByKeyWord, updateWorkMetadata, getLabels,
+  knex, insertWorkMetadata, getWorkMetadata, removeWork, getWorksBy, getWorksByKeyWord, updateWorkMetadata,
+  getLabels, getMetadata,
   createUser, updateUserPassword, resetUserPassword, deleteUser,
-  getWorksWithReviews, updateUserReview, deleteUserReview, databaseExist
+  getWorksWithReviews, updateUserReview, deleteUserReview,
+  databaseExist
 };
