@@ -3,8 +3,6 @@
 
 [![unstable build status](https://github.com/umonaca/kikoeru-express/actions/workflows/build-artifacts.yml/badge.svg)](https://github.com/umonaca/kikoeru-express/actions)
 
-![截图.png](https://i.loli.net/2020/04/22/hjXW4PdsaoIt97U.png)
-
 ### 功能介绍
 - 从 DLSite 爬取音声元数据
 - 对音声标记进度、打星、写评语
