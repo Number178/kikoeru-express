@@ -74,7 +74,7 @@ const scrapeStaticWorkMetadataFromDLsite = (id, language) => new Promise((resolv
       const R18 = workOutline.children('tbody').children('tr').children('th')
         .filter(function() {
           return $(this).text() === AGE_RATINGS;
-        }).parent().children('td').text();
+        }).parent().children('td').find('span:first').text();
       work.nsfw = R18 === '18禁';
 
       // 贩卖日 (YYYY-MM-DD)
