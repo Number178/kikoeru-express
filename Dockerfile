@@ -7,14 +7,13 @@ FROM node:14-alpine as build-dep
 # Create app directory
 WORKDIR /usr/src/kikoeru
 
+RUN apk update && apk add python make gcc g++ 
+
 # Install app dependencies
 # A wildcard is used to ensure both package.json AND package-lock.json are copied
 # where available (npm@5+)
 COPY package*.json ./
-
-RUN apk update && apk add python make gcc g++ && npm ci --only=production
-# If you are building your code for production
-# RUN npm ci --only=production
+RUN npm ci --only=production
 
 # Build SPA and PWA
 FROM node:14 as build-frontend
