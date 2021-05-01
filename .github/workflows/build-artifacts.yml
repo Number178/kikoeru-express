@@ -103,7 +103,7 @@ jobs:
         run: echo ::set-output name=SOURCE_NAME::${GITHUB_REF##*/}
 
       - name: Install pkg
-        run: npm install -g pkg
+        run: npm install -g pkg@4.5.1
 
       - name: Make empty dirs to suppress pkg warnings
         run: mkdir config sqlite covers VoiceWork
