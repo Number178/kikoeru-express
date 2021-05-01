@@ -139,6 +139,8 @@ jobs:
 
   build-arm:
     needs: build-front-end
+    # Temporarily disabled, dependencies broke very often
+    if: false
     runs-on: ubuntu-18.04
     strategy:
       fail-fast: false
