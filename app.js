@@ -11,6 +11,15 @@ const http = require('http');
 const https = require('https');
 const fs = require('fs');
 
+// Crash the process on "unhandled promise rejection" when NODE_ENV=test or CRASH_ON_UNHANDLED exists
+if (process.env.NODE_ENV === 'test' || process.env.CRASH_ON_UNHANDLED) {
+  process.on('unhandledRejection', (reason, promise) => {
+    console.error(new Date().toJSON(), 'Kikoeru log: Unhandled rejection at ', promise, `reason: ${reason}`);
+    console.error('Crashing the process because of NODE_ENV or CRASH_ON_UNHANDLED settings');
+    process.exit(1)
+  })
+}
+
 const { initApp }= require('./database/init');
 const { config } = require('./config');
 const api = require('./api');
