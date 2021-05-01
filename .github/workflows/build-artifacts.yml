@@ -8,7 +8,41 @@ on:
       - v*
 
 jobs:
+  build-front-end:
+    runs-on: ubuntu-18.04
+    name: Build front end PWA from source
+    steps:
+      - name: Check out latest front end
+        uses: actions/checkout@v2
+        with:
+          repository: kikoeru-project/kikoeru-quasar
+          ref: unstable
+
+      - name: Setup node
+        uses: actions/setup-node@v2
+        with:
+          node-version: 14
+      
+      - run: npm install -g @quasar/cli
+      - run: npm ci
+      - run: quasar build && quasar build -m pwa
+
+      - name: 'Upload PWA'
+        uses: actions/upload-artifact@v2
+        with:
+          name: PWA-unstable
+          path: dist/pwa
+          if-no-files-found: error
+
+      - name: 'Upload SPA'
+        uses: actions/upload-artifact@v2
+        with:
+          name: SPA-unstable
+          path: dist/spa
+          if-no-files-found: error
+
   build:
+    needs: build-front-end
     runs-on: ${{ matrix.os }}
     defaults:
       run:
@@ -69,30 +103,16 @@ jobs:
         run: echo ::set-output name=SOURCE_NAME::${GITHUB_REF##*/}
 
       - name: Install pkg
-        run: npm install -g pkg
+        run: npm install -g pkg@4.5.1
 
       - name: Make empty dirs to suppress pkg warnings
         run: mkdir config sqlite covers VoiceWork
 
-      - uses: haya14busa/action-cond@v1
-        name: Decide front-end version
-        id: front_version
+      - name: Download front-end artifact (PWA)
+        uses: actions/download-artifact@v2
         with:
-          cond: startsWith(github.ref, 'refs/tags/')
-          if_true: ${{ steps.source_name.outputs.SOURCE_NAME }}
-          if_false: "unstable"
-
-      - name: Show conditional value from pervious step
-        run: echo "${{ steps.front_version.outputs.value }}"
-
-      - name: Download front-end artifact
-        uses: dawidd6/action-download-artifact@v2
-        with:
-          workflow: build-and-publish.yml
-          branch: unstable
-          name: PWA-${{ steps.front_version.outputs.value }}
+          name: PWA-unstable
           path: dist
-          repo: kikoeru-project/kikoeru-quasar
 
       - name: Check front-end artifacts
         run: ls -al dist/
@@ -118,6 +138,9 @@ jobs:
           if-no-files-found: error
 
   build-arm:
+    needs: build-front-end
+    # Temporarily disabled, dependencies broke very often
+    if: false
     runs-on: ubuntu-18.04
     strategy:
       fail-fast: false
@@ -134,6 +157,9 @@ jobs:
             pkg_target_platform: node14-armv7-linux
     name: Build for ${{ matrix.platform }}
     steps:
+      - name: Checkout
+        uses: actions/checkout@v2
+
       - name: Login to DockerHub
         uses: docker/login-action@v1 
         with:
@@ -167,24 +193,33 @@ jobs:
         id: source_name
         run: echo ::set-output name=SOURCE_NAME::${GITHUB_REF##*/}
 
-      - uses: haya14busa/action-cond@v1
-        name: Decide front-end version
-        id: front_version
-        with:
-          cond: startsWith(github.ref, 'refs/tags/')
-          if_true: ${{ steps.source_name.outputs.SOURCE_NAME }}
-          if_false: "unstable"
+      # - uses: haya14busa/action-cond@v1
+      #   name: Decide front-end version
+      #   id: front_version
+      #   with:
+      #     cond: startsWith(github.ref, 'refs/tags/')
+      #     if_true: ${{ steps.source_name.outputs.SOURCE_NAME }}
+      #     if_false: "unstable"
 
-      - name: Show conditional value from pervious step
-        run: echo "${{ steps.front_version.outputs.value }}"
+      # - name: Show conditional value from pervious step
+      #   run: echo "${{ steps.front_version.outputs.value }}"
+
+      - name: Download front-end artifact (PWA)
+        uses: actions/download-artifact@v2
+        with:
+          name: PWA-unstable
+          path: dist
+
+      - name: Check front-end artifacts
+        run: ls -al dist/
 
       - name: Cross-build pkg binaries inside Docker container
         uses: docker/build-push-action@v2
         with:
+          context: .
           file: scripts/Dockerfile.pkg.buildarm
           platforms: ${{ matrix.platform }}
           push: false
-          pull: true
           tags: |
             muveex/kikoeru-express:${{ steps.source_name.outputs.SOURCE_NAME }}-${{ matrix.arch }}
           cache-from: type=local,src=/tmp/.buildx-cache
@@ -192,7 +227,6 @@ jobs:
           # There is a bug in buildx that sometimes prevents output type=local from working
           outputs: type=tar,dest=out.tar
           build-args: |
-            FRONTEND_VERSION=${{ steps.front_version.outputs.value }}
             PKG_TARGET_PLATFORM=${{ matrix.pkg_target_platform }}
 
       - name: Extract files
@@ -236,7 +270,7 @@ jobs:
   build-docker:
     runs-on: ubuntu-18.04
     name: Prepare multiarch docker images
-    if: contains(fromJson('["refs/heads/unstable", "refs/tags/", "refs/heads/stable", "refs/heads/feature-github-actions"]'), github.ref)
+    if: contains(fromJson('["refs/heads/unstable", "refs/tags/", "refs/heads/stable", "refs/heads/ci-decouple-from-frontend"]'), github.ref)
     needs: build
 
     steps:
@@ -445,7 +479,7 @@ jobs:
     runs-on: ubuntu-18.04
     name: Prepare release draft
     if: startsWith(github.ref, 'refs/tags/')
-    needs: [test-pkg-archive, test-pkg-archive-arm]
+    needs: [test-pkg-archive]
 
     steps:
       - name: Download artifacts
