@@ -2,7 +2,7 @@ const express = require('express');
 const { check, validationResult } = require('express-validator'); // 后端校验
 const expressJwt = require('express-jwt'); // 把 JWT 的 payload 部分赋值于 req.user
 
-const { signtoken, md5 } = require('../auth/utils');
+const { signToken, md5 } = require('../auth/utils');
 const db = require('../database/db');
 
 const { config } = require('../config');
@@ -37,7 +37,7 @@ router.post('/me', [
         res.set("WWW-Authenticate", "Bearer realm=\"Authorization Required\"");
         res.status(401).send({error: '用户名或密码错误.'});
       } else {
-        const token = signtoken(user);
+        const token = signToken(user);
         res.send({ token });
       }
     })
