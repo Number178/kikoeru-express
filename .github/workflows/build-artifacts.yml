@@ -479,7 +479,7 @@ jobs:
     runs-on: ubuntu-18.04
     name: Prepare release draft
     if: startsWith(github.ref, 'refs/tags/')
-    needs: [test-pkg-archive, test-pkg-archive-arm]
+    needs: [test-pkg-archive]
 
     steps:
       - name: Download artifacts
