@@ -1,6 +1,11 @@
 const express = require('express');
 const router = express.Router();
 
+// Health check endpoint
+router.get('/health', (req, res) => {
+  res.send('OK');
+})
+
 // Eliminate error message from old PWA
 // Will be deleted in the future
 router.get('/me', (req, res) => {
