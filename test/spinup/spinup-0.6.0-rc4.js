@@ -1,9 +1,6 @@
-const { knex } = require('./db');
+const { knex } = require('../../database/db');
 
-const dbVersion = '20210502081522';
-
-// 数据库结构
-const createSchema = () => knex.schema
+const createOldSchema = () => knex.schema
   .createTable('t_circle', (table) => {
     table.increments(); // id自增列(INTEGER 类型)，会被用作主键 [社团id]
     table.string('name').notNullable(); // VARCHAR 类型 [社团名称]
@@ -14,19 +11,19 @@ const createSchema = () => knex.schema
     table.string('dir').notNullable(); // VARCHAR 类型 [相对存储路径]
     table.string('title').notNullable(); // VARCHAR 类型 [音声名称]
     table.integer('circle_id').notNullable(); // INTEGER 类型 [社团id]
-    table.boolean('nsfw'); // BOOLEAN 类型
-    table.string('release');  // VARCHAR 类型 [贩卖日 (YYYY-MM-DD)]
+    table.boolean('nsfw').notNullable(); // BOOLEAN 类型
+    table.string('release').notNullable();  // VARCHAR 类型 [贩卖日 (YYYY-MM-DD)]
 
-    table.integer('dl_count'); // INTEGER 类型 [售出数]
-    table.integer('price'); // INTEGER 类型 [价格]
-    table.integer('review_count'); // INTEGER 类型 [评论数量]
-    table.integer('rate_count'); // INTEGER 类型 [评价数量]
-    table.float('rate_average_2dp'); // FLOAT 类型 [平均评价]
-    table.text('rate_count_detail'); // TEXT 类型 [评价分布明细]
+    table.integer('dl_count').notNullable(); // INTEGER 类型 [售出数]
+    table.integer('price').notNullable(); // INTEGER 类型 [价格]
+    table.integer('review_count').notNullable(); // INTEGER 类型 [评论数量]
+    table.integer('rate_count').notNullable(); // INTEGER 类型 [评价数量]
+    table.float('rate_average_2dp').notNullable(); // FLOAT 类型 [平均评价]
+    table.text('rate_count_detail').notNullable(); // TEXT 类型 [评价分布明细]
     table.text('rank'); // TEXT 类型 [历史销售业绩]
     
     table.foreign('circle_id').references('id').inTable('t_circle'); // FOREIGN KEY 外键
-    table.index(['circle_id', 'release', 'dl_count', 'review_count', 'price', 'rate_average_2dp'], 't_work_index'); // INDEX 索引
+    table.index(['circle_id', 'release', 'dl_count', 'review_count', 'price', 'rate_average_2dp']); // INDEX 索引
   })
   .createTable('t_tag', (table) => {
     table.increments(); // id自增列(INTEGER 类型)，会被用作主键 [标签id]
@@ -68,48 +65,5 @@ const createSchema = () => knex.schema
     table.foreign('work_id').references('id').inTable('t_work').onDelete('CASCADE'); // FOREIGN KEY 
     table.primary(['user_name', 'work_id']); // PRIMARY KEY
   })
-  .raw(`
-    CREATE VIEW IF NOT EXISTS staticMetadata AS
-    SELECT baseQueryWithVA.*,
-      json_object('tags', json_group_array(json_object('id', t_tag.id, 'name', t_tag.name))) AS tagObj
-    FROM (
-      SELECT baseQuery.*,
-        json_object('vas', json_group_array(json_object('id', t_va.id, 'name', t_va.name))) AS vaObj
-      FROM (
-        SELECT t_work.id, 
-          t_work.title,
-          t_work.circle_id,
-          t_circle.name,
-          json_object('id', t_work.circle_id, 'name', t_circle.name) AS circleObj,
-          t_work.nsfw,
-          t_work.release,
-          t_work.dl_count,
-          t_work.price,
-          t_work.review_count,
-          t_work.rate_count,
-          t_work.rate_average_2dp,
-          t_work.rate_count_detail,
-          t_work.rank
-        FROM t_work
-        JOIN t_circle ON t_circle.id = t_work.circle_id
-      ) AS baseQuery
-      JOIN r_va_work ON r_va_work.work_id = baseQuery.id
-      JOIN t_va ON t_va.id = r_va_work.va_id
-      GROUP BY baseQuery.id
-    ) AS baseQueryWithVA
-    LEFT JOIN r_tag_work ON r_tag_work.work_id = baseQueryWithVA.id
-    LEFT JOIN t_tag ON t_tag.id = r_tag_work.tag_id
-    GROUP BY baseQueryWithVA.id;
-  `)
-  .then(() => {
-    console.log(' * 成功构建数据库结构.');
-  })
-  .catch((err) => {
-    if (err.toString().indexOf('table `t_circle` already exists') !== -1) {
-      console.log(' * 数据库结构已经存在.');
-    } else {
-      throw err;
-    }
-  });
 
-module.exports = { createSchema, dbVersion };
+  module.exports = { createOldSchema };
