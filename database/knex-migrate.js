@@ -14,7 +14,7 @@ function normalizeFlags (flags) {
   flags.knexfile = join(__dirname, flags.knexfile)
 
   flags.env =
-    flags.env || process.env.KNEX_ENV || process.env.NODE_ENV || 'development'
+    flags.env || process.env.KNEX_ENV || process.env.NODE_ENV || 'upgrade'
 }
 
 function knexInit (flags) {

@@ -1,3 +1,4 @@
+const fs = require('fs');
 const { md5 } = require('../auth/utils');
 const knexMigrate = require('./knex-migrate');
 const { databaseExist, createUser } = require('./db');
@@ -11,7 +12,7 @@ const initApp = async () => {
   let configVersion = config.version;
   let currentVersion = pjson.version;
 
-  // 迁移或创建数据库结构
+  
   async function runMigrations () {
     const log = ({ action, migration }) => console.log('Doing ' + action + ' on ' + migration);
     await knexMigrate('up', {}, log);
@@ -28,6 +29,18 @@ const initApp = async () => {
     }
   }
 
+  function initDatabaseDir () {
+    const databaseFolderDir = config.databaseFolderDir;
+    if (!fs.existsSync(databaseFolderDir)) {
+      try {
+        fs.mkdirSync(databaseFolderDir, { recursive: true });
+      } catch(err) {
+        console.error(` ! 在创建存放数据库文件的文件夹时出错: ${err.message}`);
+      }
+    }
+  }
+
+  // 迁移或创建数据库结构
   if (databaseExist && compareVersions.compare(currentVersion, configVersion, '>')) {
     console.log('升级中');
     const oldVersion = config.version;
@@ -41,7 +54,8 @@ const initApp = async () => {
       console.error(error);
     }
   } else if (!databaseExist) {
-    await createSchema()
+    initDatabaseDir();
+    await createSchema();
     try { // 创建内置的管理员账号
       await createUser({
         name: 'admin',

@@ -2,39 +2,12 @@ const fs = require('fs');
 const path = require('path');
 const { config } = require('../config');
 
-const databaseFolderDir = config.databaseFolderDir;
-if (!fs.existsSync(databaseFolderDir)) {
-  try {
-    fs.mkdirSync(databaseFolderDir, { recursive: true });
-  } catch(err) {
-    console.error(` ! 在创建存放数据库文件的文件夹时出错: ${err.message}`);
-  }
-}
-
-const databaseExist = fs.existsSync(path.join(databaseFolderDir, 'db.sqlite3'));
+const databaseExist = fs.existsSync(path.join(config.databaseFolderDir, 'db.sqlite3'));
 
 // knex 操作数据库
-const knex = require('knex')({
-  client: 'sqlite3', // 数据库类型
-  useNullAsDefault: true,
-  connection: { // 连接参数
-    filename: path.join(databaseFolderDir, 'db.sqlite3'),
-  },
-  acquireConnectionTimeout: 40000, // 连接计时器
-  pool: {
-    afterCreate: (conn, done) => {
-      conn.run('PRAGMA foreign_keys = ON;', function (err) {
-        if (err) {
-          done(err, conn);
-        } else {
-          conn.run(`PRAGMA busy_timeout = ${config.dbBusyTimeout};`, function (err) {
-            done(err, conn);
-          });
-        }
-      });
-    }
-  }
-});
+const connEnv = process.env.KNEX_ENV || process.env.NODE_ENV || 'development';
+const conn = require('./knexfile')[connEnv]
+const knex = require('knex')(conn);
 
 /**
  * Takes a work metadata object and inserts it into the database.
