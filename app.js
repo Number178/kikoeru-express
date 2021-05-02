@@ -3,7 +3,7 @@
 require('dotenv').config()
 const path = require('path');
 const express = require('express');
-const initSocket = require('./socket');
+
 const compression = require('compression');
 const bodyParser = require('body-parser'); // 获取 req.body
 const history = require('connect-history-api-fallback');
@@ -21,6 +21,7 @@ if (process.env.NODE_ENV === 'test' || process.env.CRASH_ON_UNHANDLED) {
 }
 
 const { initApp }= require('./database/init');
+const initSocket = require('./socket');
 const { config } = require('./config');
 const api = require('./api');
 const app = express();
