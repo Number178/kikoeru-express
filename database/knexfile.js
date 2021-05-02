@@ -32,21 +32,18 @@ module.exports = {
       filename: path.join(config.databaseFolderDir, 'db.sqlite3')
     },
     migrations: {
-      directory: path.join(__dirname, "migrations"),
       tableName: 'knex_migrations'
     }
   },
 
   test: {
     client: "sqlite3",
-    connection: ":memory:",
+    connection: {
+      filename: path.join(__dirname, '../test/db-test.sqlite3'),
+    },
     useNullAsDefault: true,
     migrations: {
-      directory: path.join(__dirname, "migrations"),
       tableName: 'knex_migrations'
-    },
-    seeds: {
-      directory: path.join(__dirname, "../test/seeds")
     }
   }
 };
