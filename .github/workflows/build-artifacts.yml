@@ -106,7 +106,7 @@ jobs:
         run: npm install -g pkg@4.5.1
 
       - name: Make empty dirs to suppress pkg warnings
-        run: mkdir config sqlite covers VoiceWork
+        run: mkdir -p config sqlite covers VoiceWork
 
       - name: Download front-end artifact (PWA)
         uses: actions/download-artifact@v2
