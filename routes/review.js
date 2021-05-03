@@ -8,12 +8,13 @@ const { isValidRequest } = require('./utils/validate');
 
 const PAGE_SIZE = config.pageSize || 12;
 
-// eslint-disable-next-line no-unused-vars
+
 router.get('/',
   query('page').optional({nullable: true}).isInt(),
   query('sort').optional({nullable: true}).isIn(['desc', 'asc']),
   query('seed').optional({nullable: true}).isInt(),
   query('filter').optional({nullable: true}).isIn(['marked', 'listening', 'listened', 'replay', 'postponed']),
+  // eslint-disable-next-line no-unused-vars
   async (req, res, next) => {
     if(!isValidRequest(req, res)) return;
 
@@ -46,13 +47,13 @@ router.get('/',
 });
 
 // 提交用户评价
-// eslint-disable-next-line no-unused-vars
 router.put('/',
   body('work_id').isInt(),
   body('rating').optional({nullable: true}).isInt(),
   body('progress').optional({nullable: true}).isIn(['marked', 'listening', 'listened', 'replay', 'postponed']),
   body('starOnly').optional({nullable: true}).isBoolean(),
   body('progressOnly').optional({nullable: true}).isBoolean(),
+  // eslint-disable-next-line no-unused-vars
   (req, res, next) => {
     if(!isValidRequest(req, res)) return;
 

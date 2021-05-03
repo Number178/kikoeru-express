@@ -72,11 +72,11 @@ router.get('/tracks/:id',
 });
 
 // GET list of work ids
-// eslint-disable-next-line no-unused-vars
 router.get('/works',
   query('page').optional({nullable: true}).isInt(),
   query('sort').optional({nullable: true}).isIn(['desc', 'asc']),
   query('seed').optional({nullable: true}).isInt(),
+  // eslint-disable-next-line no-unused-vars
   async (req, res, next) => {
     if(!isValidRequest(req, res)) return;
 
@@ -189,9 +189,9 @@ router.get('/search/:keyword?', async (req, res, next) => {
 });
 
 // GET list of work ids, restricted by circle/tag/VA
-// eslint-disable-next-line no-unused-vars
 router.get('/:field(circle|tag|va)s/:id/works',
   param('field').isIn(['circle', 'tag', 'va']),
+  // eslint-disable-next-line no-unused-vars
   async (req, res, next) => {
     // In case regex matching goes wrong
     if(!isValidRequest(req, res)) return;
