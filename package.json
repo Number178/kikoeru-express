@@ -11,6 +11,7 @@
   "pkg": {
     "scripts": [
       "filesystem/scanner.js",
+      "filesystem/updater.js",
       "dist/**/*.js",
       "database/migrations/*",
       "database/knexfile.js",
