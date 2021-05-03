@@ -140,7 +140,7 @@ jobs:
   build-docker:
     runs-on: ubuntu-18.04
     name: Prepare multiarch docker images
-    if: contains(fromJson('["refs/heads/unstable", "refs/tags/", "refs/heads/stable", "refs/heads/ci-decouple-from-frontend"]'), github.ref)
+    if: startsWith(github.ref, 'refs/tags/') || startsWith(github.ref, 'refs/heads/unstable') || startsWith(github.ref, 'refs/heads/stable')
     needs: build
 
     steps:
@@ -298,7 +298,13 @@ jobs:
       - name: Download artifacts
         uses: actions/download-artifact@v2
         with:
-          path: artifacts/
+          path: artifacts
+
+      - name: Packup artifacts
+        run: cd artifacts && for i in */; do zip -r "${i%/}.zip" "$i"; done
+
+      - name: List artifacts
+        run: ls -al artifacts/
 
       - name: Release
         uses: softprops/action-gh-release@v1
