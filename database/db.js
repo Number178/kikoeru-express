@@ -91,17 +91,17 @@ const updateWorkMetadata = (work, options = {}) => knex.transaction(async (trx) 
       rate_count: work.rate_count,
       rate_average_2dp: work.rate_average_2dp,
       rate_count_detail: JSON.stringify(work.rate_count_detail),
-      rank: work.rank ? JSON.stringify(work.rank) : null
+      rank: work.rank ? JSON.stringify(work.rank) : null,
     });
   
-  if (options.includeVA) {
+  if (options.includeVA || options.refreshAll) {
     await trx('r_va_work').where('work_id', work.id).del();
     for (const va of work.vas) {
       await trx.raw('INSERT OR IGNORE INTO t_va(id, name) VALUES (?, ?)', [va.id, va.name]);
       await trx.raw('INSERT OR IGNORE INTO r_va_work(va_id, work_id) VALUES (?, ?)', [va.id, work.id]);
     }
   }
-  if (options.includeTags) {
+  if (options.includeTags || options.refreshAll) {
     if (options.purgeTags) {
       await trx('r_tag_work').where('work_id', work.id).del();
     }
@@ -109,6 +109,25 @@ const updateWorkMetadata = (work, options = {}) => knex.transaction(async (trx) 
       await trx.raw('INSERT OR IGNORE INTO t_tag(id, name) VALUES (?, ?)', [tag.id, tag.name]);
       await trx.raw('INSERT OR IGNORE INTO r_tag_work(tag_id, work_id) VALUES (?, ?)', [tag.id, work.id]);
     }
+  }
+
+  // Fix a bug caused by DLsite changes
+  if (options.includeNSFW) {
+    await trx('t_work')
+    .where('id', '=', work.id)
+    .update({
+      nsfw: work.nsfw
+    });
+  }  
+
+  if (options.refreshAll) {
+    await trx('t_work')
+    .where('id', '=', work.id)
+    .update({
+      nsfw: work.nsfw,
+      title: work.title,
+      release: work.release,
+    });
   }
 });
 

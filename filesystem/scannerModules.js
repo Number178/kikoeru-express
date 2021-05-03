@@ -594,7 +594,7 @@ const performScan = () => {
  */
 const updateMetadata = (id, options = {}) => {
   let scrapeProcessor = () => scrapeDynamicWorkMetadataFromDLsite(id);
-  if (options.includeVA || options.includeTags) {
+  if (options.includeVA || options.includeTags || options.includeNSFW || options.refreshAll) {
     // static + dynamic
     scrapeProcessor = () => scrapeWorkMetadataFromDLsite(id, config.tagLanguage);
   }
@@ -618,14 +618,26 @@ const updateMetadata = (id, options = {}) => {
     });
 };
 
-const updateMetadataLimited = (id) => limitP.call(updateMetadata, id);
+const updateMetadataLimited = (id, options = null) => limitP.call(updateMetadata, id, options);
 const updateVoiceActorLimited = (id) => limitP.call(updateMetadata, id, { includeVA: true });
 
 // eslint-disable-next-line no-unused-vars
-const performUpdate = () => {
+const performUpdate = async (options = null) => {
   const baseQuery = db.knex('t_work').select('id');
-  const processor = (id) => updateMetadataLimited(id);
-  return refreshWorks(baseQuery, 'id', processor);
+  const processor = (id) => updateMetadataLimited(id, options);
+
+  const counts = await refreshWorks(baseQuery, 'id', processor);
+
+  const message = `扫描完成: 更新 ${counts.updated} 个，失败 ${counts.failed} 个.`;
+  console.log(` * ${message}`);
+  process.send({
+    event: 'SCAN_FINISHED',
+    payload: {
+      message: message
+    }
+  });
+  db.knex.destroy();
+  if (counts.failed) process.exit(1);
 };
 
 const fixVoiceActorBug = () => {
@@ -635,8 +647,14 @@ const fixVoiceActorBug = () => {
   return refreshWorks(filter(baseQuery), 'work_id', processor);
 };
 
-const refreshWorks = (query, idColumnName, processor) => {
+const refreshWorks = async (query, idColumnName, processor) => {
   return query.then(async (works) => {
+    console.log(` * 共 ${works.length} 个音声.`);
+    addMainLog({
+      level: 'info',
+      message: `共 ${works.length} 个作品. 开始刷新`
+    });
+
     const counts = {
       updated: 0,
       failed: 0,
@@ -650,22 +668,18 @@ const refreshWorks = (query, idColumnName, processor) => {
           result === 'failed' ? counts['failed'] += 1 : counts['updated'] += 1;
           tasks.find(task => task.rjcode === rjcode).result = result;
           removeTask(rjcode);
-          addResult(rjcode, 'updated', counts.updated);
+          if (result === 'failed') {
+            addResult(rjcode, 'failed', counts.failed);
+          } else {
+            addResult(rjcode, 'updated', counts.updated);
+          }
       })
     });
     await Promise.all(promises);
     emitMainLog(` * 完成元数据更新 ${counts.updated} 个，失败 ${counts.failed} 个.`);
-    if (counts.failed) {
-      const err =  new Error(' ! 未完成修复，请检查网络连接。或向作者报告错误');
-      err.name = '' // Remove 'Error:'
-      throw err;
-    }
 
-    return counts.updated;
+    return counts;
   });
 };
 
-// Script entry, run as a child process
-performScan();
-// fixVoiceActorBug();
-// performUpdate();
+module.exports = { performScan, performUpdate }
