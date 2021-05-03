@@ -461,7 +461,7 @@ const performScan = () => {
       let folderList = [];
       try {
         for (const rootFolder of config.rootFolders) {
-          for await (const folder of getFolderList(rootFolder)) {
+          for await (const folder of getFolderList(rootFolder, '', 0, addMainLog)) {
             folderList.push(folder);
           }
         }
