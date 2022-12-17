@@ -1,6 +1,6 @@
 #!/usr/bin/env node
 
-require('dotenv').config()
+require('dotenv').config();
 const path = require('path');
 const express = require('express');
 
@@ -16,8 +16,8 @@ if (process.env.NODE_ENV === 'test' || process.env.CRASH_ON_UNHANDLED) {
   process.on('unhandledRejection', (reason, promise) => {
     console.error(new Date().toJSON(), 'Kikoeru log: Unhandled rejection at ', promise, `reason: ${reason}`);
     console.error('Crashing the process because of NODE_ENV or CRASH_ON_UNHANDLED settings');
-    process.exit(1)
-  })
+    process.exit(1);
+  });
 }
 
 const { initApp }= require('./database/init');
@@ -36,7 +36,7 @@ if (config.behindProxy) {
   // This is used to detect correct remote IP address which will be used in express-brute and some routes
   // You MUST set a X-Forwarded-For header in your reverse proxy to make it work
   // By default, behindProxy is false
-  app.set('trust proxy', 'loopback')
+  app.set('trust proxy', 'loopback');
 }
 
 if (config.enableGzip) {
@@ -106,7 +106,7 @@ if (config.httpsEnabled) {
     },app);
     httpsSuccess = true;
   } catch (err) {
-    console.error('HTTPS服务器启动失败，请检查证书位置以及是否文件可读')
+    console.error('HTTPS服务器启动失败，请检查证书位置以及是否文件可读');
     console.error(err);
   }
 }
@@ -117,21 +117,21 @@ if (config.httpsEnabled) {
   initSocket(httpsServer);
 }
 
-const listenPort = process.env.PORT || config.listenPort || 8888;
+const listenPort = process.env.PORT || config.listenPort || 6789;
 const localOnly = config.blockRemoteConnection;
 
 // Note: for some unknown reasons, :: does not always work 
-localOnly ? server.listen(listenPort, 'localhost') : server.listen(listenPort)
+localOnly ? server.listen(listenPort, 'localhost') : server.listen(listenPort);
 if (config.httpsEnabled && httpsSuccess) {
-  localOnly ? httpsServer.listen(config.httpsPort, 'localhost') : httpsServer.listen(config.httpsPort)
+  localOnly ? httpsServer.listen(config.httpsPort, 'localhost') : httpsServer.listen(config.httpsPort);
 }
 
 server.on('listening', () => {
   console.log('Express server started on port %s at %s', server.address().port, server.address().address);
-})
+});
 
 if (config.httpsEnabled && httpsSuccess) {
   httpsServer.on('listening', () => {
     console.log('Express server started on port %s at %s', httpsServer.address().port, httpsServer.address().address);
-  })
+  });
 }
