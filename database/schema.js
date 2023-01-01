@@ -10,6 +10,7 @@ const createSchema = () => knex.schema
   })
   .createTable('t_work', (table) => {
     table.increments(); // id自增列(INTEGER 类型)，会被用作主键 [音声id]
+    table.timestamps(true, true); // 时间戳created_at, updated_at
     table.string('root_folder').notNullable(); // VARCHAR 类型 [根文件夹别名]
     table.string('dir').notNullable(); // VARCHAR 类型 [相对存储路径]
     table.string('title').notNullable(); // VARCHAR 类型 [音声名称]
@@ -77,6 +78,8 @@ const createSchema = () => knex.schema
         json_object('vas', json_group_array(json_object('id', t_va.id, 'name', t_va.name))) AS vaObj
       FROM (
         SELECT t_work.id, 
+          t_work.created_at,
+          t_work.updated_at,
           t_work.title,
           t_work.circle_id,
           t_circle.name,

@@ -91,6 +91,7 @@
     "eslint": "^7.25.0",
     "eslint-plugin-node": "^11.1.0",
     "mocha": "^8.3.2",
+    "nodemon": "^2.0.20",
     "serve-index": "^1.9.1"
   }
 }
