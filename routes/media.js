@@ -129,21 +129,46 @@ router.get('/check-lrc/:id/:index',
             .then((tracks) => {
               const track = tracks[req.params.index];
               const fileLoc = path.join(rootFolder.path, work.dir, track.subtitle || '', track.title);
-              const lrcFileLoc = fileLoc.substr(0, fileLoc.lastIndexOf(".")) + ".lrc";
+              const fileDir = path.join(rootFolder.path, work.dir, track.subtitle || '');
 
-              if (!fs.existsSync(lrcFileLoc)) {
-                res.send({result: false, message:'不存在歌词文件', hash: ''});
-              } else {
-                console.log('找到歌词文件');             
-                const lrcFileName = track.title.substr(0, track.title.lastIndexOf(".")) + ".lrc";
+
+
+              let foundLyricFileName = "";
+              let foundLyricExtension = "";
+              const supportedLyricExtensions = [".lrc", ".srt", ".vtt"];
+              const trackTitle = track.title;
+              for (const ext of supportedLyricExtensions) {
+                // 几种不同的查找歌词文件的方式
+                const tryFileLocs = [
+                  trackTitle.substring(0, trackTitle.lastIndexOf(".")) + ext, // sometitle.mp3 -> sometitle.lrc
+                  trackTitle + ext, // sometitle.mp3 -> sometitle.mp3.lrc
+                ];
+                for (const tryFileLoc of tryFileLocs) {
+                  console.log(`尝试查找歌词文件：${tryFileLoc}`)
+                  if (fs.existsSync(path.join(fileDir, tryFileLoc))) {
+                    foundLyricFileName = tryFileLoc;
+                    break;
+                  }
+                }
+                if (foundLyricFileName != "") {
+                  foundLyricExtension = ext;
+                  break;
+                }
+              }
+
+
+              if (foundLyricFileName != "") {
+                console.log('找到歌词文件');
                 const subtitleToFind = track.subtitle;
-                console.log('歌词文件名： ', lrcFileName);
+                console.log('歌词文件名： ', foundLyricFileName);
                 // 文件名、子目录名相同
                 tracks.forEach(trackItem => {
-                  if (trackItem.title === lrcFileName && subtitleToFind === trackItem.subtitle) {
-                      res.send({result: true, message:'找到歌词文件', hash: trackItem.hash});
+                  if (trackItem.title === foundLyricFileName && subtitleToFind === trackItem.subtitle) {
+                      res.send({result: true, message:'找到歌词文件', hash: trackItem.hash, lyricExtension: foundLyricExtension});
                   }
                 })
+              } else {
+                res.send({result: false, message:'不存在歌词文件', hash: ''});
               }
             })
             .catch(err => next(err));

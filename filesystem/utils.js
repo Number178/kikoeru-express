@@ -19,7 +19,7 @@ const getTrackList = (id, dir) => recursiveReaddir(dir)
 
       return (ext === '.mp3' || ext === '.ogg' || ext === '.opus' || ext === '.wav' || ext === '.aac'
         || ext === '.flac' || ext === '.webm' || ext === '.mp4'|| ext === '.m4a' 
-        || ext === '.txt' || ext === '.lrc' || ext === '.srt' || ext === '.ass'
+        || ext === '.txt' || ext === '.lrc' || ext === '.srt' || ext === '.ass' || ext === ".vtt"
         || ext === '.pdf'
         || ext === '.jpg' || ext === '.jpeg' || ext === '.png' || ext === '.webp');
     });
@@ -106,7 +106,7 @@ const toTree = (tracks, workTitle, workDir, rootFolder) => {
     const mediaStreamUrl = config.offloadMedia ? offloadStreamUrl : mediaStreamBaseUrl + track.hash;
     const mediaDownloadUrl = config.offloadMedia ? offloadDownloadUrl : mediaDownloadBaseUrl + track.hash;
 
-    if (track.ext === '.txt' || track.ext === '.lrc' || track.ext === '.srt' || track.ext === '.ass') {
+    if (track.ext === '.txt' || track.ext === '.lrc' || track.ext === '.srt' || track.ext === '.ass' || track.ext === '.vtt') {
       fatherFolder.push({
         type: 'text',
         hash: track.hash,
