@@ -219,8 +219,88 @@ const scrapeWorkMetadataFromDLsite = (id, language) => {
     });
 };
 
+/**
+ * Scrapes the source cover work id which holds the cover image, 
+ * since some translated work(id_translated) in dlsite do not has its own cover, 
+ * but share the cover from original cover work(id_source).
+ * @param {number} id_translated Work id.
+ * @param {String} language 标签语言，'ja-jp', 'zh-tw' or 'zh-cn'，默认'zh-cn'
+ */
+const scrapeCoverIdForTranslatedWorkFromDLsite = (id_translated, language) => new Promise((resolve, reject) => {
+  const rjcode = formatID(id_translated);
+  const url = `https://www.dlsite.com/maniax/work/=/product_id/RJ${rjcode}.html`;
+
+  const work = { id_translated, tags: [], vas: [] };
+  let AGE_RATINGS, VA, GENRE, RELEASE, SERIES, COOKIE_LOCALE;
+  switch(language) {
+    case 'ja-jp':
+      COOKIE_LOCALE = 'locale=ja-jp';
+      AGE_RATINGS = '年齢指定';
+      GENRE = 'ジャンル';
+      VA = '声優';
+      RELEASE = '販売日';
+      SERIES = 'シリーズ名';
+      break;
+    case 'zh-tw':
+      COOKIE_LOCALE = 'locale=zh-tw';
+      AGE_RATINGS = '年齡指定';
+      GENRE = '分類';
+      VA = '聲優';
+      RELEASE = '販賣日';
+      SERIES = '系列名';
+      break;
+    default:
+      COOKIE_LOCALE = 'locale=zh-cn';
+      AGE_RATINGS = '年龄指定';
+      GENRE = '分类';
+      VA = '声优';
+      RELEASE = '贩卖日';
+      SERIES = '系列名';
+  }
+
+  axios.retryGet(url, {
+    retry: {},
+    headers: { "cookie": COOKIE_LOCALE } // 自定义请求头
+  })
+    .then(response => response.data)
+    .then((data) => { // 解析
+      // 转换成 jQuery 对象
+      const $ = cheerio.load(data);
+
+      // 所有关联的作品id，包括日文、各种语种翻译的作品id
+      const linked_id_list = $('.work_edition_linklist.type_trans a.work_edition_linklist_item').get()
+        .map(l => l.attribs['href'])
+        .filter(h => typeof h === 'string')
+        .map(h => /RJ(\d{6,8})/.exec(h))
+        .filter(r => r != null && r.length >= 2)
+        .map(r =>r[1]);
+      
+      // 当前页面中使用到的一些图像链接id，用来判断当前作品的cover究竟来自哪一个作品
+      const possible_image_id_list = $('img').get()
+        .map(e => e.attribs['srcset'])
+        .filter(h => typeof h === 'string')
+        .map(h => /RJ(\d{6,8})[_\w\.]+$/.exec(h))
+        .filter(r => r != null && r.length >= 2)
+        .map(r => r[1])
+
+        console.log("linked:", linked_id_list)
+        console.log("possible:", possible_image_id_list)
+
+      const hit_id_list = linked_id_list.filter(id => possible_image_id_list.includes(id));
+      resolve(hit_id_list.length > 0 ? hit_id_list[0] : id_translated);
+    })
+    .catch((error) => {
+      if (error.response) {
+        // 请求已发出，但服务器响应的状态码不在 2xx 范围内
+        reject(new Error(`Couldn't request work page HTML (${url}), received: ${error.response.status}.`));
+      } else {
+        reject(error);
+      }
+    });
+});
 
 module.exports = {
   scrapeWorkMetadataFromDLsite,
-  scrapeDynamicWorkMetadataFromDLsite
+  scrapeDynamicWorkMetadataFromDLsite,
+  scrapeCoverIdForTranslatedWorkFromDLsite,
 };

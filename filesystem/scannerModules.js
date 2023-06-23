@@ -3,7 +3,7 @@ const path = require('path');
 const LimitPromise = require('limit-promise'); // 限制并发数量
 
 const axios = require('../scraper/axios.js'); // 数据请求
-const { scrapeWorkMetadataFromDLsite, scrapeDynamicWorkMetadataFromDLsite } = require('../scraper/dlsite');
+const { scrapeWorkMetadataFromDLsite, scrapeDynamicWorkMetadataFromDLsite, scrapeCoverIdForTranslatedWorkFromDLsite } = require('../scraper/dlsite');
 const db = require('../database/db');
 const { createSchema } = require('../database/schema');
 const { getFolderList, deleteCoverImageFromDisk, saveCoverImageToDisk } = require('./utils');
@@ -206,17 +206,52 @@ const getMetadata = (id, rootFolderName, dir, tagLanguage) => {
     });
 };
 
+
 /**
- * 从 DLsite 下载封面图片，并保存到 Images 文件夹，
+ * 从 DLsite 下载封面图片，处理翻译作品本身没有封面的情况，并保存到 Images 文件夹，
  * 返回一个 Promise 对象，处理结果: 'added' or 'failed'
  * @param {number} id work id
  * @param {Array} types img types: ['main', 'sam', 'sam@2x', 'sam@3x', '240x240', '360x360']
  */
-const getCoverImage = (id, types) => {
-  const rjcode = formatID(id); // zero-pad to 6 digits
-  const id2 = (id % 1000 === 0) ? id : parseInt(id / 1000) * 1000 + 1000;
+async function getCoverImageForTranslated(id, types) {
+  const rjcode = formatID(id); // zero-pad to 6/8 digits
+  let cover_from_id = rjcode; // 默认就使用原始的作品id
+  try {
+    // 抓取一次网页，检查当前作品封面到底使用的哪一个id
+    // 因为有些翻译作品id自身没有封面文件，而是使用原版日文作品id对应的封面
+    cover_from_id = await scrapeCoverIdForTranslatedWorkFromDLsite(rjcode);
+    if (cover_from_id != rjcode) {
+      addLogForTask(rjcode, {
+        level: 'info',
+        message: `当前作品RJ${rjcode}似乎不包含封面资源，例如一些翻译作品，从 DLsite 对应的原始作品RJ${cover_from_id}下载封面...`
+      });
+    }
+  } catch (err) {
+    console.error(`  ! [RJ${rjcode}] 在获取真实的封面id（适配那些翻译作品的封面问题） 过程中出错: ${err.message}`);
+    addLogForTask(rjcode, {
+      level: 'error',
+      message: `在获取真实的封面id（适配那些翻译作品的封面问题） 过程中出错: ${err.message}`
+    });
+  }
+
+  const result = await getCoverImage(id, parseInt(cover_from_id), types);
+  return result;
+}
+
+/**
+ * 从 DLsite 下载封面图片，并保存到 Images 文件夹，
+ * 返回一个 Promise 对象，处理结果: 'added' or 'failed'
+ * @param {number} cover_for_id download cover for this work id
+ * @param {number} cover_from_id download cover from work id, since some translated work are using non-translated work's cover resource
+ * @param {Array} types img types: ['main', 'sam', 'sam@2x', 'sam@3x', '240x240', '360x360']
+ */
+const getCoverImage = (cover_for_id, cover_from_id, types) => {
+  const cover_for_rjcode = formatID(cover_for_id);
+  const rjcode = formatID(cover_from_id); // zero-pad to 6 digits
+  const id2 = (cover_from_id % 1000 === 0) ? cover_from_id : Math.floor(cover_from_id / 1000) * 1000 + 1000;
   const rjcode2 = formatID(id2); // zero-pad to 6 digits
   const promises = [];
+
   types.forEach(type => {
     let url = `https://img.dlsite.jp/modpub/images2/work/doujin/RJ${rjcode2}/RJ${rjcode}_img_${type}.jpg`;
     if (type === '240x240'|| type === '360x360') {
@@ -225,10 +260,10 @@ const getCoverImage = (id, types) => {
     promises.push(
       axios.retryGet(url, { responseType: "stream", retry: {} })
         .then((imageRes) => {
-          return saveCoverImageToDisk(imageRes.data, rjcode, type)
+          return saveCoverImageToDisk(imageRes.data, cover_for_rjcode, type)
             .then(() => {
-              console.log(` -> [RJ${rjcode}] 封面 RJ${rjcode}_img_${type}.jpg 下载成功.`);
-              addLogForTask(rjcode, {
+              console.log(` -> [RJ${cover_for_rjcode}] 封面 RJ${rjcode}_img_${type}.jpg 下载成功.`);
+              addLogForTask(cover_for_rjcode, {
                 level: 'info',
                 message: `封面 RJ${rjcode}_img_${type}.jpg 下载成功.`
               });
@@ -237,8 +272,8 @@ const getCoverImage = (id, types) => {
             });
         })
         .catch((err) => {
-          console.error(`  ! [RJ${rjcode}] 在下载封面 RJ${rjcode}_img_${type}.jpg 过程中出错: ${err.message}`);
-          addLogForTask(rjcode, {
+          console.error(`  ! [RJ${cover_for_rjcode}] 在下载封面 RJ${rjcode}_img_${type}.jpg 过程中出错: ${err.message}`);
+          addLogForTask(cover_for_rjcode, {
             level: 'error',
             message: `在下载封面 RJ${rjcode}_img_${type}.jpg 过程中出错: ${err.message}`
           });
@@ -248,8 +283,8 @@ const getCoverImage = (id, types) => {
     );
   });
 
-  console.log(` -> [RJ${rjcode}] 从 DLsite 下载封面...`);
-  addLogForTask(rjcode, {
+  console.log(` -> [RJ${cover_for_rjcode}] 从 DLsite 下载封面...`);
+  addLogForTask(cover_for_rjcode, {
     level: 'info',
     message: `从 DLsite 下载封面...`
   });
@@ -299,7 +334,7 @@ const processFolder = (folder) => db.knex('t_work')
           message: '封面图片缺失，重新下载封面图片...'
         });
 
-        return getCoverImage(folder.id, lostCoverTypes);
+        return getCoverImageForTranslated(folder.id, lostCoverTypes);
       } else {
         return 'skipped';
       }
@@ -316,7 +351,7 @@ const processFolder = (folder) => db.knex('t_work')
           if (result === 'failed') { // 如果获取元数据失败，跳过封面图片下载
             return 'failed';
           } else { // 下载封面图片
-            return getCoverImage(folder.id, coverTypes);
+            return getCoverImageForTranslated(folder.id, coverTypes);
           }
         });
     }
@@ -579,6 +614,7 @@ const performScan = () => {
     })
     .catch((err) => {
       console.error(` ! 在构建数据库结构过程中出错: ${err.message}`);
+      console.log(err.stack)
       addMainLog({
         level: 'error',
         message: `在构建数据库结构过程中出错: ${err.message}`
