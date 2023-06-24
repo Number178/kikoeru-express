@@ -66,6 +66,7 @@
     "htmlparser2": "^4.1.0",
     "https": "^1.0.0",
     "invariant": "^2.2.4",
+    "jimp": "^0.22.8",
     "jschardet": "^3.0.0",
     "jsonwebtoken": "^8.5.1",
     "knex": "^0.21.17",

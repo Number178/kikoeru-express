@@ -9,6 +9,7 @@ const jschardet = require('jschardet');
 const { getTrackList } = require('../filesystem/utils');
 const { joinFragments } = require('./utils/url')
 const { isValidRequest } = require('./utils/validate')
+const jimp = require("jimp")
 
 // GET (stream) a specific track from work folder
 router.get('/stream/:id/:index',
@@ -177,6 +178,38 @@ router.get('/check-lrc/:id/:index',
         }
       })
       .catch(err => next(err));
+});
+
+// GET (stream) a specific track from work folder
+router.get('/small-img/:id/:index',
+  param('id').isInt(),
+  param('index').isInt(),
+  async (req, res) => {
+    if(!isValidRequest(req, res)) return;
+    const work = await db.knex('t_work')
+      .select('root_folder', 'dir')
+      .where('id', '=', req.params.id)
+      .first();
+    const rootFolder = config.rootFolders.find(rootFolder => rootFolder.name === work.root_folder);
+    if (rootFolder) {
+      const tracks = await getTrackList(req.params.id, path.join(rootFolder.path, work.dir));
+      const track = tracks[req.params.index];
+      const fileName = path.join(rootFolder.path, work.dir, track.subtitle || '', track.title);
+      const extName = path.extname(fileName).toLowerCase();
+      if ([".jpg", ".png", ".bmp"].includes(extName)) {
+        const img = await jimp.read(fileName);
+        const scaledBuf = await img.scaleToFit(64, 64).getBufferAsync(jimp.MIME_JPEG);
+        res.setHeader('content-type', 'image/jpeg');
+        res.send(scaledBuf);
+      } else if (".webp" === extName) {
+        // jimp 不支持webp格式的图像，这里直接发送原始图像文件
+        res.sendFile(fileName);
+      } else {
+        res.status(500).send({error: `获取小图像失败，不支持的图像格式"${extName}"`});
+      }
+    } else {
+      res.status(500).send({error: `找不到文件夹: "${work.root_folder}"，请尝试重启服务器或重新扫描.`});
+    }
 });
 
 module.exports = router;
