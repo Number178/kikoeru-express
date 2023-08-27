@@ -1,7 +1,7 @@
 
 exports.up = async function(knex) {
-  await knex.schema.alterTable('t_review', function(table) {
-    table.string('progress'); // add column ['marked', 'listening', 'listened', 'postponed', null]
+  await knex.schema.alterTable('t_work', function(table) {
+    table.timestamps(true, true); // 时间戳created_at, updated_at 默认当前时间
   });
   await knex.raw(`
     CREATE VIEW IF NOT EXISTS staticMetadata AS
@@ -41,5 +41,6 @@ exports.up = async function(knex) {
 };
 
 exports.down = async function(knex) {
-  
+  table.dropColumn('updated_at'); // drop column
+  table.dropColumn('created_at'); // drop column
 };

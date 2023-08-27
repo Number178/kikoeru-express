@@ -148,9 +148,19 @@ const getWorkMetadata = async (id, username) => {
     .join('t_work', 't_work.id', 't_review.work_id')
     .where('t_review.user_name', username).as('userrate');
 
+    const histroyQuery = knex('t_play_histroy')
+      .select([
+        't_play_histroy.work_id',
+        't_play_histroy.state AS state',
+        't_play_histroy.updated_at AS play_updated_at'
+      ])
+      .join('t_work', 't_work.id', 't_play_histroy.work_id')
+      .where('t_play_histroy.user_name', "=", username).as('histroy');
+
     let query = () => knex('staticMetadata')
-      .select(['staticMetadata.*', 'userrate.userRating', 'userrate.review_text', 'userrate.progress', 'userrate.updated_at', 'userrate.user_name'])
+      .select(['staticMetadata.*', 'userrate.userRating', 'userrate.review_text', 'userrate.progress', 'userrate.updated_at', 'userrate.user_name', 'histroy.state', 'histroy.play_updated_at'])
       .leftJoin(ratingSubQuery, 'userrate.work_id', 'staticMetadata.id')
+      .leftJoin(histroyQuery, 'histroy.work_id', 'staticMetadata.id')
       .where('id', '=', id);
 
     const work = await query();
@@ -444,6 +454,34 @@ const getWorksWithReviews = async ({username = '', limit = 1000, offset = 0, ord
   return {works, totalCount};
 };
 
+const getPlayHistroy = async ({username = '', sortOption = 'desc', limit = 1000, offset = 0}) => {
+  let works = []
+  let totalCount = 0
+  const histroyQuery = knex('t_play_histroy')
+    .select([
+      't_play_histroy.work_id',
+      't_play_histroy.state AS state',
+      't_play_histroy.updated_at AS play_updated_at'
+    ])
+    .join('t_work', 't_work.id', 't_play_histroy.work_id')
+    .where('t_play_histroy.user_name', "=", username).as('histroy');
+
+  const query = () => knex('staticMetadata')
+    .select(['staticMetadata.*', 'histroy.state', 'histroy.play_updated_at'])
+    .join(histroyQuery, 'histroy.work_id', 'staticMetadata.id')
+    .orderBy('play_updated_at', sortOption);
+
+  totalCount = await query().count('id as count');
+  works = await query().limit(limit).offset(offset);
+
+  return {works, totalCount}
+}
+
+const updatePlayHistroy = async (username, work_id, state) => knex.transaction(async(trx) => {
+  await trx.raw('INSERT OR IGNORE INTO t_play_histroy (user_name, work_id, state) VALUES (?, ?, ?);', [username, work_id, state])
+  await trx.raw('UPDATE t_play_histroy SET state = ?, updated_at = CURRENT_TIMESTAMP WHERE user_name = ? AND work_id = ?;', [state, username, work_id]);
+});
+
 const getMetadata = ({field = 'circle', id} = {}) => {
   const validFields = ['circle', 'tag', 'va'];
   if (!validFields.includes(field)) throw new Error('无效的查询域');
@@ -458,5 +496,5 @@ module.exports = {
   getLabels, getMetadata,
   createUser, updateUserPassword, resetUserPassword, deleteUser,
   getWorksWithReviews, updateUserReview, deleteUserReview,
-  databaseExist
+  databaseExist, getPlayHistroy, updatePlayHistroy
 };
