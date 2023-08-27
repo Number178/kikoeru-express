@@ -30,7 +30,7 @@ router.get('/stream/:id/:index',
               const track = tracks[req.params.index];
 
               const fileName = path.join(rootFolder.path, work.dir, track.subtitle || '', track.title);
-              const extName = path.extname(fileName);
+              const extName = path.extname(fileName).toLocaleLowerCase();
               if (extName === '.txt' || extName === '.lrc') {
                 const fileBuffer = fs.readFileSync(fileName);
                 const charsetMatch = jschardet.detect(fileBuffer).encoding;
@@ -142,7 +142,9 @@ router.get('/check-lrc/:id/:index',
                 // 几种不同的查找歌词文件的方式
                 const tryFileLocs = [
                   trackTitle.substring(0, trackTitle.lastIndexOf(".")) + ext, // sometitle.mp3 -> sometitle.lrc
+                  trackTitle.substring(0, trackTitle.lastIndexOf(".")) + ext.toUpperCase(), // sometitle.mp3 -> sometitle.LRC
                   trackTitle + ext, // sometitle.mp3 -> sometitle.mp3.lrc
+                  trackTitle + ext.toUpperCase(), // sometitle.mp3 -> sometitle.mp3.LRC
                 ];
                 for (const tryFileLoc of tryFileLocs) {
                   console.log(`尝试查找歌词文件：${tryFileLoc}`)

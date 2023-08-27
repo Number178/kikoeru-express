@@ -15,7 +15,7 @@ const getTrackList = (id, dir) => recursiveReaddir(dir)
   .then((files) => {
     // Filter out any files not matching these extensions
     const filteredFiles = files.filter((file) => {
-      const ext = path.extname(file);
+      const ext = path.extname(file).toLowerCase();
 
       return (ext === '.mp3' || ext === '.ogg' || ext === '.opus' || ext === '.wav' || ext === '.aac'
         || ext === '.flac' || ext === '.webm' || ext === '.mp4'|| ext === '.m4a' 
@@ -32,7 +32,7 @@ const getTrackList = (id, dir) => recursiveReaddir(dir)
       return {
         title: path.basename(file),
         subtitle: dirName === '.' ? null : dirName,
-        ext: path.extname(file),
+        ext: path.extname(file).toLowerCase(),
       };
     }), [v => v.subtitle, v => v.title, v => v.ext]);
 
