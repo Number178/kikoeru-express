@@ -75,7 +75,9 @@ router.get('/tracks/:id',
 // GET list of work ids
 router.get('/works',
   query('page').optional({nullable: true}).isInt(),
+  query('order').optional({nullable: true}).isIn(["release", "rating", "dl_count", "price", "rate_average_2dp", "review_count", "id", "created_at", "random"]),
   query('sort').optional({nullable: true}).isIn(['desc', 'asc']),
+  query('nsfw').optional({nullable: true}).isInt().isIn([0/* 无年龄限制 */, 1 /* 全年龄 */, 2 /* 仅R18 */]),
   query('seed').optional({nullable: true}).isInt(),
   // eslint-disable-next-line no-unused-vars
   async (req, res, next) => {
@@ -86,12 +88,13 @@ router.get('/works',
     // ['id', 'release', 'rating', 'dl_count', 'review_count', 'price', 'rate_average_2dp, nsfw']
     const order = req.query.order || 'release';
     const sort = req.query.sort || 'desc';
+    const nsfw = parseInt(req.query.nsfw || '0');
     const offset = (currentPage - 1) * PAGE_SIZE;
     const username = config.auth ? req.user.name : 'admin';
     const shuffleSeed = req.query.seed ? req.query.seed : 7;
-    
+
     try {
-      const query = () => db.getWorksBy({username: username});
+      const query = () => db.nsfwFilter(nsfw, db.getWorksBy({username: username}));
       const totalCount = await query().count('id as count');
 
       let works = null;
@@ -155,12 +158,13 @@ router.get('/search/:keyword?', async (req, res, next) => {
   // ['id', 'release', 'rating', 'dl_count', 'review_count', 'price', 'rate_average_2dp', 'nsfw']
   const order = req.query.order || 'release';
   const sort = req.query.sort || 'desc';
+  const nsfw = parseInt(req.query.nsfw || '0'); 
   const offset = (currentPage - 1) * PAGE_SIZE;
   const username = config.auth ? req.user.name : 'admin';
   const shuffleSeed = req.query.seed ? req.query.seed : 7;
   
   try {
-    const query = () => db.getWorksByKeyWord({keyword: keyword, username: username});
+    const query = () => db.nsfwFilter(nsfw, db.getWorksByKeyWord({keyword: keyword, username: username}));
     const totalCount = await query().count('id as count');
 
     let works = null;
@@ -202,12 +206,13 @@ router.get('/:field(circle|tag|va)s/:id/works',
     // ['id', 'release', 'rating', 'dl_count', 'review_count', 'price', 'rate_average_2dp, 'nsfw']
     const order = req.query.order || 'release';
     const sort = req.query.sort || 'desc'; // ['desc', 'asc]
+    const nsfw = parseInt(req.query.nsfw || '0'); 
     const offset = (currentPage - 1) * PAGE_SIZE;
     const username = config.auth ? req.user.name : 'admin';
     const shuffleSeed = req.query.seed ? req.query.seed : 7;
 
     try {
-      const query = () => db.getWorksBy({id: req.params.id, field: req.params.field, username: username});
+      const query = () => db.nsfwFilter(nsfw, db.getWorksBy({id: req.params.id, field: req.params.field, username: username}));
       const totalCount = await query().count('id as count');
 
       let works = null;

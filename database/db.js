@@ -257,6 +257,17 @@ const removeWork = async (id, trxProvider) => {
 };
 
 /**
+ * @param {Number} nsfw 0所有年龄分级，1仅全年龄，2仅十八禁
+ */
+function nsfwFilter(nsfw, knexQuery) {
+  switch(nsfw) {
+    case 1: return knexQuery.where('nsfw', '=', false); // 全年龄
+    case 2: return knexQuery.where('nsfw', '=', true); // 仅R18
+    default: return knexQuery; // 无年龄限制
+  }
+}
+
+/**
  * Returns list of works by circle, tag or VA.
  * @param {Number} id Which id to filter by.
  * @param {String} field Which field to filter by.
@@ -496,5 +507,6 @@ module.exports = {
   getLabels, getMetadata,
   createUser, updateUserPassword, resetUserPassword, deleteUser,
   getWorksWithReviews, updateUserReview, deleteUserReview,
-  databaseExist, getPlayHistroy, updatePlayHistroy
+  databaseExist, getPlayHistroy, updatePlayHistroy,
+  nsfwFilter,
 };
