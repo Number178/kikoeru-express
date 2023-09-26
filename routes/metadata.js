@@ -75,7 +75,7 @@ router.get('/tracks/:id',
 // GET list of work ids
 router.get('/works',
   query('page').optional({nullable: true}).isInt(),
-  query('order').optional({nullable: true}).isIn(["release", "rating", "dl_count", "price", "rate_average_2dp", "review_count", "id", "created_at", "random"]),
+  query('order').optional({nullable: true}).isIn(["release", "rating", "dl_count", "price", "rate_average_2dp", "review_count", "id", "created_at", "random", "betterRandom"]),
   query('sort').optional({nullable: true}).isIn(['desc', 'asc']),
   query('nsfw').optional({nullable: true}).isInt().isIn([0/* 无年龄限制 */, 1 /* 全年龄 */, 2 /* 仅R18 */]),
   query('seed').optional({nullable: true}).isInt(),
@@ -84,8 +84,8 @@ router.get('/works',
     if(!isValidRequest(req, res)) return;
 
     const currentPage = parseInt(req.query.page) || 1;
-    // 通过 "音声id, 贩卖日, 评价, 用户评价, 售出数, 评论数量, 价格, 平均评价, 全年龄新作， 评价" 排序
-    // ['id', 'release', 'rating', 'dl_count', 'review_count', 'price', 'rate_average_2dp, nsfw']
+    // 通过 "音声id, 贩卖日, 评价, 用户评价, 售出数, 评论数量, 价格, 平均评价, 全年龄新作， 入库时间， 随机， 随机一个" 排序
+    // ['id', 'release', 'rating', 'dl_count', 'review_count', 'price', 'rate_average_2dp', 'nsfw', 'created_at']
     const order = req.query.order || 'release';
     const sort = req.query.sort || 'desc';
     const nsfw = parseInt(req.query.nsfw || '0');
