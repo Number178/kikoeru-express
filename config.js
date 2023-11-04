@@ -68,7 +68,8 @@ const defaultConfig = {
   forwardSeekTime: 30,
   offloadMedia: false,
   offloadStreamPath: '/media/stream/',          // /media/stream/RJ123456/subdirs/track.mp3
-  offloadDownloadPath: '/media/download/'      // /media/download/RJ123456/subdirs/track.mp3
+  offloadDownloadPath: '/media/download/',      // /media/download/RJ123456/subdirs/track.mp3
+  aiServerUrl: "",
 };
 
 const initConfig = (writeConfigToFile = !process.env.FREEZE_CONFIG_FILE) => {
@@ -161,10 +162,14 @@ class publicConfig {
   get forwardSeekTime() {
     return config.forwardSeekTime;
   }
+  get aiServerUrl() {
+    return config.aiServerUrl;
+  }
   export() {
     return {
       rewindSeekTime: this.rewindSeekTime,
-      forwardSeekTime: this.forwardSeekTime
+      forwardSeekTime: this.forwardSeekTime,
+      aiServerUrl: this.aiServerUrl,
     }
   }
 }
