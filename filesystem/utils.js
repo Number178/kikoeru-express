@@ -153,7 +153,7 @@ const toTree = (tracks, workTitle, workDir, rootFolder) => {
  * 音声文件夹对象 { relativePath: '相对路径', rootFolderName: '根文件夹别名', id: '音声ID' }
  * @param {Object} rootFolder 根文件夹对象 { name: '别名', path: '绝对路径' }
  */
-async function* getFolderList(rootFolder, current = '', depth = 0, callback = function addMainLog(){} ) { // 异步生成器函数 async function*() {}
+async function* getFolderList(rootFolder, current = '', depth = 0, logger = console ) { // 异步生成器函数 async function*() {}
   // 浅层遍历
   const folders = await fs.promises.readdir(path.join(rootFolder.path, current));    
 
@@ -176,11 +176,7 @@ async function* getFolderList(rootFolder, current = '', depth = 0, callback = fu
     } catch (err) {
       if (err.code === 'EPERM') {
         if (err.path && !err.path.endsWith('System Volume Information')) {
-          console.log(' ! 无法访问', err.path);
-          callback({
-            level: 'info',
-            message: ` ! 无法访问 ${err.path}`
-          });
+          logger.error(` ! 无法访问 ${err.path}`);
         }
       } else {
         throw err;
