@@ -276,6 +276,23 @@ function nsfwFilter(nsfw, knexQuery) {
 }
 
 /**
+ * @param {String} lyricFilter
+ *      “”： 不限制
+ *      “ai”： 包含ai字幕的作品
+ *      “local”： 包含本地字幕的作品
+ *      “ai_local”： 包含本地字幕或者ai字幕的作品
+ */
+function lyricFilter(lyricFilter, knexQuery) {
+  switch(lyricFilter) {
+    case "ai": return knexQuery.whereIn('lyric_status', ["ai", "ai_local"]); // 选择包含ai字幕的作品
+    case "local": return knexQuery.whereIn('lyric_status', ["local", "ai_local"]); // 选择包含本地字幕的作品
+    case "ai_local": return knexQuery.whereNot('lyric_status', ""); // 选择包含字幕的作品，无论是本地字幕还是ai字幕
+    case "": return knexQuery; // 无限制
+    default: return knexQuery;
+  }
+}
+
+/**
  * Returns list of works by circle, tag or VA.
  * @param {Number} id Which id to filter by.
  * @param {String} field Which field to filter by.
@@ -517,5 +534,5 @@ module.exports = {
   createUser, updateUserPassword, resetUserPassword, deleteUser,
   getWorksWithReviews, updateUserReview, deleteUserReview,
   databaseExist, getPlayHistroy, updatePlayHistroy,
-  nsfwFilter,
+  nsfwFilter, lyricFilter,
 };

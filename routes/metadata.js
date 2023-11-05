@@ -89,12 +89,13 @@ router.get('/works',
     const order = req.query.order || 'release';
     const sort = req.query.sort || 'desc';
     const nsfw = parseInt(req.query.nsfw || '0');
+    const lyric = req.query.lyric || '';
     const offset = (currentPage - 1) * PAGE_SIZE;
     const username = config.auth ? req.user.name : 'admin';
     const shuffleSeed = req.query.seed ? req.query.seed : 7;
 
     try {
-      const query = () => db.nsfwFilter(nsfw, db.getWorksBy({username: username}));
+      const query = () => db.lyricFilter(lyric, db.nsfwFilter(nsfw, db.getWorksBy({username: username})));
       const totalCount = await query().count('id as count');
 
       let works = null;
@@ -159,12 +160,13 @@ router.get('/search/:keyword?', async (req, res, next) => {
   const order = req.query.order || 'release';
   const sort = req.query.sort || 'desc';
   const nsfw = parseInt(req.query.nsfw || '0'); 
+  const lyric = req.query.lyric || '';
   const offset = (currentPage - 1) * PAGE_SIZE;
   const username = config.auth ? req.user.name : 'admin';
   const shuffleSeed = req.query.seed ? req.query.seed : 7;
   
   try {
-    const query = () => db.nsfwFilter(nsfw, db.getWorksByKeyWord({keyword: keyword, username: username}));
+    const query = () => db.lyricFilter(lyric, db.nsfwFilter(nsfw, db.getWorksByKeyWord({keyword: keyword, username: username})));
     const totalCount = await query().count('id as count');
 
     let works = null;
@@ -207,12 +209,13 @@ router.get('/:field(circle|tag|va)s/:id/works',
     const order = req.query.order || 'release';
     const sort = req.query.sort || 'desc'; // ['desc', 'asc]
     const nsfw = parseInt(req.query.nsfw || '0'); 
+    const lyric = req.query.lyric || '';
     const offset = (currentPage - 1) * PAGE_SIZE;
     const username = config.auth ? req.user.name : 'admin';
     const shuffleSeed = req.query.seed ? req.query.seed : 7;
 
     try {
-      const query = () => db.nsfwFilter(nsfw, db.getWorksBy({id: req.params.id, field: req.params.field, username: username}));
+      const query = () => db.lyricFilter(lyric, db.nsfwFilter(nsfw, db.getWorksBy({id: req.params.id, field: req.params.field, username: username})));
       const totalCount = await query().count('id as count');
 
       let works = null;
