@@ -294,7 +294,8 @@ async function processFolder(folder) {
     LOG.task.info(rjcode, `发现新文件夹: "${folder.absolutePath}"`)
 
     // 检查本地字幕
-    const hasLyric = isContainLyric(folder.id, folder.absolutePath);
+    const hasLyric = await isContainLyric(folder.id, folder.absolutePath);
+    LOG.task.info(rjcode, `作品中是否有字幕：${hasLyric}`)
     
     const result = await getMetadata(folder.id, folder.rootFolderName, folder.relativePath, config.tagLanguage, hasLyric); // 获取元数据
 
