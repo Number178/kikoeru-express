@@ -6,7 +6,7 @@ const axios = require('../scraper/axios.js'); // 数据请求
 const { scrapeWorkMetadataFromDLsite, scrapeDynamicWorkMetadataFromDLsite, scrapeCoverIdForTranslatedWorkFromDLsite } = require('../scraper/dlsite');
 const db = require('../database/db');
 const { createSchema } = require('../database/schema');
-const { getFolderList, deleteCoverImageFromDisk, saveCoverImageToDisk } = require('./utils');
+const { isContainLyric, getFolderList, deleteCoverImageFromDisk, saveCoverImageToDisk } = require('./utils');
 const { md5 } = require('../auth/utils');
 const { nameToUUID } = require('../scraper/utils');
 
@@ -140,24 +140,24 @@ process.on('message', (m) => {
  * 通过数组 arr 中每个对象的 id 属性来对数组去重
  * @param {Array} arr 
  */
-const uniqueArr = (arr) => {
-  const uniqueArr = [];
-  const duplicate = {};
+function uniqueFolderListSeparate(arr) {
+  const uniqueList = [];
+  const duplicateSet = {};
 
   for (let i=0; i<arr.length; i++) {
     for (let j=i+1; j<arr.length; j++) {
       if (arr[i].id === arr[j].id) {
-        duplicate[arr[i].id] = duplicate[arr[i].id] || [];
-        duplicate[arr[i].id].push(arr[i]);
+        duplicateSet[arr[i].id] = duplicateSet[arr[i].id] || [];
+        duplicateSet[arr[i].id].push(arr[i]);
         ++i;
       }
     }
-    uniqueArr.push(arr[i]);
+    uniqueList.push(arr[i]);
   }
 
   return {
-    uniqueArr, // 去重后的数组
-    duplicate, // 对象，键为id，值为多余的重复项数组
+    uniqueList, // 去重后的数组
+    duplicateSet, // 对象，键为id，值为多余的重复项数组
   };
 };
 
@@ -340,11 +340,168 @@ async function performCleanup() {
   trx.commit();
 };
 
+// 尝试创建数据库
+async function tryCreateDatabase() {
+  try {
+    await createSchema();
+  } catch(err) {
+    LOG.main.error(`在构建数据库结构过程中出错: ${err.message}`);
+    console.error(err.stack)
+    process.exit(1);
+  }
+}
+
+// 尝试创建管理员账号，如果已存在则忽略
+// 如果发生其他异常则直接杀死本进程
+async function tryCreateAdminUser() {
+  try { // 创建内置的管理员账号
+    await db.createUser({
+      name: 'admin',
+      password: md5('admin'),
+      group: 'administrator'
+    });
+  } catch(err) {
+    if (err.message.indexOf('已存在') === -1) {
+      LOG.main.error(`在创建 admin 账号时出错: ${err.message}`);
+      process.exit(1);
+    }
+  }
+}
+
+// 修复以往的数据库问题，老逻辑了，不太清楚具体修复的问题是什么，先放在这里
+// 成功返回true，失败返回false
+async function fixVADatabase() {
+  // Fix hash collision bug in t_va
+  // Scan to repopulate the Voice Actor data for those problematic works
+  // かの仔 and こっこ
+  let success = true;
+  if (updateLock.isLockFilePresent && updateLock.lockFileConfig.fixVA) {
+    LOG.main.log('开始进行声优元数据修复，需要联网');
+    try {
+      const updateResult = await fixVoiceActorBug();
+      counts.updated += updateResult;
+      updateLock.removeLockFile();
+      LOG.main.log('完成元数据修复');
+    } catch (err) {
+      LOG.main.error(err.toString());
+      success = false;
+    }
+  }
+  return success;
+}
+
+// 尝试清理不存在的数据，该阶段可能会根据用户配置跳过
+// 如果清理过程中发生一场则杀死该进程
+async function tryCleanupStage() {
+  if (config.skipCleanup) {
+    LOG.main.info('跳过清理“不存在的音声数据”');
+  } else {
+    try {
+      LOG.main.info('清理本地不再存在的音声的数据与封面图片...');
+      await performCleanup();
+      LOG.main.info('清理完成. 现在开始扫描...');
+    } catch(err) {
+      LOG.main.error(`在执行清理过程中出错: ${err.message}`);
+      process.exit(1);
+    }
+  }
+}
+
+// 尝试扫描所有媒体库的文件夹
+// 返回扫描得到的work的文件夹
+async function tryScanRootFolders() {
+  let folderList = [];
+  try {
+    for (const rootFolder of config.rootFolders) {
+      for await (const folder of getFolderList(rootFolder, '', 0, LOG.main)) {
+        folderList.push(folder);
+      }
+    }
+    LOG.main.info(`共找到 ${folderList.length} 个音声文件夹.`);
+  } catch (err) {
+    LOG.main.error(`在扫描根文件夹的过程中出错: ${err.message}`);
+    process.exit(1);
+  }
+
+  return folderList;
+}
+
+// 并行处理这些文件夹
+// 返回总的处理结果，表明处理的数量
+// {
+//   added: 0, // 添加的文件夹数量
+//   failed: 0, // 失败
+//   skipped: 0, // 跳过
+//   updated: 0, // 更新
+// };
+async function tryProcessFolderListParallel(folderList) {
+  const counts = {
+    added: 0,
+    failed: 0,
+    skipped: 0,
+    updated: 0
+  };
+
+  try {
+    // 去重，避免在之后的并行处理文件夹过程中，出现对数据库同时写入同一条记录的错误
+    const { uniqueList: uniqueFolderList, duplicateSet} = uniqueFolderListSeparate(folderList);
+    const duplicateNum = folderList.length - uniqueFolderList.length;
+
+    if (duplicateNum) {
+      LOG.main.info(`发现 ${duplicateNum} 个重复的音声文件夹.`);
+      
+      for (const key in duplicateSet) {
+        // duplicateSet中并不包含存在于uniqueFolderList中的文件夹，
+        // 将unique和duplicate重复的选项添加回duplicateSet，方便用户观察那些文件夹是重复的
+        const addedFolder = uniqueFolderList.find(folder => folder.id === parseInt(key));
+        duplicateSet[key].push(addedFolder); // 最后一项为是被添加到数据库中的音声文件夹，将其一同展示给用户
+
+        const rjcode = formatID(key); // zero-pad to 6 or 8 digits
+
+        LOG.main.info(`[RJ${rjcode}] 存在多个文件夹:`)
+
+        // 打印音声文件夹的绝对路径
+        duplicateSet[key].forEach((folder) => {
+          const rootFolder = config.rootFolders.find(rootFolder => rootFolder.name === folder.rootFolderName);
+          const absolutePath = path.join(rootFolder.path, folder.relativePath);
+          LOG.main.info(`--> ${absolutePath}`)
+        });
+      }
+    }
+
+    counts.skipped += duplicateNum;
+
+    await Promise.all(uniqueFolderList.map(async (folder) => {
+      const result = await processFolderLimited(folder);
+      counts[result] += 1;
+
+      const rjcode = formatID(folder.id); // zero-pad to 6 digits\
+      if (result === 'added' || result === 'failed') {
+        switch(result) {
+          case 'added': LOG.task.info(rjcode, `添加成功! Added: ${counts.added}`); break;
+          case 'failed': LOG.task.error(rjcode, `添加失败! Failed: ${counts.failed}`); break;
+          default: break;
+        }
+        tasks.find(task => task.rjcode === rjcode).result = result;
+        LOG.task.remove(rjcode);
+        LOG.result.add(rjcode, result, counts[result]);
+      }
+    }));
+
+  } catch (err) {
+    LOG.main.error(`在并行处理音声文件夹过程中出错: ${err.message}`);
+    console.error(err.stack)
+    process.exit(1);
+  }
+
+  return counts;
+}
+
 /**
  * 执行扫描
  * createCoverFolder => createSchema => cleanup => getAllFolderList => processAllFolder
  */
-const performScan = () => {
+async function performScan() {
   if (!fs.existsSync(config.coverFolderDir)) {
     try {
       fs.mkdirSync(config.coverFolderDir, { recursive: true });
@@ -354,140 +511,23 @@ const performScan = () => {
     }
   }
 
-  return createSchema() // 构建数据库结构
-    .then(async () => {
-      try { // 创建内置的管理员账号
-        await db.createUser({
-          name: 'admin',
-          password: md5('admin'),
-          group: 'administrator'
-        });
-      } catch(err) {
-        if (err.message.indexOf('已存在') === -1) {
-          LOG.main.error(`在创建 admin 账号时出错: ${err.message}`);
-          process.exit(1);
-        }
-      }
+  await tryCreateDatabase();
+  await tryCreateAdminUser();
 
-      const counts = {
-        added: 0,
-        failed: 0,
-        skipped: 0,
-        updated: 0
-      };
+  const fixVADatabaseSuccess = await fixVADatabase();
+  await tryCleanupStage();
 
+  const folderList = await tryScanRootFolders();
+  const folderResult = await tryProcessFolderListParallel(folderList);
 
-      // Fix hash collision bug in t_va
-      // Scan to repopulate the Voice Actor data for those problematic works
-      // かの仔 and こっこ
-      let fixVAFailed = false;
-      if (updateLock.isLockFilePresent && updateLock.lockFileConfig.fixVA) {
-        LOG.main.log('开始进行声优元数据修复，需要联网');
-        try {
-          const updateResult = await fixVoiceActorBug();
-          counts.updated += updateResult;
-          updateLock.removeLockFile();
-          LOG.main.log('完成元数据修复');
-        } catch (err) {
-          LOG.main.error(err.toString());
-          fixVAFailed = true;
-        }
-      }
+  const message = folderResult.updated ?  `扫描完成: 更新 ${folderResult.updated} 个，新增 ${folderResult.added} 个，跳过 ${folderResult.skipped} 个，失败 ${folderResult.failed} 个.` : `扫描完成: 新增 ${folderResult.added} 个，跳过 ${folderResult.skipped} 个，失败 ${folderResult.failed} 个.`;
+  LOG.finish(message);
 
-      if (config.skipCleanup) {
-        console.log(' * 根据设置跳过清理.');
-      } else {
-        try {
-          LOG.main.info('清理本地不再存在的音声的数据与封面图片...');
-          await performCleanup();
-          LOG.main.info('清理完成. 现在开始扫描...');
-        } catch(err) {
-          LOG.main.error(`在执行清理过程中出错: ${err.message}`);
-          process.exit(1);
-        }
-      }
-
-      let folderList = [];
-      try {
-        for (const rootFolder of config.rootFolders) {
-          for await (const folder of getFolderList(rootFolder, '', 0, LOG.main)) {
-            folderList.push(folder);
-          }
-        }
-
-        LOG.main.info(`共找到 ${folderList.length} 个音声文件夹.`);
-      } catch (err) {
-        LOG.main.error(`在扫描根文件夹的过程中出错: ${err.message}`);
-        process.exit(1);
-      }
-
-      try {
-        // 去重，避免在之后的并行处理文件夹过程中，出现对数据库同时写入同一条记录的错误
-        const uniqueFolderList = uniqueArr(folderList).uniqueArr;
-        const duplicate = uniqueArr(folderList).duplicate;
-        const duplicateNum = folderList.length - uniqueFolderList.length;
-
-        if (duplicateNum) {
-          LOG.main.info(`发现 ${duplicateNum} 个重复的音声文件夹.`);
-          
-          for (const key in duplicate) {
-            const addedFolder = uniqueFolderList.find(folder => folder.id === parseInt(key));
-            duplicate[key].push(addedFolder); // 最后一项为将要添加到数据库中的音声文件夹
-
-            const rjcode = formatID(key); // zero-pad to 6 digits
-
-            LOG.main.info(`[RJ${rjcode}] 存在多个文件夹:`)
-
-            // 打印音声文件夹的绝对路径
-            duplicate[key].forEach((folder) => {
-              const rootFolder = config.rootFolders.find(rootFolder => rootFolder.name === folder.rootFolderName);
-              const absolutePath = path.join(rootFolder.path, folder.relativePath);
-              LOG.main.info(`--> ${absolutePath}`)
-            });
-          }
-        }
-
-        counts['skipped'] += duplicateNum;
-
-        const promises = uniqueFolderList.map((folder) => 
-          processFolderLimited(folder)
-            .then((result) => { // 统计处理结果
-              const rjcode = formatID(folder.id); // zero-pad to 6 digits\
-              counts[result] += 1;
-
-              if (result === 'added') {
-                LOG.task.info(rjcode, `添加成功! Added: ${counts.added}`)
-                tasks.find(task => task.rjcode === rjcode).result = 'added';
-                LOG.task.remove(rjcode);
-                LOG.result.add(rjcode, 'added', counts.added);
-              } else if (result === 'failed') {
-                LOG.task.error(rjcode, `添加失败! Failed: ${counts.failed}`)
-                tasks.find(task => task.rjcode === rjcode).result = 'failed';
-                LOG.task.remove(rjcode);
-                LOG.result.add(rjcode, 'failed', counts.failed);
-              }
-            })
-        );
-
-        return Promise.all(promises).then(() => {
-          const message = counts.updated ?  `扫描完成: 更新 ${counts.updated} 个，新增 ${counts.added} 个，跳过 ${counts.skipped} 个，失败 ${counts.failed} 个.` : `扫描完成: 新增 ${counts.added} 个，跳过 ${counts.skipped} 个，失败 ${counts.failed} 个.`;
-          LOG.finish(message);
-          db.knex.destroy();
-          if (fixVAFailed) {
-            process.exit(1);
-          }
-          process.exit(0);
-        });
-      } catch (err) {
-        LOG.main.error(`在并行处理音声文件夹过程中出错: ${err.message}`);
-        process.exit(1);
-      }
-    })
-    .catch((err) => {
-      LOG.main.error(`在构建数据库结构过程中出错: ${err.message}`);
-      console.error(err.stack)
-      process.exit(1);
-    });
+  db.knex.destroy();
+  if (!fixVADatabaseSuccess) {
+    process.exit(1);
+  }
+  process.exit(0);
 };
 
 /**
@@ -495,7 +535,7 @@ const performScan = () => {
  * @param {number} id work id
  * @param {options = {}} options includeVA, includeTags
  */
-const updateMetadata = (id, options = {}) => {
+async function updateMetadata(id, options = {}) {
   let scrapeProcessor = () => scrapeDynamicWorkMetadataFromDLsite(id);
   if (options.includeVA || options.includeTags || options.includeNSFW || options.refreshAll) {
     // static + dynamic
@@ -504,28 +544,28 @@ const updateMetadata = (id, options = {}) => {
 
   const rjcode = formatID(id); // zero-pad to 6 or 8 digits
   LOG.task.add(rjcode); // LOG.task.add only accepts a string
-  return scrapeProcessor() // 抓取该音声的元数据
-    .then((metadata) => {
-      // 将抓取到的元数据插入到数据库
-      LOG.task.log(rjcode, `元数据抓取成功，准备更新元数据...`)
-      metadata.id = id;
-      return db.updateWorkMetadata(metadata, options)
-        .then(() => {
-          LOG.task.log(rjcode, `元数据更新成功`)
-          return 'updated';
-        });
-    })
-    .catch((err) => {
-      LOG.task.error(rjcode, `在抓取元数据过程中出错: ${err}`)
-      return 'failed';
-    });
+
+  try {
+    const metadata = await scrapeProcessor() // 抓取该音声的元数据
+    // 将抓取到的元数据插入到数据库
+    LOG.task.log(rjcode, `元数据抓取成功，准备更新元数据...`)
+    metadata.id = id;
+
+    await db.updateWorkMetadata(metadata, options)
+    LOG.task.log(rjcode, `元数据更新成功`)
+    return 'updated';
+  } catch(err) {
+    LOG.task.error(rjcode, `在抓取元数据过程中出错: ${err}`)
+    console.error(err.stack)
+    return 'failed';
+  }
 };
 
 const updateMetadataLimited = (id, options = null) => limitP.call(updateMetadata, id, options);
 const updateVoiceActorLimited = (id) => limitP.call(updateMetadata, id, { includeVA: true });
 
 // eslint-disable-next-line no-unused-vars
-const performUpdate = async (options = null) => {
+async function performUpdate(options = null) {
   const baseQuery = db.knex('t_work').select('id');
   const processor = (id) => updateMetadataLimited(id, options);
 
@@ -537,42 +577,79 @@ const performUpdate = async (options = null) => {
   if (counts.failed) process.exit(1);
 };
 
-const fixVoiceActorBug = () => {
+async function fixVoiceActorBug() {
   const baseQuery = db.knex('r_va_work').select('va_id', 'work_id');
   const filter = (query) => query.where('va_id', nameToUUID('かの仔')).orWhere('va_id', nameToUUID('こっこ'));
   const processor = (id) => updateVoiceActorLimited(id);
-  return refreshWorks(filter(baseQuery), 'work_id', processor);
+  return await refreshWorks(filter(baseQuery), 'work_id', processor);
 };
 
-const refreshWorks = async (query, idColumnName, processor) => {
-  return query.then(async (works) => {
-    LOG.main.info(`共 ${works.length} 个作品. 开始刷新`);
+async function refreshWorks(query, idColumnName, processor) {
+  const works = await query;
+  LOG.main.info(`共 ${works.length} 个作品. 开始刷新`);
 
-    const counts = {
-      updated: 0,
-      failed: 0,
-    }; 
+  const counts = {
+    updated: 0,
+    failed: 0,
+  }; 
 
-    const promises = works.map((work) => {
-      const workid = work[idColumnName];
-      const rjcode = formatID(workid);
-      return processor(workid)
-        .then((result) => { // 统计处理结果
-          result === 'failed' ? counts['failed'] += 1 : counts['updated'] += 1;
-          tasks.find(task => task.rjcode === rjcode).result = result;
-          LOG.task.remove(rjcode);
-          if (result === 'failed') {
-            LOG.result.add(rjcode, 'failed', counts.failed);
-          } else {
-            LOG.result.add(rjcode, 'updated', counts.updated);
-          }
-      });
-    });
-    await Promise.all(promises);
-    LOG.main.log(`完成元数据更新 ${counts.updated} 个，失败 ${counts.failed} 个.`);
+  await Promise.all(works.map(async (work) => {
+    const workid = work[idColumnName];
+    const rjcode = formatID(workid);
+    
+    const result = (await processor(workid)) === 'failed'
+    ? 'failed'
+    : 'updated';
 
-    return counts;
+    counts[result]++;
+    tasks.find(task => task.rjcode === rjcode).result = result;
+    LOG.task.remove(rjcode);
+    LOG.result.add(rjcode, result, counts[result]);
+  }));
+
+  LOG.main.log(`完成元数据更新 ${counts.updated} 个，失败 ${counts.failed} 个.`);
+  return counts;
+};
+
+async function scanLyricStatus(work) {
+  const rjcode = formatID(work.id);
+
+  try {
+    const rootFolder = config.rootFolders.find(rootFolder => rootFolder.name === work.root_folder);
+    if (rootFolder) {
+      const hasLocalLyric = await isContainLyric(work.id, path.join(rootFolder.path, work.dir))
+      const should_be_lyric_status = hasLocalLyric ? "local" : "";
+      if (should_be_lyric_status != work.lyric_status) {
+        LOG.main.info(`[RJ${rjcode}] 歌词状态发生改变 '${work.lyric_status}' to '${should_be_lyric_status}'`)
+        await db.updateWorkLyricStatus(work, should_be_lyric_status);
+        return "updated";
+      }
+    }
+    return "skipped";
+  } catch(error) {
+    LOG.main.error(`[RJ${rjcode}] 扫描歌词过程中发生错误：${error}`);
+    console.error(error.stack);
+    return "failed";
+  }
+
+}
+const scanLyricStatusLimited = (work) => limitP.call(scanLyricStatus, work)
+async function performLyricScan() {
+  LOG.main.info(`扫描歌词开始`);
+  const works = await db.knex('t_work').select('id', "root_folder", "dir", "lyric_status");
+
+  const results = await Promise.all(works.map(scanLyricStatusLimited));
+
+  const counts = results.reduce((acc, x) => ( acc[x]++, acc ), {
+    updated: 0,
+    skipped: 0,
+    failed: 0,
   });
-};
 
-module.exports = { performScan, performUpdate };
+  const message = `扫描完成: 更新 ${counts.updated} 个，失败 ${counts.failed} 个，跳过 ${counts.skipped} 个.`;
+  LOG.finish(message);
+  db.knex.destroy();
+  if (counts.failed) process.exit(1);
+}
+
+module.exports = { performScan, performUpdate, performLyricScan };

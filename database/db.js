@@ -132,6 +132,14 @@ const updateWorkMetadata = (work, options = {}) => knex.transaction(async (trx) 
   }
 });
 
+const updateWorkLyricStatus = (work, new_status) => knex.transaction(async (trx) => {
+  await trx('t_work')
+    .where('id', '=', work.id)
+    .update({
+      lyric_status: new_status,
+    })
+});
+
 
 /**
  * Fetches metadata for a specific work id.
@@ -504,6 +512,7 @@ const getMetadata = ({field = 'circle', id} = {}) => {
 
 module.exports = {
   knex, insertWorkMetadata, getWorkMetadata, removeWork, getWorksBy, getWorksByKeyWord, updateWorkMetadata,
+  updateWorkLyricStatus,
   getLabels, getMetadata,
   createUser, updateUserPassword, resetUserPassword, deleteUser,
   getWorksWithReviews, updateUserReview, deleteUserReview,

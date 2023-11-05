@@ -5,6 +5,20 @@ const { orderBy } = require('natural-orderby');
 const { joinFragments } = require('../routes/utils/url');
 const { config } = require('../config');
 
+// 是否包含字幕
+// @param {Number} id Work identifier. Currently, RJ/RE code.
+// @param {String} dir Work directory (absolute).
+async function isContainLyric(id, dir) {
+  console.log("isContainLyric check dir: ", dir)
+  const files = await recursiveReaddir(dir);
+  const lyricFiles = files.filter((file) => {
+    const ext = path.extname(file).toLocaleLowerCase();
+    return (ext === '.lrc' || ext === '.srt' || ext === '.ass' || ext === ".vtt");
+  })
+  console.log("isContainLyric check all files: ", lyricFiles)
+  return lyricFiles.length > 0;
+}
+
 /**
  * Returns list of playable tracks in a given folder. Track is an object
  * containing 'title', 'subtitle' and 'hash'.
@@ -240,6 +254,7 @@ function formatID(id) {
 }
 
 module.exports = {
+  isContainLyric,
   getTrackList,
   toTree,
   getFolderList,
