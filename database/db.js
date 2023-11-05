@@ -37,7 +37,8 @@ const insertWorkMetadata = work => knex.transaction(trx => trx.raw(
       rate_count: work.rate_count,
       rate_average_2dp: work.rate_average_2dp,
       rate_count_detail: JSON.stringify(work.rate_count_detail),
-      rank: work.rank ? JSON.stringify(work.rank) : null
+      rank: work.rank ? JSON.stringify(work.rank) : null,
+      lyric_status: work.lyric_status,
     }))
   .then(() => {
     // Now that work is in the database, insert relationships

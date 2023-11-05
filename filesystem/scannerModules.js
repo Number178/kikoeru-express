@@ -168,8 +168,9 @@ function uniqueFolderListSeparate(arr) {
  * @param {string} rootFolderName 根文件夹别名
  * @param {string} dir 音声文件夹相对路径
  * @param {string} tagLanguage 标签语言，'ja-jp', 'zh-tw' or 'zh-cn'，默认'zh-cn'
+ * @param {boolean} hasLyric 当前作品是否拥有本地字幕
  */
-async function getMetadata(id, rootFolderName, dir, tagLanguage) {
+async function getMetadata(id, rootFolderName, dir, tagLanguage, hasLyric) {
   const rjcode = formatID(id); // zero-pad to 6 digits
 
   LOG.task.info(rjcode, '从 DLSite 抓取元数据...')
@@ -181,6 +182,8 @@ async function getMetadata(id, rootFolderName, dir, tagLanguage) {
     
     metadata.rootFolderName = rootFolderName;
     metadata.dir = dir;
+    metadata.lyric_status = hasLyric ? "local" : "";
+
     await db.insertWorkMetadata(metadata);
     LOG.task.info(rjcode, '元数据成功添加到数据库.')
 
@@ -289,13 +292,18 @@ async function processFolder(folder) {
   } else {
     LOG.task.add(rjcode);
     LOG.task.info(rjcode, `发现新文件夹: "${folder.absolutePath}"`)
+
+    // 检查本地字幕
+    const hasLyric = isContainLyric(folder.id, folder.absolutePath);
     
-    const result = await getMetadata(folder.id, folder.rootFolderName, folder.relativePath, config.tagLanguage); // 获取元数据
-    if (result === 'failed') { // 如果获取元数据失败，跳过封面图片下载
+    const result = await getMetadata(folder.id, folder.rootFolderName, folder.relativePath, config.tagLanguage, hasLyric); // 获取元数据
+
+    // 如果获取元数据失败，跳过封面图片下载
+    if (result === 'failed') {
       return 'failed';
-    } else { // 下载封面图片
-      return await getCoverImageForTranslated(folder.id, coverTypes);
     }
+    
+    return await getCoverImageForTranslated(folder.id, coverTypes);
   }
 }
 
@@ -618,10 +626,16 @@ async function scanLyricStatus(work) {
     const rootFolder = config.rootFolders.find(rootFolder => rootFolder.name === work.root_folder);
     if (rootFolder) {
       const hasLocalLyric = await isContainLyric(work.id, path.join(rootFolder.path, work.dir))
-      const should_be_lyric_status = hasLocalLyric ? "local" : "";
-      if (should_be_lyric_status != work.lyric_status) {
-        LOG.main.info(`[RJ${rjcode}] 歌词状态发生改变 '${work.lyric_status}' to '${should_be_lyric_status}'`)
-        await db.updateWorkLyricStatus(work, should_be_lyric_status);
+      let toStatus = work.lyric_status;
+      if (hasLocalLyric && !work.lyric_status.includes("local")) {
+        toStatus = work.lyric_status.includes("ai") ? "ai_local" : "local";
+      } else if (!hasLocalLyric && work.lyric_status.includes("local")) {
+        toStatus = work.lyric_status.includes("ai") ? "ai" : "";
+      }
+
+      if (toStatus !== work.lyric_status) {
+        LOG.main.info(`[RJ${rjcode}] 歌词状态发生改变 '${work.lyric_status}' to '${toStatus}'`)
+        await db.updateWorkLyricStatus(work, toStatus);
         return "updated";
       }
     }
@@ -650,6 +664,7 @@ async function performLyricScan() {
   LOG.finish(message);
   db.knex.destroy();
   if (counts.failed) process.exit(1);
+  process.exit(0);
 }
 
 module.exports = { performScan, performUpdate, performLyricScan };
