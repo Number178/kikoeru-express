@@ -169,32 +169,26 @@ const uniqueArr = (arr) => {
  * @param {string} dir 音声文件夹相对路径
  * @param {string} tagLanguage 标签语言，'ja-jp', 'zh-tw' or 'zh-cn'，默认'zh-cn'
  */
-const getMetadata = (id, rootFolderName, dir, tagLanguage) => {
+async function getMetadata(id, rootFolderName, dir, tagLanguage) {
   const rjcode = formatID(id); // zero-pad to 6 digits
 
   LOG.task.info(rjcode, '从 DLSite 抓取元数据...')
-  
-  return scrapeWorkMetadataFromDLsite(id, tagLanguage) // 抓取该音声的元数据
-    .then((metadata) => {
-      // 将抓取到的元数据插入到数据库
-      LOG.task.info(rjcode, '元数据抓取成功，准备添加到数据库...')
       
-      metadata.rootFolderName = rootFolderName;
-      metadata.dir = dir;
-      return db.insertWorkMetadata(metadata)
-        .then(() => {
-          LOG.task.info(rjcode, '元数据成功添加到数据库.')
-          return 'added';
-        })
-        .catch((err) => {
-          LOG.task.error(rjcode, `在插入元数据过程中出错: ${err.message}`)
-          return 'failed';
-        });
-    })
-    .catch((err) => {
-      LOG.task.error(rjcode, `在抓取元数据过程中出错: ${err.message}`)
-      return 'failed';
-    });
+  try {
+    const metadata = await scrapeWorkMetadataFromDLsite(id, tagLanguage) // 抓取该音声的元数据
+    // 将抓取到的元数据插入到数据库
+    LOG.task.info(rjcode, '元数据抓取成功，准备添加到数据库...')
+    
+    metadata.rootFolderName = rootFolderName;
+    metadata.dir = dir;
+    await db.insertWorkMetadata(metadata);
+    LOG.task.info(rjcode, '元数据成功添加到数据库.')
+
+    return 'added';
+  } catch(error) {
+    LOG.task.error(rjcode, `元数据处理失败: ${err.message}`)
+    return 'failed';
+  }
 };
 
 
@@ -229,42 +223,33 @@ async function getCoverImageForTranslated(id, types) {
  * @param {number} cover_from_id download cover from work id, since some translated work are using non-translated work's cover resource
  * @param {Array} types img types: ['main', 'sam', 'sam@2x', 'sam@3x', '240x240', '360x360']
  */
-const getCoverImage = (cover_for_id, cover_from_id, types) => {
+async function getCoverImage(cover_for_id, cover_from_id, types) {
   const cover_for_rjcode = formatID(cover_for_id);
   const rjcode = formatID(cover_from_id); // zero-pad to 6 or 8 digits
   const id2 = (cover_from_id % 1000 === 0) ? cover_from_id : Math.floor(cover_from_id / 1000) * 1000 + 1000;
   const rjcode2 = formatID(id2); // zero-pad to 6 or 8 digits
-  const promises = [];
 
-  types.forEach(type => {
+  LOG.task.info(cover_for_rjcode, `从 DLsite 下载封面...`)
+  const results = await Promise.all(types.map(async (type) => {
     let url = `https://img.dlsite.jp/modpub/images2/work/doujin/RJ${rjcode2}/RJ${rjcode}_img_${type}.jpg`;
     if (type === '240x240'|| type === '360x360') {
       url = `https://img.dlsite.jp/resize/images2/work/doujin/RJ${rjcode2}/RJ${rjcode}_img_main_${type}.jpg`;
     }
-    promises.push(
-      axios.retryGet(url, { responseType: "stream", retry: {} })
-        .then((imageRes) => {
-          return saveCoverImageToDisk(imageRes.data, cover_for_rjcode, type)
-            .then(() => {
-              LOG.task.info(cover_for_rjcode, `封面 RJ${rjcode}_img_${type}.jpg 下载成功.`);
-              return 'added';
-            });
-        })
-        .catch((err) => {
-          LOG.task.error(cover_for_rjcode, `在下载封面 RJ${rjcode}_img_${type}.jpg 过程中出错: ${err.message}`);
-          return 'failed';
-        })
-    );
-  });
 
-  LOG.task.info(cover_for_rjcode, `从 DLsite 下载封面...`)
-  
-  return Promise.all(promises)
-    .then((results) => 
-      results.includes("failed") 
+    try {
+      const imageRes = await axios.retryGet(url, { responseType: "stream", retry: {} });
+      await saveCoverImageToDisk(imageRes.data, cover_for_rjcode, type);
+      LOG.task.info(cover_for_rjcode, `封面 RJ${rjcode}_img_${type}.jpg 下载成功.`);
+      return 'added';
+    } catch(err) {
+      LOG.task.error(cover_for_rjcode, `在下载封面 RJ${rjcode}_img_${type}.jpg 过程中出错: ${err.message}`);
+      return 'failed';
+    }
+  }))
+
+  return results.includes("failed") 
       ? "failed" 
-      : "added"
-    );
+      : "added";
 };
 
 /**
@@ -272,47 +257,47 @@ const getCoverImage = (cover_for_id, cover_from_id, types) => {
  * 返回一个 Promise 对象，处理结果: 'added', 'skipped' or 'failed'
  * @param {string} folder 音声文件夹对象 { relativePath: '相对路径', rootFolderName: '根文件夹别名', id: '音声ID' }
  */
-const processFolder = (folder) => db.knex('t_work')
-  .select('id')
-  .where('id', '=', folder.id)
-  .count()
-  .first()
-  .then((res) => {
-    const rjcode = formatID(folder.id); // zero-pad to 6 digits
-    const coverTypes = ['main', 'sam', '240x240'];
-    const count = res['count(*)'];
-    if (count) { // 查询数据库，检查是否已经写入该音声的元数据
-      // 已经成功写入元数据
-      // 检查音声封面图片是否缺失
-      const lostCoverTypes = [];
-      coverTypes.forEach(type => {
-        const coverPath = path.join(config.coverFolderDir, `RJ${rjcode}_img_${type}.jpg`);
-        if (!fs.existsSync(coverPath)) {
-          lostCoverTypes.push(type);
-        }
-      });
-      
-      if (lostCoverTypes.length) {
-        LOG.task.add(rjcode);
-        LOG.task.info(rjcode, '封面图片缺失，重新下载封面图片...')
-        return getCoverImageForTranslated(folder.id, lostCoverTypes);
-      } else {
-        return 'skipped';
+async function processFolder(folder) {
+  const res = await db.knex('t_work')
+    .select('id')
+    .where('id', '=', folder.id)
+    .count()
+    .first();
+
+  const rjcode = formatID(folder.id); // zero-pad to 6 digits
+  const coverTypes = ['main', 'sam', '240x240'];
+  const count = res['count(*)'];
+
+  if (count) { // 查询数据库，检查是否已经写入该音声的元数据
+    // 已经成功写入元数据
+    // 检查音声封面图片是否缺失
+    const lostCoverTypes = [];
+    coverTypes.forEach(type => {
+      const coverPath = path.join(config.coverFolderDir, `RJ${rjcode}_img_${type}.jpg`);
+      if (!fs.existsSync(coverPath)) {
+        lostCoverTypes.push(type);
       }
-    } else {
+    });
+    
+    if (lostCoverTypes.length) {
       LOG.task.add(rjcode);
-      LOG.task.info(rjcode, `发现新文件夹: "${folder.absolutePath}"`)
-      
-      return getMetadata(folder.id, folder.rootFolderName, folder.relativePath, config.tagLanguage) // 获取元数据
-        .then((result) => {
-          if (result === 'failed') { // 如果获取元数据失败，跳过封面图片下载
-            return 'failed';
-          } else { // 下载封面图片
-            return getCoverImageForTranslated(folder.id, coverTypes);
-          }
-        });
+      LOG.task.info(rjcode, '封面图片缺失，重新下载封面图片...')
+      return getCoverImageForTranslated(folder.id, lostCoverTypes);
+    } else {
+      return 'skipped';
     }
-  });
+  } else {
+    LOG.task.add(rjcode);
+    LOG.task.info(rjcode, `发现新文件夹: "${folder.absolutePath}"`)
+    
+    const result = await getMetadata(folder.id, folder.rootFolderName, folder.relativePath, config.tagLanguage); // 获取元数据
+    if (result === 'failed') { // 如果获取元数据失败，跳过封面图片下载
+      return 'failed';
+    } else { // 下载封面图片
+      return await getCoverImageForTranslated(folder.id, coverTypes);
+    }
+  }
+}
 
 const MAX = config.maxParallelism; // 并发请求上限
 const limitP = new LimitPromise(MAX); // 核心控制器
@@ -320,39 +305,38 @@ const limitP = new LimitPromise(MAX); // 核心控制器
  * 限制 processFolder 并发数量，
  * 使用控制器包装 processFolder 方法，实际上是将请求函数递交给控制器处理
  */
-const processFolderLimited = (folder) => {
-  return limitP.call(processFolder, folder);
+async function processFolderLimited(folder){
+  return await limitP.call(processFolder, folder);
 };
 
 /**
  * 清理本地不再存在的音声: 将其元数据从数据库中移除，并删除其封面图片
  */
-const performCleanup = async () => {
+async function performCleanup() {
   const trxProvider = db.knex.transactionProvider();
   const trx = await trxProvider();
   const works = await trx('t_work').select('id', 'root_folder', 'dir');
-  const promises = works.map(work => new Promise((resolve, reject) => {
+
+  await Promise.all(works.map(async (work) => {
     // 检查每个音声的根文件夹或本地路径是否仍然存在
     const rootFolder = config.rootFolders.find(rootFolder => rootFolder.name === work.root_folder);
-    if (!rootFolder || !fs.existsSync(path.join(rootFolder.path, work.dir))) {
-      db.removeWork(work.id, trxProvider) // 将其数据项从数据库中移除
-        .then((result) => { // 然后删除其封面图片
-          const rjcode = formatID(work.id); // zero-pad to 6 digits
-          deleteCoverImageFromDisk(rjcode)    
-            .catch((err) => {
-              if (err && err.code !== 'ENOENT') { 
-                LOG.main.error(`[RJ${rjcode}] 在删除封面过程中出错: ${err.message}`);
-              }
-            })
-            .then(() => resolve(result));
-        })
-        .catch(err => reject(err));
-    } else {
-      resolve();
+    if (rootFolder && fs.existsSync(path.join(rootFolder.path, work.dir))) {
+      // 仍然存在，则不做清理
+      return;
+    }
+
+    await db.removeWork(work.id, trxProvider); // 将其数据项从数据库中移除
+    const rjcode = formatID(work.id); // zero-pad to 6 digits
+    try {
+      // 然后删除其封面图片
+      await deleteCoverImageFromDisk(rjcode)    
+    } catch(err) {
+      if (err && err.code !== 'ENOENT') { 
+          LOG.main.error(`[RJ${rjcode}] 在删除封面过程中出错: ${err.message}`);
+      }
     }
   }));
 
-  await Promise.all(promises);
   trx.commit();
 };
 
