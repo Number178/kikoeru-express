@@ -83,6 +83,24 @@ const initSocket = (server) => {
       }   
     });
 
+    socket.on('PERFORM_LYRIC_SCAN', () => {
+      if (!scanner) {
+        scanner = child_process.fork(path.join(__dirname, './filesystem/lyricScanner.js'), { silent: false }); // 子进程
+        scanner.on('exit', (code) => {
+          scanner = null;
+          if (code) {
+            io.emit('SCAN_ERROR');
+          }
+        });
+        
+        scanner.on('message', (m) => {
+          if (m.event) {
+            io.emit(m.event, m.payload);
+          }
+        });
+      }   
+    });
+
     socket.on('KILL_SCAN_PROCESS', () => {
       scanner.send({
         exit: 1

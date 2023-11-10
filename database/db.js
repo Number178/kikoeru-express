@@ -37,7 +37,8 @@ const insertWorkMetadata = work => knex.transaction(trx => trx.raw(
       rate_count: work.rate_count,
       rate_average_2dp: work.rate_average_2dp,
       rate_count_detail: JSON.stringify(work.rate_count_detail),
-      rank: work.rank ? JSON.stringify(work.rank) : null
+      rank: work.rank ? JSON.stringify(work.rank) : null,
+      lyric_status: work.lyric_status,
     }))
   .then(() => {
     // Now that work is in the database, insert relationships
@@ -130,6 +131,14 @@ const updateWorkMetadata = (work, options = {}) => knex.transaction(async (trx) 
       release: work.release,
     });
   }
+});
+
+const updateWorkLyricStatus = (work, new_status) => knex.transaction(async (trx) => {
+  await trx('t_work')
+    .where('id', '=', work.id)
+    .update({
+      lyric_status: new_status,
+    })
 });
 
 
@@ -264,6 +273,23 @@ function nsfwFilter(nsfw, knexQuery) {
     case 1: return knexQuery.where('nsfw', '=', false); // 全年龄
     case 2: return knexQuery.where('nsfw', '=', true); // 仅R18
     default: return knexQuery; // 无年龄限制
+  }
+}
+
+/**
+ * @param {String} lyricFilter
+ *      “”： 不限制
+ *      “ai”： 包含ai字幕的作品
+ *      “local”： 包含本地字幕的作品
+ *      “ai_local”： 包含本地字幕或者ai字幕的作品
+ */
+function lyricFilter(lyricFilter, knexQuery) {
+  switch(lyricFilter) {
+    case "ai": return knexQuery.whereIn('lyric_status', ["ai", "ai_local"]); // 选择包含ai字幕的作品
+    case "local": return knexQuery.whereIn('lyric_status', ["local", "ai_local"]); // 选择包含本地字幕的作品
+    case "ai_local": return knexQuery.whereNot('lyric_status', ""); // 选择包含字幕的作品，无论是本地字幕还是ai字幕
+    case "": return knexQuery; // 无限制
+    default: return knexQuery;
   }
 }
 
@@ -504,9 +530,10 @@ const getMetadata = ({field = 'circle', id} = {}) => {
 
 module.exports = {
   knex, insertWorkMetadata, getWorkMetadata, removeWork, getWorksBy, getWorksByKeyWord, updateWorkMetadata,
+  updateWorkLyricStatus,
   getLabels, getMetadata,
   createUser, updateUserPassword, resetUserPassword, deleteUser,
   getWorksWithReviews, updateUserReview, deleteUserReview,
   databaseExist, getPlayHistroy, updatePlayHistroy,
-  nsfwFilter,
+  nsfwFilter, lyricFilter,
 };

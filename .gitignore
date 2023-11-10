@@ -134,3 +134,7 @@ Release-Template.md
 
 # Dependecy graph
 graph.svg
+
+dist/
+dist_*/
+temp/

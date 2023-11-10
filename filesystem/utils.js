@@ -5,6 +5,20 @@ const { orderBy } = require('natural-orderby');
 const { joinFragments } = require('../routes/utils/url');
 const { config } = require('../config');
 
+// 是否包含字幕
+// @param {Number} id Work identifier. Currently, RJ/RE code.
+// @param {String} dir Work directory (absolute).
+async function isContainLyric(id, dir) {
+  console.log("isContainLyric check dir: ", dir)
+  const files = await recursiveReaddir(dir);
+  const lyricFiles = files.filter((file) => {
+    const ext = path.extname(file).toLocaleLowerCase();
+    return (ext === '.lrc' || ext === '.srt' || ext === '.ass' || ext === ".vtt");
+  })
+  console.log("isContainLyric check all files: ", lyricFiles)
+  return lyricFiles.length > 0;
+}
+
 /**
  * Returns list of playable tracks in a given folder. Track is an object
  * containing 'title', 'subtitle' and 'hash'.
@@ -153,7 +167,7 @@ const toTree = (tracks, workTitle, workDir, rootFolder) => {
  * 音声文件夹对象 { relativePath: '相对路径', rootFolderName: '根文件夹别名', id: '音声ID' }
  * @param {Object} rootFolder 根文件夹对象 { name: '别名', path: '绝对路径' }
  */
-async function* getFolderList(rootFolder, current = '', depth = 0, callback = function addMainLog(){} ) { // 异步生成器函数 async function*() {}
+async function* getFolderList(rootFolder, current = '', depth = 0, logger = console ) { // 异步生成器函数 async function*() {}
   // 浅层遍历
   const folders = await fs.promises.readdir(path.join(rootFolder.path, current));    
 
@@ -176,11 +190,7 @@ async function* getFolderList(rootFolder, current = '', depth = 0, callback = fu
     } catch (err) {
       if (err.code === 'EPERM') {
         if (err.path && !err.path.endsWith('System Volume Information')) {
-          console.log(' ! 无法访问', err.path);
-          callback({
-            level: 'info',
-            message: ` ! 无法访问 ${err.path}`
-          });
+          logger.error(` ! 无法访问 ${err.path}`);
         }
       } else {
         throw err;
@@ -244,6 +254,7 @@ function formatID(id) {
 }
 
 module.exports = {
+  isContainLyric,
   getTrackList,
   toTree,
   getFolderList,
