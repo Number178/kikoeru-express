@@ -189,7 +189,7 @@ async function getMetadata(id, rootFolderName, dir, tagLanguage, hasLyric) {
 
     return 'added';
   } catch(error) {
-    LOG.task.error(rjcode, `元数据处理失败: ${err.message}`)
+    LOG.task.error(rjcode, `元数据处理失败: ${error.message}`)
     return 'failed';
   }
 };

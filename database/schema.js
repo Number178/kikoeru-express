@@ -104,7 +104,7 @@ const createSchema = () => knex.schema
           t_work.rate_count,
           t_work.rate_average_2dp,
           t_work.rate_count_detail,
-          t_work.rank
+          t_work.rank,
           t_work.lyric_status
         FROM t_work
         JOIN t_circle ON t_circle.id = t_work.circle_id
