@@ -39,8 +39,10 @@ const defaultConfig = {
   ],
   coverFolderDir: process.pkg ? path.join(process.execPath, '..', 'covers') : path.join(__dirname, 'covers'),
   databaseFolderDir: process.pkg ? path.join(process.execPath, '..', 'sqlite') : path.join(__dirname, 'sqlite'),
+  lyricFolderDir: process.pkg ? path.join(process.execPath, '..', 'lyrics') : path.join(__dirname, 'lyrics'),
   coverUseDefaultPath: false, // Ignores coverFolderDir if set to true
   dbUseDefaultPath: true, // Ignores databaseFolderDir if set to true
+  lyricUseDefaultPath: true, // Ignores lyricFolderDir if set to true
   voiceWorkDefaultPath: voiceWorkDefaultPath(),
   auth: process.env.NODE_ENV === 'production' ? true : false,
   md5secret: crypto.randomBytes(32).toString('hex'),
@@ -115,6 +117,9 @@ const readConfig = () => {
   }
   if(!path.isAbsolute(config.databaseFolderDir)) {
     config.databaseFolderDir = process.pkg ? path.join(process.execPath, '..', config.databaseFolderDir) : path.join(__dirname, config.databaseFolderDir);
+  }
+  if(!path.isAbsolute(config.lyricFolderDir)) {
+    config.lyricFolderDir = process.pkg ? path.join(process.execPath, '..', config.lyricFolderDir) : path.join(__dirname, config.lyricFolderDir);
   }
 
   // Use ./covers and ./sqlite to override settings, ignoring corresponding fields in config
