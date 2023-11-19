@@ -2,6 +2,7 @@ exports.up = async function(knex) {
     let exist = await knex.schema.hasTable('t_translate_task')
     if (!exist) {
         await knex.schema.createTable("t_translate_task", function(table) {
+            table.increments();
             table.timestamps(true, true);
             table.integer('work_id').notNullable().defaultTo(0)
             table.string('audio_path').notNullable().defaultTo("")

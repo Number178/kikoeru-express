@@ -39,10 +39,9 @@ const defaultConfig = {
   ],
   coverFolderDir: process.pkg ? path.join(process.execPath, '..', 'covers') : path.join(__dirname, 'covers'),
   databaseFolderDir: process.pkg ? path.join(process.execPath, '..', 'sqlite') : path.join(__dirname, 'sqlite'),
-  lyricFolderDir: process.pkg ? path.join(process.execPath, '..', 'lyrics') : path.join(__dirname, 'lyrics'),
+  lyricFolderDir: "", // lyric folder reuse databaseFolderDir relative path, for instance: ./sqlite/lyrics
   coverUseDefaultPath: false, // Ignores coverFolderDir if set to true
   dbUseDefaultPath: true, // Ignores databaseFolderDir if set to true
-  lyricUseDefaultPath: true, // Ignores lyricFolderDir if set to true
   voiceWorkDefaultPath: voiceWorkDefaultPath(),
   auth: process.env.NODE_ENV === 'production' ? true : false,
   md5secret: crypto.randomBytes(32).toString('hex'),
@@ -73,6 +72,7 @@ const defaultConfig = {
   offloadDownloadPath: '/media/download/',      // /media/download/RJ123456/subdirs/track.mp3
   aiServerUrl: "",
 };
+defaultConfig.lyricFolderDir = path.join(defaultConfig.databaseFolderDir, "lyrics")
 
 const initConfig = (writeConfigToFile = !process.env.FREEZE_CONFIG_FILE) => {
   config = Object.assign(config, defaultConfig);
@@ -118,9 +118,6 @@ const readConfig = () => {
   if(!path.isAbsolute(config.databaseFolderDir)) {
     config.databaseFolderDir = process.pkg ? path.join(process.execPath, '..', config.databaseFolderDir) : path.join(__dirname, config.databaseFolderDir);
   }
-  if(!path.isAbsolute(config.lyricFolderDir)) {
-    config.lyricFolderDir = process.pkg ? path.join(process.execPath, '..', config.lyricFolderDir) : path.join(__dirname, config.lyricFolderDir);
-  }
 
   // Use ./covers and ./sqlite to override settings, ignoring corresponding fields in config
   if (config.coverUseDefaultPath) {
@@ -129,6 +126,8 @@ const readConfig = () => {
   if (config.dbUseDefaultPath) {
     config.databaseFolderDir = process.pkg ? path.join(process.execPath, '..', 'sqlite') : path.join(__dirname, 'sqlite');
   }
+
+  config.lyricFolderDir = path.join(config.databaseFolderDir, "lyrics");
 
   if (process.env.NODE_ENV === 'production' || config.production) {
     config.auth = true;

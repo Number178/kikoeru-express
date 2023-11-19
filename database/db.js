@@ -1,6 +1,8 @@
 const fs = require('fs');
 const path = require('path');
 const { config } = require('../config');
+const { AILyricTaskStatus } = require('../common');
+const { formatID } = require('../filesystem/utils');
 
 const databaseExist = fs.existsSync(path.join(config.databaseFolderDir, 'db.sqlite3'));
 
@@ -526,7 +528,66 @@ const getMetadata = ({field = 'circle', id} = {}) => {
     .select('*')
     .where('id', '=', id)
     .first()
-}
+};
+
+const createTranslateTask = async (work_id, audio_path) => {
+  console.log('createTranslateTask', work_id, audio_path)
+  
+  let query = () => knex('t_translate_task')
+    .select('id')
+    .where('work_id', '=', work_id)
+    .where('audio_path', '=', audio_path);
+
+  const work = await query();
+  const rjcode = formatID(work_id);
+  if (work.length > 0) {
+    throw new Error(`RJ${rjcode} already contain translation task[${audio_path}] in the database.`);
+  }
+  console.log('no duplicate task, insert task now')
+
+  return await knex.transaction((trx) => trx('t_translate_task').insert({
+    work_id,
+    audio_path,
+    status: AILyricTaskStatus.PENDING,
+    worker_name: "",
+    worker_status: "",
+    secret: "",
+  }));
+};
+
+/**
+ * Returns list of tasks for translate
+ * @param {Number} work_id Which work id to filter by.
+ * @param {String} file_name Which audio of this work
+ * @param {Array} array of constants of AILyricTaskStatus
+ */
+const getTranslateTasks = (work_id, file_name, status_arr) => {
+  let query = knex('t_translate_task')
+    .select([
+      't_translate_task.id',
+      't_translate_task.work_id',
+      't_translate_task.audio_path',
+      't_translate_task.status',
+      't_translate_task.worker_name',
+      't_translate_task.worker_status',
+      't_work.title',
+    ])
+    .leftJoin('t_work', 't_translate_task.work_id', 't_work.id')
+
+  if (work_id > 0) {
+    query = query.where('t_translate_task.work_id', '=', work_id)
+  }
+
+  if (file_name) {
+    query = query.where('t_translate_task.audio_path', 'like', `%${file_name}%`)
+  }
+
+  if (status_arr.length > 0) {
+    query = query.whereIn('t_translate_task.status', status_arr);
+  }
+
+  return query;
+};
 
 module.exports = {
   knex, insertWorkMetadata, getWorkMetadata, removeWork, getWorksBy, getWorksByKeyWord, updateWorkMetadata,
@@ -535,5 +596,6 @@ module.exports = {
   createUser, updateUserPassword, resetUserPassword, deleteUser,
   getWorksWithReviews, updateUserReview, deleteUserReview,
   databaseExist, getPlayHistroy, updatePlayHistroy,
+  createTranslateTask, getTranslateTasks,
   nsfwFilter, lyricFilter,
 };

@@ -82,6 +82,7 @@ const createSchema = () => knex.schema
     table.primary(['user_name', 'work_id']); // PRIMARY KEY
   })
   .createTable('t_translate_task', (table) => {
+    table.increments(); // id自增列(INTEGER 类型)，会被用作主键
     // 翻译任务列表，为方便，本函数内task均指代翻译task
     // 所以被增加的翻译任务列表，以音频文件为单位进行记录
     // 以下称呼宿主kikoeru环境为host，翻译任务执行所在的服务器为worker
