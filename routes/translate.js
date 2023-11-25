@@ -367,16 +367,16 @@ router.post('/translate/finish',
 
         await db.knex('t_translate_task')
           .where('id', '=', id)
-          .update({ status: AILyricTaskStatus.SUCCESS });
+          .update({ status: AILyricTaskStatus.SUCCESS, secret: "" });
       } else {
         await db.knex('t_translate_task')
           .where('id', '=', id)
-          .update({ status: AILyricTaskStatus.ERROR });
+          .update({ status: AILyricTaskStatus.ERROR, secret: "" });
       }
       res.send({})
     } catch(err) {
       console.log(err.message, err.stack)
-      res.status(500).send({success: false, error: "申请翻译任务失败：" + err.message})
+      res.status(500).send({success: false, error: "完结翻译任务失败：" + err.message})
     }
   }
 )
