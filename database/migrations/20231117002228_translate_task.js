@@ -13,6 +13,10 @@ exports.up = async function(knex) {
             table.foreign('work_id').references('id').inTable('t_work');
         })
     }
+
+    // 清空此前的ai歌词记录
+    await knex.raw("UPDATE t_work SET lyric_status = 'local' WHERE lyric_status = 'local_ai';")
+    await knex.raw("UPDATE t_work SET lyric_status = '' WHERE lyric_status = 'ai';")
 };
 
 exports.down = async function(knex) {
