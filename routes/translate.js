@@ -165,12 +165,18 @@ router.delete('/translate/:id',
 // 获取任务状态，用来检查翻译任务是否仍然有效
 router.get('/translate/get',
   query('id').isInt(),
+  query('secret').isString(),
   async function(req, res, next) {
     if(!isValidRequest(req, res)) return;
 
     const id = parseInt(req.query.id);
+    const secret = req.query.secret;
     try {
-      const task = await db.knex('t_translate_task').select("id", "worker_status", "work_id").where('id', '=', id).first();
+      const task = await db.knex('t_translate_task')
+        .select("id", "worker_status", "work_id")
+        .where('id', '=', id)
+        .where('secret', '=', secret)
+        .first();
       console.log(`get task[${id}] status = `, task);
       res.send({ task });
     } catch (err) {
