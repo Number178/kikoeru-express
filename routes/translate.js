@@ -173,7 +173,7 @@ router.get('/translate/get',
     const secret = req.query.secret;
     try {
       const task = await db.knex('t_translate_task')
-        .select("id", "worker_status", "work_id")
+        .select("id", "worker_status", "work_id", "audio_path")
         .where('id', '=', id)
         .where('secret', '=', secret)
         .first();
