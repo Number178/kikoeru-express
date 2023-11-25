@@ -38,8 +38,9 @@ function generateDummyTaskPage(page) {
 }
 
 // 搜索翻译任务
+// page = -1时，直接返回所有结果，并且需要保证work_id必须是一个有效值
 router.get('/translate',
-  query('page').isInt({min: 1}),
+  query('page').isInt({min: -1}),
   query('work_id').optional({nullable: true}).isInt(),
   query('file_name').optional({nullable: true}).isString(),
   query('status').isJSON(),
@@ -50,20 +51,22 @@ router.get('/translate',
     const work_id = req.query.work_id || 0;
     const file_name = req.query.file_name || '';
     const status = JSON.parse(req.query.status || '[]');
-    const offset = (page - 1) * PAGE_SIZE;
+    const offset = page === -1 ? 0 : (page - 1) * PAGE_SIZE; // page == -1表示获取所有结果
 
     try {
-      console.log(`ai_translate search, page = ${page}, work_id = ${work_id}, file_name = ${file_name}, status = ${status}`)
+      // console.log(`ai_translate search, page = ${page}, work_id = ${work_id}, file_name = ${file_name}, status = ${status}`)
 
       const query = () => db.getTranslateTasks(work_id, file_name, status);
-      const totalCount = await query().count('t_translate_task.id as count');
-      let tasks = await query().offset(offset).limit(PAGE_SIZE).orderBy([{ column: 't_translate_task.updated_at', order: 'desc'}]);
+      const totalCount = (await query().count('t_translate_task.id as count'))[0].count;
+      const limitCount = (page == -1 && work_id > 0) ? totalCount : PAGE_SIZE; // 如果page为-1，且work_id有效，则直接返回这个作品的所有翻译任务
+      // console.log("limitCount = ", limitCount);
+      let tasks = await query().offset(offset).limit(limitCount).orderBy([{ column: 't_translate_task.updated_at', order: 'desc'}]);
 
       res.send({
         pagination: {
           currentPage: page,
-          pageSize: PAGE_SIZE,
-          totalCount: totalCount[0]['count'],
+          pageSize: limitCount,
+          totalCount: totalCount,
         },
         tasks,
       });
@@ -115,6 +118,8 @@ router.put('/translate/:id/:index',
     try {
       const ids = await db.createTranslateTask(work_id, audioPath);
       res.send({ id: ids[0] })
+      const username = config.auth ? req.user.name : 'admin';
+      db.markWorkAILyricStatus(work_id, username, true);
     } catch (err) {
       res.status(500).send({error: err.message});
       return;
@@ -130,16 +135,48 @@ router.delete('/translate/:id',
 
     const id = parseInt(req.params.id);
     try {
+      const task = await db.knex('t_translate_task').select('work_id').where('id', '=', id).first();
+      const work_id = task.work_id;
+
+      // delete
       const counts = await db.knex('t_translate_task').select('*').where('id', '=', id).first().del()
       const lyric_path = path.join(config.lyricFolderDir, `${id}.lrc`);
       if (fs.existsSync(lyric_path)) {
         fs.unlinkSync(lyric_path);
       }
       res.send({ counts });
+
+      // 检查该作品还有没有其他翻译任务，如果没有的话，就将当前作品的ai歌词状态清空
+      const remainTask = await db.knex('t_translate_task')
+            .select('id')
+            .where('work_id', '=', work_id)
+            .first();
+      if (!remainTask) {
+        const username = config.auth ? req.user.name : 'admin';
+        await db.markWorkAILyricStatus(work_id, username, false);
+        console.log(`work[${work_id}] has no translate task no, clear its ai lyric status`);
+      }
     } catch (err) {
       res.status(500).send({error: "删除翻译任务失败：" + err.message})
     }
   }
+)
+
+// 获取任务状态，用来检查翻译任务是否仍然有效
+router.get('/translate/get',
+  query('id').isInt(),
+  async function(req, res, next) {
+    if(!isValidRequest(req, res)) return;
+
+    const id = parseInt(req.query.id);
+    try {
+      const task = await db.knex('t_translate_task').select("id", "worker_status", "work_id").where('id', '=', id).first();
+      console.log(`get task[${id}] status = `, task);
+      res.send({ task });
+    } catch (err) {
+      res.status(500).send({error: "获取翻译任务状态失败：" + err.message})
+    }
+  } 
 )
 
 // 重试翻译任务
@@ -274,7 +311,7 @@ router.get('/translate/download',
           res.redirect(offloadUrl);
         } else {
           // By default, serve file through express
-          res.download(path.join(rootFolder.path, work.dir, work.audio_path));
+          res.download(path.join(rootFolder.path, task.dir, task.audio_path));
         }
       } else {
         res.status(500).send({error: `找不到文件夹: "${work.root_folder}"，请尝试重启服务器或重新扫描.`});
@@ -337,5 +374,39 @@ router.post('/translate/finish',
     }
   }
 )
+
+// 获取翻译结果
+router.get('/translate/lrc',
+  query('id').isInt({min: 0}),
+  async (req, res, next) => {
+    console.log("translate get lrc called")
+    if(!isValidRequest(req, res)) return;
+
+    const id = req.query.id;
+
+    try {
+      const task = await db.knex('t_translate_task')
+            .select('id')
+            .where('id', '=', id)
+            .where('status', '=', AILyricTaskStatus.SUCCESS)
+            .first();
+      if (!task) { res.status(404).send({error: `没有找到指定成功的任务id=${id}`}); return; }
+
+      const lyricFolder = config.lyricFolderDir;
+      
+      const lyric_path = path.join(lyricFolder, `${task.id}.lrc`);
+      if (!fs.existsSync(lyric_path)) { res.status(404).send({error: `没有找到该任务的歌词文件，请检查服务器文件目录是否正确，任务id=${id}`}); return; }
+
+      const lrc_content = fs.readFileSync(lyric_path, {
+        encoding: "utf-8",
+        flag: 'r',
+      });
+
+      res.send({ lrcContent: lrc_content });
+    } catch(err) {
+      console.log(err.message, err.stack)
+      res.status(500).send({success: false, error: "下载翻译歌词失败：" + err.message})
+    }
+});
 
 module.exports = router;

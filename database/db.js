@@ -589,6 +589,19 @@ const getTranslateTasks = (work_id, file_name, status_arr) => {
   return query;
 };
 
+async function markWorkAILyricStatus(work_id, username, hasLyric) {
+  const workList = await getWorkMetadata(work_id, username);
+  const work = workList[0];
+
+  if (hasLyric && !work.lyric_status.includes("ai")) {
+    const toStatus = work.lyric_status == "local" ? "ai_local" : "ai";
+    await updateWorkLyricStatus(work, toStatus);
+  } else if (!hasLyric && work.lyric_status.includes("ai")) {
+    const toStatus = work.lyric_status == "ai_local" ? "local" : "";
+    await updateWorkLyricStatus(work, toStatus);
+  }
+}
+
 module.exports = {
   knex, insertWorkMetadata, getWorkMetadata, removeWork, getWorksBy, getWorksByKeyWord, updateWorkMetadata,
   updateWorkLyricStatus,
@@ -596,6 +609,6 @@ module.exports = {
   createUser, updateUserPassword, resetUserPassword, deleteUser,
   getWorksWithReviews, updateUserReview, deleteUserReview,
   databaseExist, getPlayHistroy, updatePlayHistroy,
-  createTranslateTask, getTranslateTasks,
+  createTranslateTask, getTranslateTasks, markWorkAILyricStatus,
   nsfwFilter, lyricFilter,
 };

@@ -258,20 +258,4 @@ router.get('/:field(circle|tag|va)s/',
       .catch(err => next(err));
 });
 
-router.post('/mark/ai/:id', param('id').isInt(), async (req, res) => {
-  const id = req.params.id;
-  console.log("mark ai for work id = ", id)
-  let username = 'admin';
-  if (config.auth) {
-    username = req.user.name;
-  }
-  const workList = await db.getWorkMetadata(id, username);
-  const work = workList[0];
-  if (!work.lyric_status.includes("ai")) {
-    const toStatus = work.lyric_status == "local" ? "ai_local" : "ai";
-    await db.updateWorkLyricStatus(work, toStatus);
-  }
-  res.json({});
-})
-
 module.exports = router;
