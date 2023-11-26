@@ -223,7 +223,7 @@ router.post('/translate/acquire',
           db.knex('t_translate_task')
             .select('id')
             .where('status', '=', AILyricTaskStatus.PENDING)
-            .orderBy([{ column: 't_translate_task.updated_at', order: 'desc'}])
+            .orderBy([{ column: 't_translate_task.updated_at', order: 'asc'}])
             .first()
         )
         .update({
