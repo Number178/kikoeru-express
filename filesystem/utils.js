@@ -5,18 +5,47 @@ const { orderBy } = require('natural-orderby');
 const { joinFragments } = require('../routes/utils/url');
 const { config } = require('../config');
 
+const LimitPromise = require('limit-promise'); // 限制并发数量
+const limitP = new LimitPromise(config.maxParallelism); // 核心控制器
 const util = require('util');
-const exec = util.promisify(require('child_process').exec)
+const exec = util.promisify(require('child_process').exec);
+const execFile = util.promisify(require('child_process').execFile);
 
+const globalAudioDurationCache = new Map(); // 缓存一下音频时长，不要每一次都去读文件查询
+const numMaxCacheAudioDuration = 10000; // 达到此数量后，清空一次缓存
 async function getAudioFileDuration(filePath) {
-  // 默认环境中已经安装了ffprobe命令
-  const command = `ffprobe -v error -show_entries format=duration -of default=noprint_wrappers=1:nokey=1 '${filePath}'`;
+  if (globalAudioDurationCache.has(filePath)) {
+    // console.log("use cache for: ", filePath);
+    return globalAudioDurationCache.get(filePath);
+  }
   // console.log("get duration by: ", command);
-  const { stdout, _ } = await exec(command);
+  try {
+    // 默认环境中已经安装了ffprobe命令
+    const { stdout } = await execFile('ffprobe', [
+      "-v",
+      "error",
+      "-show_entries",
+      "format=duration",
+      "-of",
+      "default=noprint_wrappers=1:nokey=1",
+      filePath,
+    ]);
+    const durationSecs = parseFloat(stdout);
+
+    if (globalAudioDurationCache.size >= numMaxCacheAudioDuration) {
+      console.log('audio file duration cache has reached max, clear cache now');
+      globalAudioDurationCache.clear();
+    }
+
+    globalAudioDurationCache.set(filePath, durationSecs);
+    return durationSecs;
+  } catch (err) {
+    console.error(`get duration failed, file = ${filePath}`, err);
+  }
   // console.log("output = ", stdout);
-  const durationSecs = parseFloat(stdout);
-  return durationSecs;
+  return NaN;
 }
+const getAudioFileDurationLimited = (filePath) => limitP.call(getAudioFileDuration, filePath);
 
 // 是否包含字幕
 // @param {Number} id Work identifier. Currently, RJ/RE code.
@@ -80,7 +109,7 @@ const getTrackList = async function (id, dir) {
     const filesAddAudioDuration = await Promise.all(sortedHashedFiles.map(async (file) => {
       if (['.mp3', '.ogg', '.opus', '.wav', '.aac', '.flac', '.webm', '.mp4', '.m4a'].includes(file.ext)) {
         // console.log("get audio duration for file: ", file);
-        const durationSecs = await getAudioFileDuration(file.fullPath);
+        const durationSecs = await getAudioFileDurationLimited(file.fullPath);
         if (!isNaN(durationSecs)) {
           file.duration = durationSecs;
         }
@@ -92,7 +121,10 @@ const getTrackList = async function (id, dir) {
     }));
 
     return filesAddAudioDuration;
-  } catch (err) { throw new Error(`Failed to get tracklist from disk: ${err}`); }
+  } catch (err) {
+    console.log('getTracList error = ', err);
+    throw new Error(`Failed to get tracklist from disk: ${err}`);
+  }
 }
 
 /**
