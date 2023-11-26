@@ -5,6 +5,19 @@ const { orderBy } = require('natural-orderby');
 const { joinFragments } = require('../routes/utils/url');
 const { config } = require('../config');
 
+const util = require('util');
+const exec = util.promisify(require('child_process').exec)
+
+async function getAudioFileDuration(filePath) {
+  // 默认环境中已经安装了ffprobe命令
+  const command = `ffprobe -v error -show_entries format=duration -of default=noprint_wrappers=1:nokey=1 '${filePath}'`;
+  // console.log("get duration by: ", command);
+  const { stdout, _ } = await exec(command);
+  // console.log("output = ", stdout);
+  const durationSecs = parseFloat(stdout);
+  return durationSecs;
+}
+
 // 是否包含字幕
 // @param {Number} id Work identifier. Currently, RJ/RE code.
 // @param {String} dir Work directory (absolute).
@@ -25,14 +38,15 @@ async function isContainLyric(id, dir) {
  * @param {Number} id Work identifier. Currently, RJ/RE code.
  * @param {String} dir Work directory (absolute).
  */
-const getTrackList = (id, dir) => recursiveReaddir(dir)
-  .then((files) => {
+const getTrackList = async function (id, dir) {
+  try {
+    const files = await recursiveReaddir(dir)
     // Filter out any files not matching these extensions
     const filteredFiles = files.filter((file) => {
       const ext = path.extname(file).toLowerCase();
 
       return (ext === '.mp3' || ext === '.ogg' || ext === '.opus' || ext === '.wav' || ext === '.aac'
-        || ext === '.flac' || ext === '.webm' || ext === '.mp4'|| ext === '.m4a' 
+        || ext === '.flac' || ext === '.webm' || ext === '.mp4' || ext === '.m4a'
         || ext === '.txt' || ext === '.lrc' || ext === '.srt' || ext === '.ass' || ext === ".vtt"
         || ext === '.pdf'
         || ext === '.jpg' || ext === '.jpeg' || ext === '.png' || ext === '.webp');
@@ -47,6 +61,7 @@ const getTrackList = (id, dir) => recursiveReaddir(dir)
         title: path.basename(file),
         subtitle: dirName === '.' ? null : dirName,
         ext: path.extname(file).toLowerCase(),
+        fullPath: file, // 给后面获取音频时长提供文件的全路径
       };
     }), [v => v.subtitle, v => v.title, v => v.ext]);
 
@@ -57,12 +72,28 @@ const getTrackList = (id, dir) => recursiveReaddir(dir)
         subtitle: file.subtitle,
         hash: `${id}/${index}`,
         ext: file.ext,
+        fullPath: file.fullPath, // 给后面获取音频时长提供文件的全路径
       }),
     );
 
-    return sortedHashedFiles;
-  })
-  .catch((err) => { throw new Error(`Failed to get tracklist from disk: ${err}`); });
+    // add duration for each audio 
+    const filesAddAudioDuration = await Promise.all(sortedHashedFiles.map(async (file) => {
+      if (['.mp3', '.ogg', '.opus', '.wav', '.aac', '.flac', '.webm', '.mp4', '.m4a'].includes(file.ext)) {
+        // console.log("get audio duration for file: ", file);
+        const durationSecs = await getAudioFileDuration(file.fullPath);
+        if (!isNaN(durationSecs)) {
+          file.duration = durationSecs;
+        }
+      }
+      // 移除fullPath信息
+      delete file.fullPath;
+
+      return file;
+    }));
+
+    return filesAddAudioDuration;
+  } catch (err) { throw new Error(`Failed to get tracklist from disk: ${err}`); }
+}
 
 /**
  * 转换成树状结构
@@ -152,6 +183,7 @@ const toTree = (tracks, workTitle, workDir, rootFolder) => {
         type: 'audio',
         hash: track.hash,
         title: track.title,
+        duration: track.duration,
         workTitle,
         mediaStreamUrl,
         mediaDownloadUrl
