@@ -26,6 +26,8 @@ const createSchema = () => knex.schema
     table.text('rate_count_detail'); // TEXT 类型 [评价分布明细]
     table.text('rank'); // TEXT 类型 [历史销售业绩]
     table.string('lyric_status').notNullable(); // TEXT 类型 [歌词状态] , "" "local" "ai" "local ai"
+
+    table.json('memo'); // 关于这个作品的各种信息记录，音频文件，音频文件时长，歌词映射
     
     table.foreign('circle_id').references('id').inTable('t_circle'); // FOREIGN KEY 外键
     table.index(['circle_id', 'release', 'dl_count', 'review_count', 'price', 'rate_average_2dp'], 't_work_index'); // INDEX 索引

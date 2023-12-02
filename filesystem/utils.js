@@ -5,20 +5,17 @@ const { orderBy } = require('natural-orderby');
 const { joinFragments } = require('../routes/utils/url');
 const { config } = require('../config');
 
+const supportedMediaExtList = ['.mp3', '.ogg', '.opus', '.wav', '.aac', '.flac', '.webm', '.mp4', '.m4a'];
+const supportedSubtitleExtList = ['.lrc', '.srt', '.ass', ".vtt"]; // '.ass' only support show on file list, not for play lyric
+const supportedImageExtList = ['.jpg', '.jpeg', '.png', '.webp'];
+
 const LimitPromise = require('limit-promise'); // 限制并发数量
 const limitP = new LimitPromise(config.maxParallelism); // 核心控制器
 const util = require('util');
 const exec = util.promisify(require('child_process').exec);
 const execFile = util.promisify(require('child_process').execFile);
 
-const globalAudioDurationCache = new Map(); // 缓存一下音频时长，不要每一次都去读文件查询
-const numMaxCacheAudioDuration = 10000; // 达到此数量后，清空一次缓存
 async function getAudioFileDuration(filePath) {
-  if (globalAudioDurationCache.has(filePath)) {
-    // console.log("use cache for: ", filePath);
-    return globalAudioDurationCache.get(filePath);
-  }
-  // console.log("get duration by: ", command);
   try {
     // 默认环境中已经安装了ffprobe命令
     const { stdout } = await execFile('ffprobe', [
@@ -31,18 +28,10 @@ async function getAudioFileDuration(filePath) {
       filePath,
     ]);
     const durationSecs = parseFloat(stdout);
-
-    if (globalAudioDurationCache.size >= numMaxCacheAudioDuration) {
-      console.log('audio file duration cache has reached max, clear cache now');
-      globalAudioDurationCache.clear();
-    }
-
-    globalAudioDurationCache.set(filePath, durationSecs);
     return durationSecs;
   } catch (err) {
     console.error(`get duration failed, file = ${filePath}`, err);
   }
-  // console.log("output = ", stdout);
   return NaN;
 }
 const getAudioFileDurationLimited = (filePath) => limitP.call(getAudioFileDuration, filePath);
@@ -55,30 +44,71 @@ async function isContainLyric(id, dir) {
   const files = await recursiveReaddir(dir);
   const lyricFiles = files.filter((file) => {
     const ext = path.extname(file).toLocaleLowerCase();
-    return (ext === '.lrc' || ext === '.srt' || ext === '.ass' || ext === ".vtt");
+    return supportedSubtitleExtList.includes(ext);
   })
   console.log("isContainLyric check all files: ", lyricFiles)
   return lyricFiles.length > 0;
 }
+
+// 从文件系统，抓取单个作品本地文件的杂项信息：
+//  * 音频文件对应的时长
+//  * TODO：文件hash
+// work_id: number
+// dir: string, absolute path
+// return json object:
+//  {
+//    duration: {
+//      'relative/path/to/audio1.mp3': 334.23, // seconds
+//      'relative/path/to/audio2.mp3': 34.3, // seconds
+//      'relative/directory/to/audio2.wav': 34.23, // seconds
+//    }
+//  }
+async function scrapeWorkMemo(work_id, dir) {
+  const files = await recursiveReaddir(dir)
+  // Filter out any files not matching these extensions
+  const memo = { duration: {} };
+  await Promise.all(files
+    .filter((file) => {
+      const ext = path.extname(file).toLowerCase();
+      return supportedMediaExtList.includes(ext);
+    }) // filter
+    .map((file) => ({
+        fullPath: file,
+        shortPath: file.replace(path.join(dir, '/'), '')
+      })
+    ) // map
+    .map(async (fileDict) => {
+      const duration = await getAudioFileDurationLimited(fileDict.fullPath);
+      if (! isNaN(duration) && typeof(duration) === 'number') {
+        memo.duration[fileDict.shortPath] = duration;
+      }
+    }) // map get duration
+  ); // Promise.all
+  return memo;
+}
+
 
 /**
  * Returns list of playable tracks in a given folder. Track is an object
  * containing 'title', 'subtitle' and 'hash'.
  * @param {Number} id Work identifier. Currently, RJ/RE code.
  * @param {String} dir Work directory (absolute).
+ * @param {readMemo} at least a empty object, or { duration: { "relative/path/audio.mp3": 33, "audio2.mp3": 22 }} for storage audio file duration
  */
-const getTrackList = async function (id, dir) {
+const getTrackList = async function (id, dir, readMemo) {
   try {
     const files = await recursiveReaddir(dir)
     // Filter out any files not matching these extensions
     const filteredFiles = files.filter((file) => {
       const ext = path.extname(file).toLowerCase();
 
-      return (ext === '.mp3' || ext === '.ogg' || ext === '.opus' || ext === '.wav' || ext === '.aac'
-        || ext === '.flac' || ext === '.webm' || ext === '.mp4' || ext === '.m4a'
-        || ext === '.txt' || ext === '.lrc' || ext === '.srt' || ext === '.ass' || ext === ".vtt"
+      return (
+        supportedMediaExtList.includes(ext)
+        || supportedSubtitleExtList.includes(ext)
+        || supportedImageExtList.includes(ext)
+        || ext === '.txt'
         || ext === '.pdf'
-        || ext === '.jpg' || ext === '.jpeg' || ext === '.png' || ext === '.webp');
+      );
     });
 
     // Sort by folder and title
@@ -91,6 +121,7 @@ const getTrackList = async function (id, dir) {
         subtitle: dirName === '.' ? null : dirName,
         ext: path.extname(file).toLowerCase(),
         fullPath: file, // 给后面获取音频时长提供文件的全路径
+        shortFilePath,
       };
     }), [v => v.subtitle, v => v.title, v => v.ext]);
 
@@ -102,20 +133,19 @@ const getTrackList = async function (id, dir) {
         hash: `${id}/${index}`,
         ext: file.ext,
         fullPath: file.fullPath, // 给后面获取音频时长提供文件的全路径
+        shortFilePath: file.shortFilePath,
       }),
     );
 
+    const durationMemo = readMemo.duration || { /* fallback */ };
     // add duration for each audio 
     const filesAddAudioDuration = await Promise.all(sortedHashedFiles.map(async (file) => {
-      if (['.mp3', '.ogg', '.opus', '.wav', '.aac', '.flac', '.webm', '.mp4', '.m4a'].includes(file.ext)) {
-        // console.log("get audio duration for file: ", file);
-        const durationSecs = await getAudioFileDurationLimited(file.fullPath);
-        if (!isNaN(durationSecs)) {
-          file.duration = durationSecs;
-        }
+      if (supportedMediaExtList.includes(file.ext) && (undefined !== durationMemo[file.shortFilePath])) {
+        file.duration = durationMemo[file.shortFilePath];
       }
       // 移除fullPath信息
       delete file.fullPath;
+      delete file.shortFilePath;
 
       return file;
     }));
@@ -325,4 +355,5 @@ module.exports = {
   deleteCoverImageFromDisk,
   saveCoverImageToDisk,
   formatID,
+  scrapeWorkMemo,
 };

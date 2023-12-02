@@ -602,6 +602,23 @@ async function markWorkAILyricStatus(work_id, username, hasLyric) {
   }
 }
 
+async function getWorkMemo(work_id) {
+  const work = await knex('t_work')
+    .select('id', 'memo')
+    .where('id', '=', work_id)
+    .first();
+
+  return JSON.parse(work.memo);
+}
+
+async function setWorkMemo(work_id, memo) {
+  await knex('t_work')
+    .where('id', '=', work_id)
+    .update({
+      memo: JSON.stringify(memo)
+    });
+}
+
 module.exports = {
   knex, insertWorkMetadata, getWorkMetadata, removeWork, getWorksBy, getWorksByKeyWord, updateWorkMetadata,
   updateWorkLyricStatus,
@@ -611,4 +628,5 @@ module.exports = {
   databaseExist, getPlayHistroy, updatePlayHistroy,
   createTranslateTask, getTranslateTasks, markWorkAILyricStatus,
   nsfwFilter, lyricFilter,
+  getWorkMemo, setWorkMemo,
 };

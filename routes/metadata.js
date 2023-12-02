@@ -7,7 +7,7 @@ const { getTrackList, toTree } = require('../filesystem/utils');
 const { config } = require('../config');
 const normalize = require('./utils/normalize');
 const { isValidRequest } = require('./utils/validate');
-const { formatID } = require('../filesystem/utils');
+const { formatID, scrapeWorkMemo } = require('../filesystem/utils');
 
 const PAGE_SIZE = config.pageSize || 12;
 
@@ -52,24 +52,31 @@ router.get('/work/:id',
 // GET track list in work folder
 router.get('/tracks/:id',
   param('id').isInt(),
-  (req, res, next) => {
+  async (req, res, next) => {
     if(!isValidRequest(req, res)) return;
+    const work_id = req.params.id;
 
-    db.knex('t_work')
-      .select('title', 'root_folder', 'dir')
-      .where('id', '=', req.params.id)
-      .first()
-      .then((work) => {
-        const rootFolder = config.rootFolders.find(rootFolder => rootFolder.name === work.root_folder);
-        if (rootFolder) {
-          getTrackList(req.params.id, path.join(rootFolder.path, work.dir))
-            .then(tracks => res.send(toTree(tracks, work.title, work.dir, rootFolder)))
-            .catch(() => res.status(500).send({error: '获取文件列表失败，请检查文件是否存在或重新扫描清理'}));
-        } else {
-          res.status(500).send({error: `找不到文件夹: "${work.root_folder}"，请尝试重启服务器或重新扫描.`});
+    try {
+      const work = await db.knex('t_work')
+        .select('title', 'root_folder', 'dir', 'memo')
+        .where('id', '=', work_id)
+        .first();
+
+      const rootFolder = config.rootFolders.find(rootFolder => rootFolder.name === work.root_folder);
+      if (rootFolder) {
+        try {
+          const tracks = await getTrackList(work_id, path.join(rootFolder.path, work.dir), JSON.parse(work.memo))
+          const tree = toTree(tracks, work.title, work.dir, rootFolder);
+          res.send(tree);
+        } catch (err) {
+          res.status(500).send({error: '获取文件列表失败，请检查文件是否存在或重新扫描清理'});
         }
-      })
-      .catch(err => next(err));
+      } else {
+        res.status(500).send({error: `找不到文件夹: "${work.root_folder}"，请尝试重启服务器或重新扫描.`});
+      }
+    } catch (err) {
+      next(err);
+    }
 });
 
 // GET list of work ids
@@ -257,5 +264,32 @@ router.get('/:field(circle|tag|va)s/',
       .then(list => res.send(list))
       .catch(err => next(err));
 });
+
+// 刷新单个作品文件夹中的文件信息记录，例如音频文件发生变动后，通过这个请求重新扫描音频文件时长
+router.post('/work/scan/:id',
+  param('id').isInt(),
+  async function(req, res) {
+    if(!isValidRequest(req, res)) return;
+
+    const work_id = parseInt(req.params.id);
+    try {
+      const work = await db.knex('t_work')
+        .select('root_folder', 'dir')
+        .where('id', '=', work_id)
+        .first();
+      const rootFolder = config.rootFolders.find(rootFolder => rootFolder.name === work.root_folder);
+      if (!rootFolder) {
+        res.status(500).send({error: "扫描作品文件失败，没有找到rootFolder: " + work.root_folder})
+        return;
+      }
+      const memo = await scrapeWorkMemo(work_id, path.join(rootFolder.path, work.dir));
+      await db.setWorkMemo(work_id, memo);
+      res.send({ memo });
+    } catch (err) {
+      console.error(err);
+      res.status(500).send({error: "重试翻译任务失败：" + err.message})
+    }
+  } 
+)
 
 module.exports = router;

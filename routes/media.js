@@ -19,13 +19,13 @@ router.get('/stream/:id/:index',
     if(!isValidRequest(req, res)) return;
 
     db.knex('t_work')
-      .select('root_folder', 'dir')
+      .select('root_folder', 'dir', 'memo')
       .where('id', '=', req.params.id)
       .first()
       .then((work) => {
         const rootFolder = config.rootFolders.find(rootFolder => rootFolder.name === work.root_folder);
         if (rootFolder) {
-          getTrackList(req.params.id, path.join(rootFolder.path, work.dir))
+          getTrackList(req.params.id, path.join(rootFolder.path, work.dir), JSON.parse(work.memo))
             .then((tracks) => {
               const track = tracks[req.params.index];
 
@@ -77,13 +77,13 @@ router.get('/download/:id/:index',
     if(!isValidRequest(req, res)) return;
 
     db.knex('t_work')
-      .select('root_folder', 'dir')
+      .select('root_folder', 'dir', 'memo')
       .where('id', '=', req.params.id)
       .first()
       .then((work) => {
         const rootFolder = config.rootFolders.find(rootFolder => rootFolder.name === work.root_folder);
         if (rootFolder) {
-          getTrackList(req.params.id, path.join(rootFolder.path, work.dir))
+          getTrackList(req.params.id, path.join(rootFolder.path, work.dir), JSON.parse(work.memo))
             .then((tracks) => {
               const track = tracks[req.params.index];
 
@@ -120,13 +120,13 @@ router.get('/check-lrc/:id/:index',
     if(!isValidRequest(req, res)) return;
 
     db.knex('t_work')
-      .select('root_folder', 'dir')
+      .select('root_folder', 'dir', 'memo')
       .where('id', '=', req.params.id)
       .first()
       .then((work) => {
         const rootFolder = config.rootFolders.find(rootFolder => rootFolder.name === work.root_folder);
         if (rootFolder) {
-          getTrackList(req.params.id, path.join(rootFolder.path, work.dir))
+          getTrackList(req.params.id, path.join(rootFolder.path, work.dir), JSON.parse(work.memo))
             .then((tracks) => {
               const track = tracks[req.params.index];
               const fileLoc = path.join(rootFolder.path, work.dir, track.subtitle || '', track.title);

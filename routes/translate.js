@@ -102,7 +102,7 @@ router.put('/translate/:id/:index',
     let audioPath = "";
     try {
       const workDir = path.join(rootFolder.path, work.dir);
-      const tracks = await getTrackList(work_id, workDir)
+      const tracks = await getTrackList(work_id, workDir, {/* dummy memo */} )
       const track = tracks[file_id];
       audioPath = path.join(track.subtitle || '', track.title)
       filePath = path.join(workDir, audioPath);
