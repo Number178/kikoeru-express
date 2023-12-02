@@ -6,7 +6,7 @@ const axios = require('../scraper/axios.js'); // 数据请求
 const { scrapeWorkMetadataFromDLsite, scrapeDynamicWorkMetadataFromDLsite, scrapeCoverIdForTranslatedWorkFromDLsite } = require('../scraper/dlsite');
 const db = require('../database/db');
 const { createSchema } = require('../database/schema');
-const { isContainLyric, getFolderList, deleteCoverImageFromDisk, saveCoverImageToDisk } = require('./utils');
+const { isContainLyric, getFolderList, deleteCoverImageFromDisk, saveCoverImageToDisk, scrapeWorkMemo } = require('./utils');
 const { md5 } = require('../auth/utils');
 const { nameToUUID } = require('../scraper/utils');
 
@@ -295,9 +295,13 @@ async function processFolder(folder) {
 
     // 检查本地字幕
     const hasLyric = await isContainLyric(folder.id, folder.absolutePath);
-    LOG.task.info(rjcode, `作品中是否有字幕：${hasLyric}`)
+    LOG.task.info(rjcode, `作品中是否有字幕：${hasLyric}`);
+
+    LOG.task.info(rjcode, `扫描音频文件时长`);
+    const memo = await scrapeWorkMemo(folder.id, folder.absolutePath);
     
     const result = await getMetadata(folder.id, folder.rootFolderName, folder.relativePath, config.tagLanguage, hasLyric); // 获取元数据
+    await db.setWorkMemo(folder.id, memo);
 
     // 如果获取元数据失败，跳过封面图片下载
     if (result === 'failed') {
@@ -620,40 +624,48 @@ async function refreshWorks(query, idColumnName, processor) {
   return counts;
 };
 
-async function scanLyricStatus(work) {
+// 扫描一个作品的文件夹中的文件信息
+// 例如音频时长、是否包含歌词文件等
+async function scanWorkFile(work) {
   const rjcode = formatID(work.id);
 
   try {
     const rootFolder = config.rootFolders.find(rootFolder => rootFolder.name === work.root_folder);
-    if (rootFolder) {
-      const hasLocalLyric = await isContainLyric(work.id, path.join(rootFolder.path, work.dir))
-      let toStatus = work.lyric_status;
-      if (hasLocalLyric && !work.lyric_status.includes("local")) {
-        toStatus = work.lyric_status.includes("ai") ? "ai_local" : "local";
-      } else if (!hasLocalLyric && work.lyric_status.includes("local")) {
-        toStatus = work.lyric_status.includes("ai") ? "ai" : "";
-      }
+    if (!rootFolder) return "skipped";
 
-      if (toStatus !== work.lyric_status) {
-        LOG.main.info(`[RJ${rjcode}] 歌词状态发生改变 '${work.lyric_status}' to '${toStatus}'`)
-        await db.updateWorkLyricStatus(work, toStatus);
-        return "updated";
-      }
+    // lyric status
+    const absoluteWorkDir = path.join(rootFolder.path, work.dir);
+    const hasLocalLyric = await isContainLyric(work.id, absoluteWorkDir);
+    let toStatus = work.lyric_status;
+    if (hasLocalLyric && !work.lyric_status.includes("local")) {
+      toStatus = work.lyric_status.includes("ai") ? "ai_local" : "local";
+    } else if (!hasLocalLyric && work.lyric_status.includes("local")) {
+      toStatus = work.lyric_status.includes("ai") ? "ai" : "";
     }
-    return "skipped";
+    if (toStatus !== work.lyric_status) {
+      LOG.main.info(`[RJ${rjcode}] 歌词状态发生改变 '${work.lyric_status}' to '${toStatus}'`)
+      await db.updateWorkLyricStatus(work, toStatus);
+      return "updated";
+    }
+
+    // work memo, for instance, memorize all audio durations
+    const memo = await scrapeWorkMemo(work.id, absoluteWorkDir);
+    console.log('work: ', absoluteWorkDir);
+    console.log('memo: ', memo);
+    await db.setWorkMemo(work.id, memo);
+
   } catch(error) {
     LOG.main.error(`[RJ${rjcode}] 扫描歌词过程中发生错误：${error}`);
     console.error(error.stack);
     return "failed";
   }
-
 }
-const scanLyricStatusLimited = (work) => limitP.call(scanLyricStatus, work)
-async function performLyricScan() {
+const scanWorkFile = (work) => limitP.call(scanWorkFile, work)
+async function performWorkFileScan() {
   LOG.main.info(`扫描歌词开始`);
   const works = await db.knex('t_work').select('id', "root_folder", "dir", "lyric_status");
 
-  const results = await Promise.all(works.map(scanLyricStatusLimited));
+  const results = await Promise.all(works.map(scanWorkFile));
 
   const counts = results.reduce((acc, x) => ( acc[x]++, acc ), {
     updated: 0,
@@ -668,4 +680,4 @@ async function performLyricScan() {
   process.exit(0);
 }
 
-module.exports = { performScan, performUpdate, performLyricScan };
+module.exports = { performScan, performUpdate, performWorkFileScan };

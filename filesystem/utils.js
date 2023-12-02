@@ -5,6 +5,37 @@ const { orderBy } = require('natural-orderby');
 const { joinFragments } = require('../routes/utils/url');
 const { config } = require('../config');
 
+const supportedMediaExtList = ['.mp3', '.ogg', '.opus', '.wav', '.aac', '.flac', '.webm', '.mp4', '.m4a'];
+const supportedSubtitleExtList = ['.lrc', '.srt', '.ass', ".vtt"]; // '.ass' only support show on file list, not for play lyric
+const supportedImageExtList = ['.jpg', '.jpeg', '.png', '.webp'];
+
+const LimitPromise = require('limit-promise'); // 限制并发数量
+const limitP = new LimitPromise(config.maxParallelism); // 核心控制器
+const util = require('util');
+const exec = util.promisify(require('child_process').exec);
+const execFile = util.promisify(require('child_process').execFile);
+
+async function getAudioFileDuration(filePath) {
+  try {
+    // 默认环境中已经安装了ffprobe命令
+    const { stdout } = await execFile('ffprobe', [
+      "-v",
+      "error",
+      "-show_entries",
+      "format=duration",
+      "-of",
+      "default=noprint_wrappers=1:nokey=1",
+      filePath,
+    ]);
+    const durationSecs = parseFloat(stdout);
+    return durationSecs;
+  } catch (err) {
+    console.error(`get duration failed, file = ${filePath}`, err);
+  }
+  return NaN;
+}
+const getAudioFileDurationLimited = (filePath) => limitP.call(getAudioFileDuration, filePath);
+
 // 是否包含字幕
 // @param {Number} id Work identifier. Currently, RJ/RE code.
 // @param {String} dir Work directory (absolute).
@@ -13,29 +44,71 @@ async function isContainLyric(id, dir) {
   const files = await recursiveReaddir(dir);
   const lyricFiles = files.filter((file) => {
     const ext = path.extname(file).toLocaleLowerCase();
-    return (ext === '.lrc' || ext === '.srt' || ext === '.ass' || ext === ".vtt");
+    return supportedSubtitleExtList.includes(ext);
   })
   console.log("isContainLyric check all files: ", lyricFiles)
   return lyricFiles.length > 0;
 }
+
+// 从文件系统，抓取单个作品本地文件的杂项信息：
+//  * 音频文件对应的时长
+//  * TODO：文件hash
+// work_id: number
+// dir: string, absolute path
+// return json object:
+//  {
+//    duration: {
+//      'relative/path/to/audio1.mp3': 334.23, // seconds
+//      'relative/path/to/audio2.mp3': 34.3, // seconds
+//      'relative/directory/to/audio2.wav': 34.23, // seconds
+//    }
+//  }
+async function scrapeWorkMemo(work_id, dir) {
+  const files = await recursiveReaddir(dir)
+  // Filter out any files not matching these extensions
+  const memo = { duration: {} };
+  await Promise.all(files
+    .filter((file) => {
+      const ext = path.extname(file).toLowerCase();
+      return supportedMediaExtList.includes(ext);
+    }) // filter
+    .map((file) => ({
+        fullPath: file,
+        shortPath: file.replace(path.join(dir, '/'), '')
+      })
+    ) // map
+    .map(async (fileDict) => {
+      const duration = await getAudioFileDurationLimited(fileDict.fullPath);
+      if (! isNaN(duration) && typeof(duration) === 'number') {
+        memo.duration[fileDict.shortPath] = duration;
+      }
+    }) // map get duration
+  ); // Promise.all
+  return memo;
+}
+
 
 /**
  * Returns list of playable tracks in a given folder. Track is an object
  * containing 'title', 'subtitle' and 'hash'.
  * @param {Number} id Work identifier. Currently, RJ/RE code.
  * @param {String} dir Work directory (absolute).
+ * @param {readMemo} at least a empty object, or { duration: { "relative/path/audio.mp3": 33, "audio2.mp3": 22 }} for storage audio file duration
  */
-const getTrackList = (id, dir) => recursiveReaddir(dir)
-  .then((files) => {
+const getTrackList = async function (id, dir, readMemo) {
+  try {
+    const files = await recursiveReaddir(dir)
     // Filter out any files not matching these extensions
     const filteredFiles = files.filter((file) => {
       const ext = path.extname(file).toLowerCase();
 
-      return (ext === '.mp3' || ext === '.ogg' || ext === '.opus' || ext === '.wav' || ext === '.aac'
-        || ext === '.flac' || ext === '.webm' || ext === '.mp4'|| ext === '.m4a' 
-        || ext === '.txt' || ext === '.lrc' || ext === '.srt' || ext === '.ass' || ext === ".vtt"
+      return (
+        supportedMediaExtList.includes(ext)
+        || supportedSubtitleExtList.includes(ext)
+        || supportedImageExtList.includes(ext)
+        || ext === '.txt'
         || ext === '.pdf'
-        || ext === '.jpg' || ext === '.jpeg' || ext === '.png' || ext === '.webp');
+      );
     });
 
     // Sort by folder and title
@@ -47,6 +120,8 @@ const getTrackList = (id, dir) => recursiveReaddir(dir)
         title: path.basename(file),
         subtitle: dirName === '.' ? null : dirName,
         ext: path.extname(file).toLowerCase(),
+        fullPath: file, // 给后面获取音频时长提供文件的全路径
+        shortFilePath,
       };
     }), [v => v.subtitle, v => v.title, v => v.ext]);
 
@@ -57,12 +132,30 @@ const getTrackList = (id, dir) => recursiveReaddir(dir)
         subtitle: file.subtitle,
         hash: `${id}/${index}`,
         ext: file.ext,
+        fullPath: file.fullPath, // 给后面获取音频时长提供文件的全路径
+        shortFilePath: file.shortFilePath,
       }),
     );
 
-    return sortedHashedFiles;
-  })
-  .catch((err) => { throw new Error(`Failed to get tracklist from disk: ${err}`); });
+    const durationMemo = readMemo.duration || { /* fallback */ };
+    // add duration for each audio 
+    const filesAddAudioDuration = await Promise.all(sortedHashedFiles.map(async (file) => {
+      if (supportedMediaExtList.includes(file.ext) && (undefined !== durationMemo[file.shortFilePath])) {
+        file.duration = durationMemo[file.shortFilePath];
+      }
+      // 移除fullPath信息
+      delete file.fullPath;
+      delete file.shortFilePath;
+
+      return file;
+    }));
+
+    return filesAddAudioDuration;
+  } catch (err) {
+    console.log('getTracList error = ', err);
+    throw new Error(`Failed to get tracklist from disk: ${err}`);
+  }
+}
 
 /**
  * 转换成树状结构
@@ -152,6 +245,7 @@ const toTree = (tracks, workTitle, workDir, rootFolder) => {
         type: 'audio',
         hash: track.hash,
         title: track.title,
+        duration: track.duration,
         workTitle,
         mediaStreamUrl,
         mediaDownloadUrl
@@ -261,4 +355,5 @@ module.exports = {
   deleteCoverImageFromDisk,
   saveCoverImageToDisk,
   formatID,
+  scrapeWorkMemo,
 };

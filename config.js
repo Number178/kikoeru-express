@@ -39,6 +39,7 @@ const defaultConfig = {
   ],
   coverFolderDir: process.pkg ? path.join(process.execPath, '..', 'covers') : path.join(__dirname, 'covers'),
   databaseFolderDir: process.pkg ? path.join(process.execPath, '..', 'sqlite') : path.join(__dirname, 'sqlite'),
+  lyricFolderDir: "", // lyric folder reuse databaseFolderDir relative path, for instance: ./sqlite/lyrics
   coverUseDefaultPath: false, // Ignores coverFolderDir if set to true
   dbUseDefaultPath: true, // Ignores databaseFolderDir if set to true
   voiceWorkDefaultPath: voiceWorkDefaultPath(),
@@ -71,6 +72,7 @@ const defaultConfig = {
   offloadDownloadPath: '/media/download/',      // /media/download/RJ123456/subdirs/track.mp3
   aiServerUrl: "",
 };
+defaultConfig.lyricFolderDir = path.join(defaultConfig.databaseFolderDir, "lyrics")
 
 const initConfig = (writeConfigToFile = !process.env.FREEZE_CONFIG_FILE) => {
   config = Object.assign(config, defaultConfig);
@@ -124,6 +126,8 @@ const readConfig = () => {
   if (config.dbUseDefaultPath) {
     config.databaseFolderDir = process.pkg ? path.join(process.execPath, '..', 'sqlite') : path.join(__dirname, 'sqlite');
   }
+
+  config.lyricFolderDir = path.join(config.databaseFolderDir, "lyrics");
 
   if (process.env.NODE_ENV === 'production' || config.production) {
     config.auth = true;

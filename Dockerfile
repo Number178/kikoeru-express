@@ -29,7 +29,7 @@ COPY dist /usr/src/kikoeru/dist
 COPY . .
 
 # Tini
-RUN apk add --no-cache tini
+RUN apk add --no-cache tini ffmpeg
 ENTRYPOINT ["/sbin/tini", "--"]
 
 # 持久化

@@ -85,7 +85,7 @@ const initSocket = (server) => {
 
     socket.on('PERFORM_LYRIC_SCAN', () => {
       if (!scanner) {
-        scanner = child_process.fork(path.join(__dirname, './filesystem/lyricScanner.js'), { silent: false }); // 子进程
+        scanner = child_process.fork(path.join(__dirname, './filesystem/workFileScanner.js'), { silent: false }); // 子进程
         scanner.on('exit', (code) => {
           scanner = null;
           if (code) {
