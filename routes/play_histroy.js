@@ -68,17 +68,20 @@ router.put('/',
         })
 });
 
-// // 删除用户标记
-// router.delete('/',
-//   query('work_id').isInt(),
-//   (req, res, next) => {
-//     if(!isValidRequest(req, res)) return;
-// 
-//     let username = config.auth ? req.user.name : 'admin';
-//     db.deleteUserReview(username, req.query.work_id)
-//       .then(() => {
-//         res.send({message: '删除标记成功'});
-//       }).catch((err) => next(err));
-// });
+// 删除播放历史，适用于当前场景下，某些文件被删除后，作品只有一个文件，无法播放正确文件的bug
+router.delete('/',
+  body('work_id').isInt(),
+  async (req, res, next) => {
+    if(!isValidRequest(req, res)) return;
+
+    let username = config.auth ? req.user.name : 'admin';
+    try {
+      await db.deletePlayHistroy(username, req.body.work_id);
+      res.send({message: '删除历史记录成功'});
+    } catch (err) {
+      console.error(err);
+      next(err);
+    }
+});
 
 module.exports = router;

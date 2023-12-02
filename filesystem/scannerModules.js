@@ -660,12 +660,12 @@ async function scanWorkFile(work) {
     return "failed";
   }
 }
-const scanWorkFile = (work) => limitP.call(scanWorkFile, work)
+const scanWorkFileLimited = (work) => limitP.call(scanWorkFile, work)
 async function performWorkFileScan() {
   LOG.main.info(`扫描歌词开始`);
   const works = await db.knex('t_work').select('id', "root_folder", "dir", "lyric_status");
 
-  const results = await Promise.all(works.map(scanWorkFile));
+  const results = await Promise.all(works.map(scanWorkFileLimited));
 
   const counts = results.reduce((acc, x) => ( acc[x]++, acc ), {
     updated: 0,

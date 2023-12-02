@@ -521,6 +521,10 @@ const updatePlayHistroy = async (username, work_id, state) => knex.transaction(a
   await trx.raw('UPDATE t_play_histroy SET state = ?, updated_at = CURRENT_TIMESTAMP WHERE user_name = ? AND work_id = ?;', [state, username, work_id]);
 });
 
+async function deletePlayHistroy(username, work_id) {
+  await knex('t_play_histroy').select('*').where('work_id', '=', work_id).where('user_name', '=', username).first().del();
+}
+
 const getMetadata = ({field = 'circle', id} = {}) => {
   const validFields = ['circle', 'tag', 'va'];
   if (!validFields.includes(field)) throw new Error('无效的查询域');
@@ -625,7 +629,7 @@ module.exports = {
   getLabels, getMetadata,
   createUser, updateUserPassword, resetUserPassword, deleteUser,
   getWorksWithReviews, updateUserReview, deleteUserReview,
-  databaseExist, getPlayHistroy, updatePlayHistroy,
+  databaseExist, getPlayHistroy, updatePlayHistroy, deletePlayHistroy,
   createTranslateTask, getTranslateTasks, markWorkAILyricStatus,
   nsfwFilter, lyricFilter,
   getWorkMemo, setWorkMemo,
