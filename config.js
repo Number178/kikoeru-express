@@ -70,7 +70,6 @@ const defaultConfig = {
   offloadMedia: false,
   offloadStreamPath: '/media/stream/',          // /media/stream/RJ123456/subdirs/track.mp3
   offloadDownloadPath: '/media/download/',      // /media/download/RJ123456/subdirs/track.mp3
-  aiServerUrl: "",
 };
 defaultConfig.lyricFolderDir = path.join(defaultConfig.databaseFolderDir, "lyrics")
 
@@ -166,14 +165,10 @@ class publicConfig {
   get forwardSeekTime() {
     return config.forwardSeekTime;
   }
-  get aiServerUrl() {
-    return config.aiServerUrl;
-  }
   export() {
     return {
       rewindSeekTime: this.rewindSeekTime,
       forwardSeekTime: this.forwardSeekTime,
-      aiServerUrl: this.aiServerUrl,
     }
   }
 }
