@@ -80,10 +80,16 @@ const LOG = {
     },
 
     // 移除作品的专属log，如果该作品的对应任务失败，则发送相应的失败消息
-    remove(taskId) {
+    remove(taskId, result) {
       console.log(`LOG.task.remove '${taskId}'`)
       const index = tasks.findIndex(task => task.rjcode === taskId);
+      if (index == -1) {
+        // 当前任务并没有被添加，则跳过remove操作
+        return;
+      }
+
       const removedTask = tasks[index];
+      removedTask.result = result;
       tasks.splice(index, 1);
       process.send({ event: 'SCAN_TASKS', payload: { tasks } });
 
@@ -96,8 +102,11 @@ const LOG = {
       console.assert(typeof(taskId) === "string" && (taskId.length === 6 || taskId.length === 8))
       console[level](`task[RJ${taskId}] log`, msg);
 
-      tasks.find(task => task.rjcode === taskId).logs.push({ level, message: msg, });
-      process.send({ event: 'SCAN_TASKS', payload: { tasks } });
+      const task = tasks.find(task => task.rjcode === taskId);
+      if (task) {
+        task.logs.push({ level, message: msg, });
+        process.send({ event: 'SCAN_TASKS', payload: { tasks } });
+      }
     },
     log(taskId, msg) { // default log at level info
       this.__internal_task__(taskId, "info", msg)
@@ -197,25 +206,34 @@ async function getMetadata(id, rootFolderName, dir, tagLanguage, hasLyric) {
 
 /**
  * 从 DLsite 下载封面图片，处理翻译作品本身没有封面的情况，并保存到 Images 文件夹，
- * 返回一个 Promise 对象，处理结果: 'added' or 'failed'
+ * 返回一个 Promise 对象，处理结果: 'added' 'failed' 'skipped' return skipped means work do not have cover in dlsite by default
  * @param {number} id work id
  * @param {Array} types img types: ['main', 'sam', 'sam@2x', 'sam@3x', '240x240', '360x360']
  */
 async function getCoverImageForTranslated(id, types) {
   const rjcode = formatID(id); // zero-pad to 6/8 digits
-  let cover_from_id = rjcode; // 默认就使用原始的作品id
+  let coverFromId = rjcode; // 默认就使用原始的作品id
+  let isNoImgMain = false;
   try {
     // 抓取一次网页，检查当前作品封面到底使用的哪一个id
     // 因为有些翻译作品id自身没有封面文件，而是使用原版日文作品id对应的封面
-    cover_from_id = await scrapeCoverIdForTranslatedWorkFromDLsite(rjcode);
-    if (cover_from_id != rjcode) {
-      LOG.task.info(rjcode, `当前作品RJ${rjcode}似乎不包含封面资源，例如一些翻译作品。从 DLsite 对应的原始作品RJ${cover_from_id}下载封面...`);
+    const tryScrapResult = await scrapeCoverIdForTranslatedWorkFromDLsite(rjcode);
+    coverFromId = tryScrapResult.coverFromId;
+    isNoImgMain = tryScrapResult.isNoImgMain;
+    if (coverFromId != rjcode) {
+      LOG.task.info(rjcode, `当前作品RJ${rjcode}似乎不包含封面资源，例如一些翻译作品。从 DLsite 对应的原始作品RJ${coverFromId}下载封面...`);
     }
   } catch (err) {
     LOG.task.error(rjcode, `在获取真实的封面id（适配那些翻译作品的封面问题） 过程中出错: ${err.message}`);
   }
 
-  const result = await getCoverImage(id, parseInt(cover_from_id), types);
+  const result = await getCoverImage(id, parseInt(coverFromId), types);
+
+  if (result === 'failed' && isNoImgMain) {
+    LOG.main.warn(`RJ${rjcode} 作品本身在DlSite上没有封面图片，无法抓取封面`)
+    return 'skipped';
+  }
+
   return result;
 }
 
@@ -245,7 +263,7 @@ async function getCoverImage(cover_for_id, cover_from_id, types) {
       LOG.task.info(cover_for_rjcode, `封面 RJ${rjcode}_img_${type}.jpg 下载成功.`);
       return 'added';
     } catch(err) {
-      LOG.task.error(cover_for_rjcode, `在下载封面 RJ${rjcode}_img_${type}.jpg 过程中出错: ${err.message}`);
+      LOG.task.warn(cover_for_rjcode, `在下载封面 RJ${rjcode}_img_${type}.jpg 过程中出错: ${err.message}`);
       return 'failed';
     }
   }))
@@ -271,6 +289,8 @@ async function processFolder(folder) {
   const coverTypes = ['main', 'sam', '240x240'];
   const count = res['count(*)'];
 
+  let coverResult = "unknown";
+
   if (count) { // 查询数据库，检查是否已经写入该音声的元数据
     // 已经成功写入元数据
     // 检查音声封面图片是否缺失
@@ -285,9 +305,10 @@ async function processFolder(folder) {
     if (lostCoverTypes.length) {
       LOG.task.add(rjcode);
       LOG.task.info(rjcode, '封面图片缺失，重新下载封面图片...')
-      return getCoverImageForTranslated(folder.id, lostCoverTypes);
+
+      coverResult = await getCoverImageForTranslated(folder.id, lostCoverTypes);
     } else {
-      return 'skipped';
+      coverResult = 'skipped';
     }
   } else {
     LOG.task.add(rjcode);
@@ -308,7 +329,20 @@ async function processFolder(folder) {
       return 'failed';
     }
     
-    return await getCoverImageForTranslated(folder.id, coverTypes);
+    // 不要在乎图片是否下载成功，dlsite上一些老作品已经没有图片了，会下载失败
+    // 只要元数据插入成功就行
+    coverResult = await getCoverImageForTranslated(folder.id, coverTypes);
+  }
+
+  // 到这一步其实都已经插入了元数据
+  // 最后根据coverResult，判断任务是否成功，
+  // coverResult： “added" 成功添加封面，"skipped" 作品在dlsite无封面（但是元数据插入成功），"failed" dlsite有封面但还是下载封面失败
+  switch(coverResult) {
+    case 'skipped': return count ? 'skipped' : 'added';// dlsite没封面，也没办法了，如果是新添加的作品，则认为成功，如果是重新扫描的作品，则认为跳过
+    case 'added': return 'added';
+
+    case 'failed': 
+    default: return 'failed';
   }
 }
 
@@ -489,16 +523,13 @@ async function tryProcessFolderListParallel(folderList) {
       counts[result] += 1;
 
       const rjcode = formatID(folder.id); // zero-pad to 6 digits\
-      if (result === 'added' || result === 'failed') {
         switch(result) {
           case 'added': LOG.task.info(rjcode, `添加成功! Added: ${counts.added}`); break;
           case 'failed': LOG.task.error(rjcode, `添加失败! Failed: ${counts.failed}`); break;
           default: break;
         }
-        tasks.find(task => task.rjcode === rjcode).result = result;
-        LOG.task.remove(rjcode);
-        LOG.result.add(rjcode, result, counts[result]);
-      }
+        LOG.task.remove(rjcode, result);
+        if (result !== 'skipped') LOG.result.add(rjcode, result, counts[result]);
     }));
 
   } catch (err) {
@@ -615,8 +646,7 @@ async function refreshWorks(query, idColumnName, processor) {
     : 'updated';
 
     counts[result]++;
-    tasks.find(task => task.rjcode === rjcode).result = result;
-    LOG.task.remove(rjcode);
+    LOG.task.remove(rjcode, result);
     LOG.result.add(rjcode, result, counts[result]);
   }));
 

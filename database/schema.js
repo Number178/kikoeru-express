@@ -25,7 +25,7 @@ const createSchema = () => knex.schema
     table.float('rate_average_2dp'); // FLOAT 类型 [平均评价]
     table.text('rate_count_detail'); // TEXT 类型 [评价分布明细]
     table.text('rank'); // TEXT 类型 [历史销售业绩]
-    table.string('lyric_status').notNullable(); // TEXT 类型 [歌词状态] , "" "local" "ai" "local ai"
+    table.string('lyric_status').notNullable(); // TEXT 类型 [歌词状态] , "" "local" "ai" "local_ai"
 
     table.json('memo'); // 关于这个作品的各种信息记录，音频文件，音频文件时长，歌词映射
     

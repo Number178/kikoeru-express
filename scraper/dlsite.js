@@ -275,19 +275,34 @@ const scrapeCoverIdForTranslatedWorkFromDLsite = (id_translated, language) => ne
         .filter(r => r != null && r.length >= 2)
         .map(r =>r[1]);
       
+      let isNoImgMain = false;
+
       // 当前页面中使用到的一些图像链接id，用来判断当前作品的cover究竟来自哪一个作品
       const possible_image_id_list = $('img').get()
         .map(e => e.attribs['srcset'])
         .filter(h => typeof h === 'string')
-        .map(h => /RJ(\d{6,8})[_\w\.]+$/.exec(h))
+        .map(h => {
+          // 检查一下有没有 不包含图像的链接，一般srcset都是作品封面图，
+          // 但是dlsite有些作品没有图片，比如RJ166657
+          if (h.includes('no_img_main')) {
+            isNoImgMain = true;
+          }
+
+          return /RJ(\d{6,8})[_\w\.]+$/.exec(h);
+        })
         .filter(r => r != null && r.length >= 2)
         .map(r => r[1])
 
-        console.log("linked:", linked_id_list)
-        console.log("possible:", possible_image_id_list)
+      console.log("linked:", linked_id_list)
+      console.log("possible:", possible_image_id_list)
 
       const hit_id_list = linked_id_list.filter(id => possible_image_id_list.includes(id));
-      resolve(hit_id_list.length > 0 ? hit_id_list[0] : id_translated);
+
+      const result = {
+        coverFromId: hit_id_list.length > 0 ? hit_id_list[0] : id_translated,
+        isNoImgMain,
+      }
+      resolve(result);
     })
     .catch((error) => {
       if (error.response) {
