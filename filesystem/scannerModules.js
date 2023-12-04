@@ -4,6 +4,7 @@ const LimitPromise = require('limit-promise'); // 限制并发数量
 
 const axios = require('../scraper/axios.js'); // 数据请求
 const { scrapeWorkMetadataFromDLsite, scrapeDynamicWorkMetadataFromDLsite, scrapeCoverIdForTranslatedWorkFromDLsite } = require('../scraper/dlsite');
+const { scrapeWorkMetadataFromAsmrOne } = require('../scraper/asmrOne');
 const db = require('../database/db');
 const { createSchema } = require('../database/schema');
 const { isContainLyric, getFolderList, deleteCoverImageFromDisk, saveCoverImageToDisk, scrapeWorkMemo } = require('./utils');
@@ -184,23 +185,43 @@ async function getMetadata(id, rootFolderName, dir, tagLanguage, hasLyric) {
 
   LOG.task.info(rjcode, '从 DLSite 抓取元数据...')
       
+  let metadata = null;
+
   try {
-    const metadata = await scrapeWorkMetadataFromDLsite(id, tagLanguage) // 抓取该音声的元数据
-    // 将抓取到的元数据插入到数据库
-    LOG.task.info(rjcode, '元数据抓取成功，准备添加到数据库...')
-    
-    metadata.rootFolderName = rootFolderName;
-    metadata.dir = dir;
-    metadata.lyric_status = hasLyric ? "local" : "";
-
-    await db.insertWorkMetadata(metadata);
-    LOG.task.info(rjcode, '元数据成功添加到数据库.')
-
-    return 'added';
+    metadata = await scrapeWorkMetadataFromDLsite(id, tagLanguage) // 抓取该音声的元数据
   } catch(error) {
-    LOG.task.error(rjcode, `元数据处理失败: ${error.message}`)
+    LOG.task.warn(rjcode, `DLSite获取元数据失败: ${error.message}`)
+  }
+
+  if (metadata === null) {
+    try {
+      metadata = await scrapeWorkMetadataFromAsmrOne(id, tagLanguage) // 抓取该音声的元数据
+    } catch(error) {
+      LOG.task.warn(rjcode, `AsmrOne获取元数据失败: ${error.message}`)
+    }
+  }
+
+  if (metadata === null) {
+    LOG.task.error(rjcode, `元数据获取失败`)
     return 'failed';
   }
+
+  // 将抓取到的元数据插入到数据库
+  LOG.task.info(rjcode, '元数据抓取成功，准备添加到数据库...')
+  
+  metadata.rootFolderName = rootFolderName;
+  metadata.dir = dir;
+  metadata.lyric_status = hasLyric ? "local" : "";
+
+  try {
+    await db.insertWorkMetadata(metadata);
+  } catch(error) {
+    LOG.task.error(rjcode, `元数据添加失败: ${error.message}`)
+    return 'failed';
+  }
+
+  LOG.task.info(rjcode, '元数据成功添加到数据库.')
+  return 'added';
 };
 
 
@@ -322,12 +343,13 @@ async function processFolder(folder) {
     const memo = await scrapeWorkMemo(folder.id, folder.absolutePath);
     
     const result = await getMetadata(folder.id, folder.rootFolderName, folder.relativePath, config.tagLanguage, hasLyric); // 获取元数据
-    await db.setWorkMemo(folder.id, memo);
 
     // 如果获取元数据失败，跳过封面图片下载
     if (result === 'failed') {
       return 'failed';
     }
+
+    await db.setWorkMemo(folder.id, memo);
     
     // 不要在乎图片是否下载成功，dlsite上一些老作品已经没有图片了，会下载失败
     // 只要元数据插入成功就行
