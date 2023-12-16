@@ -21,15 +21,15 @@ FROM node:14-alpine
 ENV IS_DOCKER=true
 WORKDIR /usr/src/kikoeru
 
+# Tini
+RUN apk add --no-cache tini ffmpeg
+
 # Copy build artifacts
 COPY --from=build-dep /usr/src/kikoeru /usr/src/kikoeru
 COPY dist /usr/src/kikoeru/dist
 
 # Bundle app source
 COPY . .
-
-# Tini
-RUN apk add --no-cache tini ffmpeg
 ENTRYPOINT ["/sbin/tini", "--"]
 
 # 持久化
