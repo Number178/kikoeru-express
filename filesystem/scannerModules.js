@@ -682,8 +682,10 @@ async function refreshWorks(query, idColumnName, processor) {
 
 // 扫描一个作品的文件夹中的文件信息
 // 例如音频时长、是否包含歌词文件等
-async function scanWorkFile(work) {
+async function scanWorkFile(work, index, total) {
   const rjcode = formatID(work.id);
+
+  LOG.main.info(`扫描进度：${index+1}/${total}`);
 
   try {
     const rootFolder = config.rootFolders.find(rootFolder => rootFolder.name === work.root_folder);
@@ -715,12 +717,13 @@ async function scanWorkFile(work) {
     return "failed";
   }
 }
-const scanWorkFileLimited = (work) => limitP.call(scanWorkFile, work)
+const scanWorkFileLimited = (work, index, total) => limitP.call(scanWorkFile, work, index, total)
 async function performWorkFileScan() {
-  LOG.main.info(`扫描歌词开始`);
+  LOG.main.info(`扫描本地文件开始`);
   const works = await db.knex('t_work').select('id', "root_folder", "dir", "lyric_status", "memo");
+  LOG.main.info(`总计 ${works.length} 个作品`);
 
-  const results = await Promise.all(works.map(scanWorkFileLimited));
+  const results = await Promise.all(works.map((work, index) => scanWorkFileLimited(work, index, works.length)));
 
   const counts = results.reduce((acc, x) => ( acc[x]++, acc ), {
     updated: 0,
