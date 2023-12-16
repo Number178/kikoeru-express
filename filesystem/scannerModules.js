@@ -340,7 +340,11 @@ async function processFolder(folder) {
     LOG.task.info(rjcode, `作品中是否有字幕：${hasLyric}`);
 
     LOG.task.info(rjcode, `扫描音频文件时长`);
-    const memo = await scrapeWorkMemo(folder.id, folder.absolutePath);
+    const memo = await scrapeWorkMemo(
+      folder.id,
+      folder.absolutePath,
+      { /* 首次添加的作品肯定没有memo，这里设置一个空object作为初始memo */}
+    );
     
     const result = await getMetadata(folder.id, folder.rootFolderName, folder.relativePath, config.tagLanguage, hasLyric); // 获取元数据
 
@@ -688,24 +692,23 @@ async function scanWorkFile(work) {
     // lyric status
     const absoluteWorkDir = path.join(rootFolder.path, work.dir);
     const hasLocalLyric = await isContainLyric(work.id, absoluteWorkDir);
-    let toStatus = work.lyric_status;
-    if (hasLocalLyric && !work.lyric_status.includes("local")) {
-      toStatus = work.lyric_status.includes("ai") ? "ai_local" : "local";
-    } else if (!hasLocalLyric && work.lyric_status.includes("local")) {
-      toStatus = work.lyric_status.includes("ai") ? "ai" : "";
-    }
-    if (toStatus !== work.lyric_status) {
-      LOG.main.info(`[RJ${rjcode}] 歌词状态发生改变 '${work.lyric_status}' to '${toStatus}'`)
-      await db.updateWorkLyricStatus(work, toStatus);
-      return "updated";
+    if (await db.updateWorkLocalLyricStatus(hasLocalLyric, work.lyric_status, work.id)) {
+      LOG.main.info(`[RJ${rjcode}] 歌词状态发生改变`)
     }
 
     // work memo, for instance, memorize all audio durations
-    const memo = await scrapeWorkMemo(work.id, absoluteWorkDir);
-    console.log('work: ', absoluteWorkDir);
-    console.log('memo: ', memo);
+    const memo = await scrapeWorkMemo(
+      work.id,
+      absoluteWorkDir,
+      typeof(work.memo) === 'string' 
+      ? JSON.parse(work.memo)
+      : { /* fallback empty object as memo */ }
+    );
+    // console.log('work: ', absoluteWorkDir);
+    // console.log('memo: ', memo);
     await db.setWorkMemo(work.id, memo);
 
+    return "updated";
   } catch(error) {
     LOG.main.error(`[RJ${rjcode}] 扫描歌词过程中发生错误：${error}`);
     console.error(error.stack);
@@ -715,7 +718,7 @@ async function scanWorkFile(work) {
 const scanWorkFileLimited = (work) => limitP.call(scanWorkFile, work)
 async function performWorkFileScan() {
   LOG.main.info(`扫描歌词开始`);
-  const works = await db.knex('t_work').select('id', "root_folder", "dir", "lyric_status");
+  const works = await db.knex('t_work').select('id', "root_folder", "dir", "lyric_status", "memo");
 
   const results = await Promise.all(works.map(scanWorkFileLimited));
 

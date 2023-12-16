@@ -46,7 +46,7 @@ async function isContainLyric(id, dir) {
     const ext = path.extname(file).toLocaleLowerCase();
     return supportedSubtitleExtList.includes(ext);
   })
-  console.log("isContainLyric check all files: ", lyricFiles)
+  console.log("isContainLyric check all files lenth = ", lyricFiles.length)
   return lyricFiles.length > 0;
 }
 
@@ -63,13 +63,18 @@ async function isContainLyric(id, dir) {
 //      'relative/directory/to/audio2.wav': 34.23, // seconds
 //    }
 //  }
-async function scrapeWorkMemo(work_id, dir) {
+async function scrapeWorkMemo(work_id, dir, oldMemo) {
   const files = await recursiveReaddir(dir)
   // Filter out any files not matching these extensions
-  const memo = { duration: {} };
+  const oldMemoMtime = oldMemo.mtime || {};
+  const oldMemoDuration = oldMemo.duration || {};
+  const memo = { duration: {}, isContainLyric: false, mtime: {} };
   await Promise.all(files
     .filter((file) => {
       const ext = path.extname(file).toLowerCase();
+      if (supportedSubtitleExtList.includes(ext)) {
+        memo.isContainLyric = true;
+      }
       return supportedMediaExtList.includes(ext);
     }) // filter
     .map((file) => ({
@@ -78,15 +83,29 @@ async function scrapeWorkMemo(work_id, dir) {
       })
     ) // map
     .map(async (fileDict) => {
-      const duration = await getAudioFileDurationLimited(fileDict.fullPath);
-      if (! isNaN(duration) && typeof(duration) === 'number') {
-        memo.duration[fileDict.shortPath] = duration;
+      const fstat = fs.statSync(fileDict.fullPath);
+      const newMTime = Math.round(fstat.mtime.getTime());
+      const oldMTime = oldMemoMtime[fileDict.shortPath];
+      const oldDuration = oldMemoDuration[fileDict.shortPath];
+      
+      if (oldMTime === undefined // 音频文件是新增的
+        || oldDuration === undefined // 此前没有更新过这个文件的duration
+        || oldMTime !== newMTime // 或者音频文件的最后修改时间和之前的memo记录不一致，说明文件有修改
+      ) { // 更新duration和mtime
+        console.log(`work[${work_id}] update data on file: ${fileDict.fullPath}, fstate.mtime: ${fstat.mtime.getTime()}, `);
+        memo.mtime[fileDict.shortPath] = newMTime;
+        const duration = await getAudioFileDurationLimited(fileDict.fullPath);
+        if (! isNaN(duration) && typeof(duration) === 'number') {
+          memo.duration[fileDict.shortPath] = duration;
+        }
+      } else { // 使用老的文件信息
+        memo.mtime[fileDict.shortPath] = oldMTime;
+        memo.duration[fileDict.shortPath] = oldDuration;
       }
     }) // map get duration
   ); // Promise.all
   return memo;
 }
-
 
 /**
  * Returns list of playable tracks in a given folder. Track is an object

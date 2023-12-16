@@ -135,14 +135,42 @@ const updateWorkMetadata = (work, options = {}) => knex.transaction(async (trx) 
   }
 });
 
-const updateWorkLyricStatus = (work, new_status) => knex.transaction(async (trx) => {
+const updateWorkLyricStatus = (workId, new_status) => knex.transaction(async (trx) => {
   await trx('t_work')
-    .where('id', '=', work.id)
+    .where('id', '=', workId)
     .update({
       lyric_status: new_status,
     })
 });
 
+async function updateWorkLocalLyricStatus(isContainLocalLyric, currentStatus, workId) {
+  let toStatus = currentStatus;
+  if (isContainLocalLyric && !currentStatus.includes("local")) {
+    toStatus = currentStatus.includes("ai") ? "ai_local" : "local";
+  } else if (!isContainLocalLyric && currentStatus.includes("local")) {
+    toStatus = currentStatus.includes("ai") ? "ai" : "";
+  }
+  if (toStatus !== currentStatus) {
+    console.log('update local lyric status: ', workId, toStatus)
+    await updateWorkLyricStatus(workId, toStatus);
+    return true;
+  }
+  return false;
+}
+
+async function updateWorkAILyricStatus(isContainAILyric, currentStatus, workId) {
+  let toStatus = currentStatus;
+  if (isContainAILyric && !currentStatus.includes("ai")) {
+    toStatus = currentStatus.includes("local") ? "ai_local" : "ai";
+  } else if (!isContainAILyric && currentStatus.includes("ai")) {
+    toStatus = currentStatus.includes("local") ? "local" : "";
+  }
+  if (toStatus !== currentStatus) {
+    await updateWorkLyricStatus(workId, toStatus);
+    return true;
+  }
+  return false;
+}
 
 /**
  * Fetches metadata for a specific work id.
@@ -597,13 +625,7 @@ async function markWorkAILyricStatus(work_id, username, hasLyric) {
   const workList = await getWorkMetadata(work_id, username);
   const work = workList[0];
 
-  if (hasLyric && !work.lyric_status.includes("ai")) {
-    const toStatus = work.lyric_status == "local" ? "ai_local" : "ai";
-    await updateWorkLyricStatus(work, toStatus);
-  } else if (!hasLyric && work.lyric_status.includes("ai")) {
-    const toStatus = work.lyric_status == "ai_local" ? "local" : "";
-    await updateWorkLyricStatus(work, toStatus);
-  }
+  await updateWorkAILyricStatus(hasLyric, work.lyric_status, work.id);
 }
 
 async function getWorkMemo(work_id) {
@@ -626,6 +648,7 @@ async function setWorkMemo(work_id, memo) {
 module.exports = {
   knex, insertWorkMetadata, getWorkMetadata, removeWork, getWorksBy, getWorksByKeyWord, updateWorkMetadata,
   updateWorkLyricStatus,
+  updateWorkLocalLyricStatus, updateWorkAILyricStatus,
   getLabels, getMetadata,
   createUser, updateUserPassword, resetUserPassword, deleteUser,
   getWorksWithReviews, updateUserReview, deleteUserReview,

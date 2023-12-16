@@ -274,7 +274,7 @@ router.post('/work/scan/:id',
     const work_id = parseInt(req.params.id);
     try {
       const work = await db.knex('t_work')
-        .select('root_folder', 'dir')
+        .select('root_folder', 'dir', 'lyric_status', 'memo')
         .where('id', '=', work_id)
         .first();
       const rootFolder = config.rootFolders.find(rootFolder => rootFolder.name === work.root_folder);
@@ -282,8 +282,9 @@ router.post('/work/scan/:id',
         res.status(500).send({error: "扫描作品文件失败，没有找到rootFolder: " + work.root_folder})
         return;
       }
-      const memo = await scrapeWorkMemo(work_id, path.join(rootFolder.path, work.dir));
+      const memo = await scrapeWorkMemo(work_id, path.join(rootFolder.path, work.dir), JSON.parse(work.memo));
       await db.setWorkMemo(work_id, memo);
+      await db.updateWorkLocalLyricStatus(memo.isContainLyric, work.lyric_status, work_id); // 尝试更新歌词状态
       res.send({ memo });
     } catch (err) {
       console.error(err);
