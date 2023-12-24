@@ -1,4 +1,4 @@
-name: Build artifacts
+name: Build docker image and push
 
 on:
   push:
@@ -10,11 +10,33 @@ jobs:
     runs-on: ubuntu-latest
     name: Build front end PWA from source
     steps:
+
       - name: Check out latest front end
         uses: actions/checkout@v3
         with:
           repository: number17/kikoeru-quasar
           ref: ${{ github.ref_name }} # 后端使用的分支名，必须和前端相同
+
+      # gitea do not support hashFile, use another version hashFile
+      - name: Get package-lock.json file hash (polyfill for gitea)
+        uses: KEINOS/gh-action-hash-for-cache@main
+        id: get-hash
+        with: 
+          patterns: |
+            package-lock.json
+      - name: Cache node modules
+        uses: actions/cache@v3
+        env:
+          cache-name: cache-node-modules
+        with:
+          path: |
+            ~/.npm
+            **/node_modules
+          key: ${{runner.os}}-build-${{env.cache-name}}-${{steps.get-hash.outputs.hash}}
+          restore-keys: |
+            ${{runner.os}}-build-${{env.cache-name}}-
+            ${{runner.os}}-build-
+            ${{runner.os}}-
 
       - name: Use Node.js 12
         uses: actions/setup-node@v4
@@ -33,6 +55,10 @@ jobs:
           path: dist/pwa/
           name: PWA-${{ github.ref_name }}
           if-no-files-found: error
+
+      - name: Notification
+        run: curl '${{secrets.PUSH_NOTIFICATION}}构建前端:${{job.status}}'
+        if: always()
 
   build-docker:
     runs-on: ubuntu-latest
@@ -64,16 +90,38 @@ jobs:
         with:
           name: PWA-${{github.ref_name}}
           path: dist
-
       - name: Check front-end artifacts
         run: |
           echo `pwd`
           ls -al dist/
 
-      - name: Build and push
+      - name: Cache Docker layers
+        id: cache-docker-layers
+        uses: actions/cache@v3
+        with:
+          path: /tmp/.buildx-cache
+          key: ${{ runner.os }}-buildx-${{github.sha}}
+          restore-keys: |
+            ${{ runner.os }}-buildx-
+
+      - name: Build and push image
         uses: docker/build-push-action@v5
         with:
           context: .
           push: true
           platforms: linux/arm64,linux/amd64,linux/arm/v7
           tags: number17/kikoeru:${{ github.ref_name }}
+          cache-from: type=local,src=/tmp/.buildx-cache
+          cache-to: type=local,dest=/tmp/.buildx-cache-new
+
+      - name: Move cache
+        # Temp fix, prevent cache from keeping increasing after each action
+        # https://github.com/docker/build-push-action/issues/252
+        # https://github.com/moby/buildkit/issues/1896
+        run: |
+          rm -rf /tmp/.buildx-cache
+          mv /tmp/.buildx-cache-new /tmp/.buildx-cache     
+      - name: Notification
+        run: curl '${{secrets.PUSH_NOTIFICATION}}构建image:${{job.status}}'
+        if: always()
+
