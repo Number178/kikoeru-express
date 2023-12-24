@@ -1,0 +1,79 @@
+name: Build artifacts
+
+on:
+  push:
+    branches:
+      - alpha
+
+jobs:
+  build-front-end:
+    runs-on: ubuntu-latest
+    name: Build front end PWA from source
+    steps:
+      - name: Check out latest front end
+        uses: actions/checkout@v3
+        with:
+          repository: number17/kikoeru-quasar
+          ref: ${{ github.ref_name }} # 后端使用的分支名，必须和前端相同
+
+      - name: Use Node.js 12
+        uses: actions/setup-node@v4
+        with:
+          node-version: '12.22.12'
+
+      - name: Install dependencies
+        run: npm install
+    
+      - name: Build PWA
+        run: npx quasar build -m pwa
+    
+      - name: Upload artifact PWA
+        uses: actions/upload-artifact@v3
+        with:
+          path: dist/pwa/
+          name: PWA-${{ github.ref_name }}
+          if-no-files-found: error
+
+  build-docker:
+    runs-on: ubuntu-latest
+
+    # since gitea runner running on a docker container which do not has docker preinstalled,
+    # here should using a docker in docker image, which is copied from gitea official repo:
+    #   https://gitea.com/gitea/act_runner/src/branch/main/.gitea/workflows/release-nightly.yml
+    container:
+      image: catthehacker/ubuntu:act-latest
+
+    needs: build-front-end
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v3
+
+      # setup docker environment
+      - name: Set up QEMU
+        uses: docker/setup-qemu-action@v3
+      - name: Set up Docker Buildx
+        uses: docker/setup-buildx-action@v3
+      - name: Login to Docker Hub
+        uses: docker/login-action@v3
+        with:
+          username: ${{ secrets.DOCKERHUB_USERNAME }}
+          password: ${{ secrets.DOCKERHUB_TOKEN }}
+
+      - name: Download front-end artifact (PWA)
+        uses: actions/download-artifact@v3
+        with:
+          name: PWA-${{github.ref_name}}
+          path: dist
+
+      - name: Check front-end artifacts
+        run: |
+          echo `pwd`
+          ls -al dist/
+
+      - name: Build and push
+        uses: docker/build-push-action@v5
+        with:
+          context: .
+          push: true
+          platforms: linux/arm64,linux/amd64,linux/arm/v7
+          tags: number17/kikoeru:${{ github.ref_name }}
