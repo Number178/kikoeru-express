@@ -122,6 +122,6 @@ jobs:
           rm -rf /tmp/.buildx-cache
           mv /tmp/.buildx-cache-new /tmp/.buildx-cache     
       - name: Notification
-        run: curl '${{secrets.PUSH_NOTIFICATION}}构建image:${{job.status}}'
         if: always()
+        run: curl '${{secrets.PUSH_NOTIFICATION}}构建image:${{job.status}}'
 

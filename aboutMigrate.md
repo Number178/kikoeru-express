@@ -5,7 +5,7 @@
 ```
 cd database/
 npx knex-migrate list # 列出所有的migration
-npx knex-migrate name_for_migration # 创建migration
+npx knex-migrate generate name_for_migration # 创建migration
 npx knex-migrate up # 向上迁移到最近改动
 npx knex-migrate down # 向下迁移一个改动
 ```
