@@ -273,6 +273,23 @@ const cleanupOrphans = async (trxProvider, circle, tags, vas)  => {
 };
 
 /**
+ * Delete work related lyrics and the lyric files if exists
+ */
+const deleteWorkTranslateTasks = async (work_id, trxProvider) => {
+  const trx = await trxProvider();
+  const tasks = await trx('t_translate_task').select('id').where('work_id', '=', work_id);
+
+  for (const t of tasks) {
+    const lyric_path = path.join(config.lyricFolderDir, `${t.id}.lrc`);
+    if (fs.existsSync(lyric_path)) {
+      fs.unlinkSync(lyric_path);
+    }
+  }
+
+  await await trx('t_translate_task').del().where('work_id', '=', work_id);
+}
+
+/**
  * Removes a work and then its orphaned circles, tags & VAs from the database.
  * @param {Integer} id Work id.
  */
@@ -282,6 +299,9 @@ const removeWork = async (id, trxProvider) => {
     const circle = await trx('t_work').select('circle_id').where('id', '=', id).first();
     const tags = await trx('r_tag_work').select('tag_id').where('work_id', '=', id);
     const vas = await trx('r_va_work').select('va_id').where('work_id', '=', id);
+
+    // clear translate task for this work if exists
+    await deleteWorkTranslateTasks(id, trxProvider);
 
     await trx('r_tag_work').del().where('work_id', '=', id);
     await trx('r_va_work').del().where('work_id', '=', id);
