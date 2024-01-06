@@ -79,8 +79,8 @@ router.get('/tracks/:id',
     }
 });
 
-// GET list of work ids
-router.get('/works',
+// GET list of work ids without any search
+router.get('/works', 
   query('page').optional({nullable: true}).isInt(),
   query('order').optional({nullable: true}).isIn(["release", "rating", "dl_count", "price", "rate_average_2dp", "review_count", "id", "created_at", "random", "betterRandom"]),
   query('sort').optional({nullable: true}).isIn(['desc', 'asc']),
@@ -159,8 +159,11 @@ router.get('/:field(circle|tag|va)s/:id',
 });
 
 // eslint-disable-next-line no-unused-vars
-router.get('/search/:keyword?', async (req, res, next) => {
-  const keyword = req.params.keyword ? req.params.keyword.trim() : '';
+router.get('/search', async (req, res, next) => {
+  // const keyword = req.params.keyword ? req.params.keyword.trim() : '';
+  const keyword = req.query.keyword ? req.query.keyword.trim() : '';
+  const isAdvance = 1 === parseInt(req.query.isAdvance || "0") // 是否开启高级搜索模式
+
   const currentPage = parseInt(req.query.page) || 1;
   // 通过 "音声id, 贩卖日, 用户评价， 售出数, 评论数量, 价格, 平均评价, 全年龄新作" 排序
   // ['id', 'release', 'rating', 'dl_count', 'review_count', 'price', 'rate_average_2dp', 'nsfw']
@@ -173,7 +176,19 @@ router.get('/search/:keyword?', async (req, res, next) => {
   const shuffleSeed = req.query.seed ? req.query.seed : 7;
   
   try {
-    const query = () => db.lyricFilter(lyric, db.nsfwFilter(nsfw, db.getWorksByKeyWord({keyword: keyword, username: username})));
+    let query = null;
+    if (isAdvance) {
+      // 临时测试，如果keyword是json字符串，则强制进入高级测试内容
+      const conditions = JSON.parse(keyword);
+      // console.warn(`in advance mode(page = ${currentPage}), search for: `, conditions)
+      query = () => db.lyricFilter(lyric, db.nsfwFilter(nsfw, 
+        db.advanceSearch(conditions, username)
+      ))
+    } else {
+      // console.warn("normal keyword search, keyword = ", keyword)
+      query = () => db.lyricFilter(lyric, db.nsfwFilter(nsfw, db.getWorksByKeyWord({keyword: keyword, username: username})));
+    }
+
     const totalCount = await query().count('id as count');
 
     let works = null;

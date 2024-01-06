@@ -303,6 +303,7 @@ const removeWork = async (id, trxProvider) => {
     // clear translate task for this work if exists
     await deleteWorkTranslateTasks(id, trxProvider);
 
+    await trx('t_play_histroy').del().where('work_id', '=', id);
     await trx('r_tag_work').del().where('work_id', '=', id);
     await trx('r_va_work').del().where('work_id', '=', id);
     await trx('t_review').del().where('work_id', '=', id);
@@ -378,6 +379,56 @@ const getWorksBy = ({id, field, username = ''} = {}) => {
         .leftJoin(ratingSubQuery, 'userrate.work_id', 'staticMetadata.id');
   }
 };
+
+
+const AdvanceSearchCondType = {
+  UNKNOWN: 0,
+  FUZZY: 1, // 全文模糊搜索，包括标题，
+  VA: 2,
+  TAG: 3,
+  CIRCLE: 4,
+}
+// 高级搜索功能，支持多关键字聚合搜索
+function advanceSearch(conditions, username) {
+  const intersectQueryList = []
+  for (let cond of conditions) {
+    const data = cond.d;
+    // 先只考虑全文模糊搜索（差不多够用了），以后再做其他的精准搜索类型特化
+    if (cond.t === AdvanceSearchCondType.FUZZY) {
+      // console.log("cond hit")
+      // 构建模糊匹配，返回work_id query
+      const circleIdQuery = knex('t_circle').select('id').where('name', 'like', `%${data}%`);
+      const tagIdQuery = knex('t_tag').select('id').where('name', 'like', `%${data}%`);
+      const vaIdQuery = knex('t_va').select('id').where('name', 'like', `%${data}%`);
+
+      const workIdQuery =
+        knex('t_work').select('id as work_id') // 用work_id这个名字来统一所有搜索到的作品id
+          .where('title', 'like', `%${data}%`) // 作品标题名模糊匹配
+          .orWhere('circle_id', 'in', circleIdQuery) // 社团名模糊匹配
+          .union([
+            knex('r_tag_work').select('work_id').where('tag_id', 'in', tagIdQuery), // 标签模糊匹配
+            knex('r_va_work').select('work_id').where('va_id', 'in', vaIdQuery), // 声优模糊匹配
+          ])
+
+      intersectQueryList.push(workIdQuery)
+      // console.log("cond sql = ", workIdQuery.toString())
+    }
+  }
+
+  const ratingSubQuery = knex('t_review')
+    .select(['t_review.work_id', 't_review.rating'])
+    .join('t_work', 't_work.id', 't_review.work_id')
+    .where('t_review.user_name', username).as('userrate')
+
+  // 最终返回的work数据源
+  let query = knex('staticMetadata').select(['staticMetadata.*', 'userrate.rating AS userRating'])
+    .leftJoin(ratingSubQuery, 'userrate.work_id', 'staticMetadata.id');
+
+  // 将前面的多个查询条件通过andWhere叠加到数据源条件中
+  const queryWithConditions = intersectQueryList.reduce((accQuery, idQuery) => accQuery.andWhere("id", "in", idQuery), query)
+  // console.log("advance search query = ", queryWithConditions.toString())
+  return queryWithConditions
+}
 
 /**
  * 根据关键字查询音声
@@ -676,4 +727,5 @@ module.exports = {
   createTranslateTask, getTranslateTasks, markWorkAILyricStatus,
   nsfwFilter, lyricFilter,
   getWorkMemo, setWorkMemo,
+  advanceSearch,
 };
