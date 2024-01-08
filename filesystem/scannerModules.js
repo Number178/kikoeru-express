@@ -3,7 +3,7 @@ const path = require('path');
 const LimitPromise = require('limit-promise'); // 限制并发数量
 
 const axios = require('../scraper/axios.js'); // 数据请求
-const { scrapeWorkMetadataFromDLsite, scrapeDynamicWorkMetadataFromDLsite, scrapeCoverIdForTranslatedWorkFromDLsite } = require('../scraper/dlsite');
+const { scrapeWorkMetadataFromDLsite, scrapeWorkMetadataFromDLsiteJson, scrapeDynamicWorkMetadataFromDLsite, scrapeCoverIdForTranslatedWorkFromDLsite } = require('../scraper/dlsite');
 const { scrapeWorkMetadataFromAsmrOne } = require('../scraper/asmrOne');
 const db = require('../database/db');
 const { createSchema } = require('../database/schema');
@@ -198,6 +198,14 @@ async function getMetadata(id, rootFolderName, dir, tagLanguage, hasLyric) {
       metadata = await scrapeWorkMetadataFromAsmrOne(id, tagLanguage) // 抓取该音声的元数据
     } catch(error) {
       LOG.task.warn(rjcode, `AsmrOne获取元数据失败: ${error.message}`)
+    }
+  }
+
+  if (metadata === null) {
+    try {
+      metadata = await scrapeWorkMetadataFromDLsiteJson(id, tagLanguage) // 抓取该音声的元数据
+    } catch(error) {
+      LOG.task.warn(rjcode, `DLSite json api获取元数据失败: ${error.message}`)
     }
   }
 
