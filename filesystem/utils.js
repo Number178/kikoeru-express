@@ -5,7 +5,7 @@ const { orderBy } = require('natural-orderby');
 const { joinFragments } = require('../routes/utils/url');
 const { config } = require('../config');
 
-const supportedMediaExtList = ['.mp3', '.ogg', '.opus', '.wav', '.aac', '.flac', '.webm', '.mp4', '.m4a'];
+const supportedMediaExtList = ['.mp3', '.ogg', '.opus', '.wav', '.aac', '.flac', '.webm', '.mp4', '.m4a', '.mka'];
 const supportedSubtitleExtList = ['.lrc', '.srt', '.ass', ".vtt"]; // '.ass' only support show on file list, not for play lyric
 const supportedImageExtList = ['.jpg', '.jpeg', '.png', '.webp'];
 
