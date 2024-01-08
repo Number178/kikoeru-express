@@ -169,6 +169,96 @@ const scrapeStaticWorkMetadataFromDLsite = (id, language) => new Promise((resolv
     });
 });
 
+const scrapeStaticWorkMetadataFromDLsiteJson = (id, language) => new Promise((resolve, reject) => {
+  const rjcode = formatID(id);
+  const url = `https://www.dlsite.com/maniax/api/=/product.json?workno=RJ${rjcode}`;
+
+  const work = { id, tags: [], vas: [] };
+  const COOKIE_LOCALE = `locale=${language}`
+  axios.retryGet(url, {
+    retry: {},
+    headers: { "cookie": COOKIE_LOCALE } // 自定义请求头
+  })
+    .then(response => response.data)
+    .then((jsonObj) => { // 解析
+      console.warn("------------------------------------------------------------------")
+      console.log(jsonObj)
+      console.warn("------------------------------------------------------------------")
+      const data = jsonObj[0];
+
+      // 标题
+      work.title = data.product_name;
+
+      // 'xxxxx [circle_name] | DLsite' => 'xxxxx'
+      const titlePattern = / \[.+\] \| DLsite$/;
+      work.title = work.title.replace(titlePattern, '');
+
+      // 社团
+      work.circle = {
+        id: parseInt(data.maker_id.replace("RG", "")),
+        name: data.maker_name
+      };
+
+      // NSFW
+      work.nsfw = data.age_category == 3; // 3 for adult, 1 for all 全年龄, 2 for R15
+
+      // 贩卖日 (YYYY-MM-DD)
+      work.release = /\d{4}-\d{2}-\d{2}/.exec(data.regist_date)
+
+      // 忽略系列，外面都没有用这个，有些作品也根本没有系列
+      
+      // 标签
+      work.tags = data.genres.map((v) => ({
+        id: v.id,
+        name: v.name
+      }));
+      
+      // 声优
+      work.vas = data.creaters.voice_by.map((v) => ({
+        id: nameToUUID(v.name),
+        name: v.name
+      }));
+
+      if (work.tags.length === 0 && work.vas.length === 0) {
+        reject(new Error('Couldn\'t parse data from DLsite work page.'));
+      }
+    })
+    .then(() => {
+      if (work.vas.length === 0) { 
+        // 从 DLsite 抓不到声优信息时, 从 HVDB 抓取声优信息
+        scrapeWorkMetadataFromHVDB(id)
+          .then((metadata) => {
+            if (metadata.vas.length <= 1) {
+              // N/A
+              work.vas = metadata.vas;
+            } else {
+              // 过滤掉英文的声优名
+              metadata.vas.forEach(function(va) {
+                if (!hasLetter(va.name)) {
+                  work.vas.push(va);
+                }
+              });
+            }
+  
+            resolve(work);
+          })
+          .catch((error) => {
+            reject(new Error(error.message));
+          });
+      } else {
+        resolve(work);
+      } 
+    })
+    .catch((error) => {
+      if (error.response) {
+        // 请求已发出，但服务器响应的状态码不在 2xx 范围内
+        reject(new Error(`Couldn't request work json (${url}), received: ${error.response.status}.`));
+      } else {
+        reject(error);
+      }
+    });
+});
+
 /**
  * Requests dynamic work metadata from public DLsite API.
  * @param {number} id Work id.
@@ -211,6 +301,23 @@ const scrapeDynamicWorkMetadataFromDLsite = id => new Promise((resolve, reject) 
 const scrapeWorkMetadataFromDLsite = (id, language) => {
   return Promise.all([
     scrapeStaticWorkMetadataFromDLsite(id, language),
+    scrapeDynamicWorkMetadataFromDLsite(id)
+  ])
+    .then((res) => {
+      const work = {};
+      return Object.assign(work, res[0], res[1]);
+    });
+};
+
+/**
+ * Scrapes work metadata from public DLsite project json api.
+ * https://www.dlsite.com/maniax/api/=/product.json?workno=RJ00000000
+ * @param {number} id Work id.
+ * @param {String} language 标签语言，'ja-jp', 'zh-tw' or 'zh-cn'，默认'zh-cn'
+ */
+const scrapeWorkMetadataFromDLsiteJson = (id, language) => {
+  return Promise.all([
+    scrapeStaticWorkMetadataFromDLsiteJson(id, language),
     scrapeDynamicWorkMetadataFromDLsite(id)
   ])
     .then((res) => {
@@ -316,6 +423,7 @@ const scrapeCoverIdForTranslatedWorkFromDLsite = (id_translated, language) => ne
 
 module.exports = {
   scrapeWorkMetadataFromDLsite,
+  scrapeWorkMetadataFromDLsiteJson,
   scrapeDynamicWorkMetadataFromDLsite,
   scrapeCoverIdForTranslatedWorkFromDLsite,
 };
