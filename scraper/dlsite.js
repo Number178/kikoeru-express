@@ -282,7 +282,7 @@ const scrapeDynamicWorkMetadataFromDLsite = id => new Promise((resolve, reject) 
       if (data.rank.length) {
         work.rank = data.rank; // 成绩
       }
-      console.log(`[RJ${rjcode}] 成功从 DLSite 抓取Dynamic元数据...`);
+      console.log(`[${rjcode}] 成功从 DLSite 抓取Dynamic元数据...`);
       resolve(work);
     })
     .catch((error) => {
