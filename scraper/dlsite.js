@@ -3,7 +3,7 @@ const cheerio = require('cheerio'); // 解析器
 const axios = require('./axios'); // 数据请求
 const { nameToUUID, hasLetter } = require('./utils');
 const { scrapeWorkMetadataFromHVDB } = require('./hvdb');
-const { formatID } = require('../filesystem/utils');
+const { idNumberToCode } = require('../filesystem/utils');
 
 /**
  * Scrapes static work metadata from public DLsite page HTML.
@@ -11,8 +11,8 @@ const { formatID } = require('../filesystem/utils');
  * @param {String} language 标签语言，'ja-jp', 'zh-tw' or 'zh-cn'，默认'zh-cn'
  */
 const scrapeStaticWorkMetadataFromDLsite = (id, language) => new Promise((resolve, reject) => {
-  const rjcode = formatID(id);
-  const url = `https://www.dlsite.com/maniax/work/=/product_id/RJ${rjcode}.html`;
+  const rjcode = idNumberToCode(id);
+  const url = `https://www.dlsite.com/maniax/work/=/product_id/${rjcode}.html`;
 
   const work = { id, tags: [], vas: [] };
   let AGE_RATINGS, VA, GENRE, RELEASE, SERIES, COOKIE_LOCALE;
@@ -170,8 +170,8 @@ const scrapeStaticWorkMetadataFromDLsite = (id, language) => new Promise((resolv
 });
 
 const scrapeStaticWorkMetadataFromDLsiteJson = (id, language) => new Promise((resolve, reject) => {
-  const rjcode = formatID(id);
-  const url = `https://www.dlsite.com/maniax/api/=/product.json?workno=RJ${rjcode}`;
+  const rjcode = idNumberToCode(id);
+  const url = `https://www.dlsite.com/maniax/api/=/product.json?workno=${rjcode}`;
 
   const work = { id, tags: [], vas: [] };
   const COOKIE_LOCALE = `locale=${language}`
@@ -181,9 +181,9 @@ const scrapeStaticWorkMetadataFromDLsiteJson = (id, language) => new Promise((re
   })
     .then(response => response.data)
     .then((jsonObj) => { // 解析
-      console.warn("------------------------------------------------------------------")
-      console.log(jsonObj)
-      console.warn("------------------------------------------------------------------")
+      // console.warn("------------------------------------------------------------------")
+      // console.log(jsonObj)
+      // console.warn("------------------------------------------------------------------")
       const data = jsonObj[0];
 
       // 标题
@@ -214,10 +214,12 @@ const scrapeStaticWorkMetadataFromDLsiteJson = (id, language) => new Promise((re
       }));
       
       // 声优
-      work.vas = data.creaters.voice_by.map((v) => ({
-        id: nameToUUID(v.name),
-        name: v.name
-      }));
+      if (data.creaters.hasOwnProperty("voice_by")) {
+        work.vas = data.creaters.voice_by.map((v) => ({
+          id: nameToUUID(v.name),
+          name: v.name
+        }));
+      }
 
       if (work.tags.length === 0 && work.vas.length === 0) {
         reject(new Error('Couldn\'t parse data from DLsite work page.'));
@@ -264,11 +266,11 @@ const scrapeStaticWorkMetadataFromDLsiteJson = (id, language) => new Promise((re
  * @param {number} id Work id.
  */
 const scrapeDynamicWorkMetadataFromDLsite = id => new Promise((resolve, reject) => {
-  const rjcode = formatID(id);
-  const url = `https://www.dlsite.com/maniax-touch/product/info/ajax?product_id=RJ${rjcode}`;
+  const rjcode = idNumberToCode(id);
+  const url = `https://www.dlsite.com/maniax-touch/product/info/ajax?product_id=${rjcode}`;
 
   axios.retryGet(url, { retry: {} })
-    .then(response => response.data[`RJ${rjcode}`])
+    .then(response => response.data[`${rjcode}`])
     .then((data) => {
       const work = {};
       work.dl_count = data.dl_count ? data.dl_count : "0"; // 售出数
@@ -330,41 +332,13 @@ const scrapeWorkMetadataFromDLsiteJson = (id, language) => {
  * Scrapes the source cover work id which holds the cover image, 
  * since some translated work(id_translated) in dlsite do not has its own cover, 
  * but share the cover from original cover work(id_source).
- * @param {number} id_translated Work id.
+ * @param {number} rjcode Work id.
  * @param {String} language 标签语言，'ja-jp', 'zh-tw' or 'zh-cn'，默认'zh-cn'
  */
-const scrapeCoverIdForTranslatedWorkFromDLsite = (id_translated, language) => new Promise((resolve, reject) => {
-  const rjcode = formatID(id_translated);
-  const url = `https://www.dlsite.com/maniax/work/=/product_id/RJ${rjcode}.html`;
+const scrapeCoverIdForTranslatedWorkFromDLsite = (rjcode, language) => new Promise((resolve, reject) => {
+  const url = `https://www.dlsite.com/maniax/work/=/product_id/${rjcode}.html`;
 
-  const work = { id_translated, tags: [], vas: [] };
-  let AGE_RATINGS, VA, GENRE, RELEASE, SERIES, COOKIE_LOCALE;
-  switch(language) {
-    case 'ja-jp':
-      COOKIE_LOCALE = 'locale=ja-jp';
-      AGE_RATINGS = '年齢指定';
-      GENRE = 'ジャンル';
-      VA = '声優';
-      RELEASE = '販売日';
-      SERIES = 'シリーズ名';
-      break;
-    case 'zh-tw':
-      COOKIE_LOCALE = 'locale=zh-tw';
-      AGE_RATINGS = '年齡指定';
-      GENRE = '分類';
-      VA = '聲優';
-      RELEASE = '販賣日';
-      SERIES = '系列名';
-      break;
-    default:
-      COOKIE_LOCALE = 'locale=zh-cn';
-      AGE_RATINGS = '年龄指定';
-      GENRE = '分类';
-      VA = '声优';
-      RELEASE = '贩卖日';
-      SERIES = '系列名';
-  }
-
+  const COOKIE_LOCALE = `locale=${language}`
   axios.retryGet(url, {
     retry: {},
     headers: { "cookie": COOKIE_LOCALE } // 自定义请求头
@@ -378,7 +352,7 @@ const scrapeCoverIdForTranslatedWorkFromDLsite = (id_translated, language) => ne
       const linked_id_list = $('.work_edition_linklist.type_trans a.work_edition_linklist_item').get()
         .map(l => l.attribs['href'])
         .filter(h => typeof h === 'string')
-        .map(h => /RJ(\d{6,8})/.exec(h))
+        .map(h => /((RJ|BJ)\d{6,8})/.exec(h))
         .filter(r => r != null && r.length >= 2)
         .map(r =>r[1]);
       
@@ -395,7 +369,7 @@ const scrapeCoverIdForTranslatedWorkFromDLsite = (id_translated, language) => ne
             isNoImgMain = true;
           }
 
-          return /RJ(\d{6,8})[_\w\.]+$/.exec(h);
+          return /((RJ|BJ)\d{6,8})[_\w\.]+$/.exec(h);
         })
         .filter(r => r != null && r.length >= 2)
         .map(r => r[1])
@@ -406,7 +380,7 @@ const scrapeCoverIdForTranslatedWorkFromDLsite = (id_translated, language) => ne
       const hit_id_list = linked_id_list.filter(id => possible_image_id_list.includes(id));
 
       const result = {
-        coverFromId: hit_id_list.length > 0 ? hit_id_list[0] : id_translated,
+        coverFromCode: hit_id_list.length > 0 ? hit_id_list[0] : rjcode,
         isNoImgMain,
       }
       resolve(result);

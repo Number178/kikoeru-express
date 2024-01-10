@@ -37,9 +37,8 @@ async function getAudioFileDuration(filePath) {
 const getAudioFileDurationLimited = (filePath) => limitP.call(getAudioFileDuration, filePath);
 
 // 是否包含字幕
-// @param {Number} id Work identifier. Currently, RJ/RE code.
 // @param {String} dir Work directory (absolute).
-async function isContainLyric(id, dir) {
+async function isContainLyric(dir) {
   console.log("isContainLyric check dir: ", dir)
   const files = await recursiveReaddir(dir);
   const lyricFiles = files.filter((file) => {
@@ -63,7 +62,7 @@ async function isContainLyric(id, dir) {
 //      'relative/directory/to/audio2.wav': 34.23, // seconds
 //    }
 //  }
-async function scrapeWorkMemo(work_id, dir, oldMemo) {
+async function scrapeWorkMemo(dir, oldMemo) {
   const files = await recursiveReaddir(dir)
   // Filter out any files not matching these extensions
   const oldMemoMtime = oldMemo.mtime || {};
@@ -92,7 +91,7 @@ async function scrapeWorkMemo(work_id, dir, oldMemo) {
         || oldDuration === undefined // 此前没有更新过这个文件的duration
         || oldMTime !== newMTime // 或者音频文件的最后修改时间和之前的memo记录不一致，说明文件有修改
       ) { // 更新duration和mtime
-        console.log(`work[${work_id}] update data on file: ${fileDict.fullPath}, fstate.mtime: ${fstat.mtime.getTime()}, `);
+        console.log(`update data on file: ${fileDict.fullPath}, fstate.mtime: ${fstat.mtime.getTime()}, `);
         memo.mtime[fileDict.shortPath] = newMTime;
         const duration = await getAudioFileDurationLimited(fileDict.fullPath);
         if (! isNaN(duration) && typeof(duration) === 'number') {
@@ -280,6 +279,7 @@ const toTree = (tracks, workTitle, workDir, rootFolder) => {
  * 音声文件夹对象 { relativePath: '相对路径', rootFolderName: '根文件夹别名', id: '音声ID' }
  * @param {Object} rootFolder 根文件夹对象 { name: '别名', path: '绝对路径' }
  */
+const codeRegex = /((RJ|BJ)\d+)/;
 async function* getFolderList(rootFolder, current = '', depth = 0, logger = console ) { // 异步生成器函数 async function*() {}
   // 浅层遍历
   const folders = await fs.promises.readdir(path.join(rootFolder.path, current));    
@@ -291,9 +291,9 @@ async function* getFolderList(rootFolder, current = '', depth = 0, logger = cons
     try {
     // eslint-disable-next-line no-await-in-loop
       if ((await fs.promises.stat(absolutePath)).isDirectory()) { // 检查是否为文件夹
-          if (folder.match(/RJ\d+/)) { // 检查文件夹名称中是否含有RJ号
+          if (folder.match(codeRegex)) { // 检查文件夹名称中是否含有RJ号
             // Found a work folder, don't go any deeper.
-            yield { absolutePath, relativePath, rootFolderName: rootFolder.name, id: parseInt(folder.match(/RJ(\d+)/)[1]) };
+            yield { absolutePath, relativePath, rootFolderName: rootFolder.name, code: folder.match(codeRegex)[1] };
           } else if (depth + 1 < config.scannerMaxRecursionDepth) {
             // 若文件夹名称中不含有RJ号，就进入该文件夹内部
             // Found a folder that's not a work folder, go inside if allowed.
@@ -320,7 +320,7 @@ const deleteCoverImageFromDisk = rjcode => new Promise((resolve, reject) => {
   const types = ['main', 'sam', '240x240', '360x360'];
   types.forEach(type => {
     try {
-      fs.unlinkSync(path.join(config.coverFolderDir, `RJ${rjcode}_img_${type}.jpg`));
+      fs.unlinkSync(path.join(config.coverFolderDir, `${rjcode}_img_${type}.jpg`));
     } catch (err) {
       reject(err);
     }
@@ -339,7 +339,7 @@ const saveCoverImageToDisk = (stream, rjcode, type) => new Promise((resolve, rej
   // TODO: don't assume image is a jpg?
   try {
     stream.pipe(
-      fs.createWriteStream(path.join(config.coverFolderDir, `RJ${rjcode}_img_${type}.jpg`))
+      fs.createWriteStream(path.join(config.coverFolderDir, `${rjcode}_img_${type}.jpg`))
         .on('close', () => resolve()),
     );
   } catch (err) {
@@ -349,21 +349,55 @@ const saveCoverImageToDisk = (stream, rjcode, type) => new Promise((resolve, rej
 
 
 /**
- * 格式化 id，适配 8 位、6 位 id
+ * 格式化 id，适配 8 位、6 位 id，转换成带有RJ前缀的番号
+ * 为了兼容BJ等其他形式的作品番号，规定：
+ * 1. 保留整数末尾的12位十进制用于番号的数字部分，比如RJ01234567中的1234567，称为id数字
+ * 2. 高于12位十进制的部分，存储番号类型，用来指代RJ、BJ或者其他，称为id类型
+ * 3. RJ的id类型为0，向前兼容
+ * 4. BJ的id类型为1
  * @param {number} id
  * @return {string}
  */
-
-function formatID(id) {
-  if (id >= 1000000) {
+const idSplitter = 1e12
+function getIdType(id) {
+  const t = typeof(id);
+  switch (t) {
+    case "string": return id.substring(0, 2);
+    case "number": return Math.floor(id / idSplitter);
+    default: throw Error(`get id type failed, ${id} is unsupported type ${t}`)
+  }
+}
+function getIdDigit(id) {
+  const t = typeof(id);
+  switch (t) {
+    case "string": return id.substring(2);
+    case "number": return Math.floor(id % idSplitter);
+    default: throw Error(`get id digit failed, ${id} is unsupported type ${t}`)
+  }
+}
+function formatID(idDigit) {
+  if (idDigit >= 1000000) {
     // 大于 7 位数，则补全为 8 位
-    id = `0${id}`.slice(-8);
+    return `0${idDigit}`.slice(-8);
   } else {
     // 否则补全为 6 位
-    id = `000000${id}`.slice(-6);
+    return `000000${idDigit}`.slice(-6);
   }
-
-  return id;
+}
+function idNumberToCode(id) {
+  const idDigit = getIdDigit(id);
+  const idType = getIdType(id);
+  const idPrefix = ["RJ", "BJ"][idType];
+  return `${idPrefix}${formatID(idDigit)}`;
+}
+function codeToIdNumber(code) {
+  if (code.startsWith("RJ")) {
+    return parseInt(code.substr(2))
+  } else if (code.startsWith("BJ")) {
+    return 1 * idSplitter + parseInt(code.substr(2))
+  } else {
+    throw Error(`unkown code format: ${code}`)
+  }
 }
 
 module.exports = {
@@ -374,5 +408,10 @@ module.exports = {
   deleteCoverImageFromDisk,
   saveCoverImageToDisk,
   formatID,
+  getIdType,
+  getIdDigit,
+  idNumberToCode,
+  codeToIdNumber,
+  idSplitter,
   scrapeWorkMemo,
 };

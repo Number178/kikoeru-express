@@ -7,7 +7,7 @@ const { getTrackList, toTree } = require('../filesystem/utils');
 const { config } = require('../config');
 const normalize = require('./utils/normalize');
 const { isValidRequest } = require('./utils/validate');
-const { formatID, scrapeWorkMemo } = require('../filesystem/utils');
+const { scrapeWorkMemo, idNumberToCode } = require('../filesystem/utils');
 
 const PAGE_SIZE = config.pageSize || 12;
 
@@ -16,10 +16,11 @@ router.get('/cover/:id',
   param('id').isInt(),
   (req, res, next) => {
     if(!isValidRequest(req, res)) return;
+    const work_id = parseInt(req.params.id || "0");
 
-    const rjcode = formatID(req.params.id);
+    const rjcode = idNumberToCode(work_id);
     const type = req.query.type || 'main'; // 'main', 'sam', '240x240', '360x360'
-    res.sendFile(path.join(config.coverFolderDir, `RJ${rjcode}_img_${type}.jpg`), (err) => {
+    res.sendFile(path.join(config.coverFolderDir, `${rjcode}_img_${type}.jpg`), (err) => {
       if (err) {
         res.sendFile(path.join(__dirname, '../static/no-image.jpg'), (err2) => {
           if (err2) {
@@ -297,7 +298,7 @@ router.post('/work/scan/:id',
         res.status(500).send({error: "扫描作品文件失败，没有找到rootFolder: " + work.root_folder})
         return;
       }
-      const memo = await scrapeWorkMemo(work_id, path.join(rootFolder.path, work.dir), JSON.parse(work.memo));
+      const memo = await scrapeWorkMemo(path.join(rootFolder.path, work.dir), JSON.parse(work.memo));
       await db.setWorkMemo(work_id, memo);
       await db.updateWorkLocalLyricStatus(memo.isContainLyric, work.lyric_status, work_id); // 尝试更新歌词状态
       res.send({ memo });

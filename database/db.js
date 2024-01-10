@@ -2,7 +2,7 @@ const fs = require('fs');
 const path = require('path');
 const { config } = require('../config');
 const { AILyricTaskStatus } = require('../common');
-const { formatID } = require('../filesystem/utils');
+const { idNumberToCode, codeToIdNumber, idSplitter } = require('../filesystem/utils');
 
 const databaseExist = fs.existsSync(path.join(config.databaseFolderDir, 'db.sqlite3'));
 
@@ -440,11 +440,23 @@ const getWorksByKeyWord = ({keyword, username = 'admin'} = {}) => {
   .join('t_work', 't_work.id', 't_review.work_id')
   .where('t_review.user_name', username).as('userrate')
 
-  const workid = keyword.match(/((R|r)(J|j))?(\d{6,8})/) ? keyword.match(/((R|r)(J|j))?(\d{6,8})/)[4] : '';
-  if (workid) {
-    return knex('staticMetadata').select(['staticMetadata.*', 'userrate.rating AS userRating'])
-      .leftJoin(ratingSubQuery, 'userrate.work_id', 'staticMetadata.id')
-      .where('id', '=', workid);
+  const codeRegex = /(RJ|BJ)?(\d{6,8})/i;
+  const searchCode = keyword.match(codeRegex) ? keyword.match(codeRegex)[0].toUpperCase() : '';
+  if (searchCode) {
+    let query = knex('staticMetadata').select(['staticMetadata.*', 'userrate.rating AS userRating'])
+        .leftJoin(ratingSubQuery, 'userrate.work_id', 'staticMetadata.id');
+
+    if (/^[a-zA-Z]{2}/.test(searchCode)) { // search with RJ.../BJ...
+      const idNumber = codeToIdNumber(searchCode);
+      query = query.where('id', '=', idNumber);
+    } else { // search only with numbers
+      const idNumber = parseInt(searchCode);
+      query = query
+        .where('id', '=', idNumber)
+        .orWhere('id', '=', idSplitter + idNumber);
+    }
+
+    return query;
   }
 
   const circleIdQuery = knex('t_circle').select('id').where('name', 'like', `%${keyword}%`);
@@ -642,9 +654,9 @@ const createTranslateTask = async (work_id, audio_path) => {
     .where('audio_path', '=', audio_path);
 
   const work = await query();
-  const rjcode = formatID(work_id);
+  const rjcode = idNumberToCode(work_id);
   if (work.length > 0) {
-    throw new Error(`RJ${rjcode} already contain translation task[${audio_path}] in the database.`);
+    throw new Error(`${rjcode} already contain translation task[${audio_path}] in the database.`);
   }
   console.log('no duplicate task, insert task now')
 

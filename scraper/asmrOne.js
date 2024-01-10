@@ -2,7 +2,7 @@ const cheerio = require('cheerio'); // 解析器
 
 const axios = require('./axios'); // 数据请求
 const { nameToUUID, hasLetter } = require('./utils');
-const { formatID } = require('../filesystem/utils');
+const { idNumberToCode } = require('../filesystem/utils');
 
 let asmrOneApiUrl = '';
 
@@ -27,13 +27,12 @@ async function updateAsmrOneApiUrl() {
 async function scrapeWorkMetadataFromAsmrOne(id) {
   if (asmrOneApiUrl === '') await updateAsmrOneApiUrl();
 
-  const rjcode = formatID(id);
+  const rjcode = idNumberToCode(id);
   const url = `https://api.asmr-200.com/api/workInfo/${rjcode}`;
   const response = await axios.retryGet(url, {
     retry: {},
     headers: { "cookie": 'locale=zh-cn' },
   });
-  // console.log(`RJ${rjcode} asmr one data = `, response.data);
   // const data = JSON.parse(response.data);
   const data = response.data;
 

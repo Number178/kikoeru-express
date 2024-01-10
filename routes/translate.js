@@ -8,7 +8,6 @@ const db = require('../database/db');
 const { config } = require('../config');
 const { getTrackList } = require('../filesystem/utils');
 const { isValidRequest } = require('./utils/validate');
-const { formatID } = require('../filesystem/utils');
 const { AILyricTaskStatus } = require('../common.js');
 
 const PAGE_SIZE = config.pageSize || 12;

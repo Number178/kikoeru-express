@@ -2,7 +2,7 @@ const cheerio = require('cheerio'); // 解析器
 
 const axios = require('./axios'); // 数据请求
 const { nameToUUID } = require('./utils');
-const { formatID } = require('../filesystem/utils');
+const { idNumberToCode } = require('../filesystem/utils');
 
 // 修复之前抓取hvdb数据的bug，之前声优名字只能抓到最后一个单字而不是完整的名字，这里修复
 function scrapeHvdbHtml(data) {
@@ -54,8 +54,8 @@ function scrapeHvdbHtml(data) {
  * @param {number} id Work id.
  */
 const scrapeWorkMetadataFromHVDB = id => new Promise((resolve, reject) => {
-  const rjcode = formatID(id);
-  const url = `https://hvdb.me/Dashboard/WorkDetails/${id}`;
+  const rjcode = idNumberToCode(id);
+  const url = `https://hvdb.me/Dashboard/WorkDetails/${rjcode}`;
 
   console.log(`[RJ${rjcode}] 从 HVDB 抓取元数据...`);
   axios.retryGet(url, { retry: {} })
