@@ -1,6 +1,9 @@
 # Kikoeru
 一个同人音声专用的音乐流媒体服务器，详细的使用说明见[**用户文档**](https://github.com/umonaca/kikoeru-express/wiki/%E4%BD%BF%E7%94%A8%E8%AF%B4%E6%98%8E)
 
+# iOS客户端
+TestFlight：[KikoeruApp](https://number17.online/docs/kikoeru-app/)
+
 [![unstable build status](https://github.com/umonaca/kikoeru-express/actions/workflows/build-artifacts.yml/badge.svg)](https://github.com/umonaca/kikoeru-express/actions)
 
 ### 功能介绍
