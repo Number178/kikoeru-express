@@ -280,6 +280,7 @@ const scrapeDynamicWorkMetadataFromDLsite = id => new Promise((resolve, reject) 
       if (data.rank.length) {
         work.rank = data.rank; // 成绩
       }
+      work.lang = scrapeLocaleFromDynamicMetadata(data);
       console.log(`[RJ${rjcode}] 成功从 DLSite 抓取Dynamic元数据...`);
       resolve(work);
     })
@@ -299,13 +300,15 @@ const scrapeDynamicWorkMetadataFromDLsite = id => new Promise((resolve, reject) 
  * @param {String} language 标签语言，'ja-jp', 'zh-tw' or 'zh-cn'，默认'zh-cn'
  */
 const scrapeWorkMetadataFromDLsite = (id, language) => {
-  return Promise.all([
-    scrapeStaticWorkMetadataFromDLsite(id, language),
-    scrapeDynamicWorkMetadataFromDLsite(id)
-  ])
-    .then((res) => {
-      const work = {};
-      return Object.assign(work, res[0], res[1]);
+  return scrapeDynamicWorkMetadataFromDLsite(id)
+    .then((dynamicMD) => {
+      language = dynamicMD.lang ?? language;
+
+      return scrapeStaticWorkMetadataFromDLsite(id, language)
+        .then((staticMD) => {
+          const work = {};
+          return Object.assign(work, staticMD, dynamicMD);
+        });
     });
 };
 
@@ -420,6 +423,23 @@ const scrapeCoverIdForTranslatedWorkFromDLsite = (id_translated, language) => ne
       }
     });
 });
+
+/**
+ * Fetches the locale for a given work
+ * dlsite may not display the translated title if the request locale is not the same as the translated language
+ * @param dynamicMD Dynamic Metadata
+ * @returns locale: one of 'ja-jp', 'zh-tw' or 'zh-cn', may be undefined if the work is not a translated work
+ */
+const scrapeLocaleFromDynamicMetadata = (dynamicMD) => {
+  const lang_to_locale = new Map([
+    [`CHI_HANS`, `zh-cn`],
+    [`CHI_HANT`, `zh-tw`],
+  ]);
+
+  const lang = dynamicMD?.translation_info?.lang;
+  return lang_to_locale.get(lang);
+};
+
 
 module.exports = {
   scrapeWorkMetadataFromDLsite,
