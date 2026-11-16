@@ -44,6 +44,9 @@ const defaultConfig = {
   dbUseDefaultPath: true, // Ignores databaseFolderDir if set to true
   voiceWorkDefaultPath: voiceWorkDefaultPath(),
   auth: process.env.NODE_ENV === 'production' ? true : false,
+  kikoetaWritebackEnabled: null,
+  kikoetaWritebackKeyHash: '',
+  kikoetaWritebackAuth: null,
   md5secret: crypto.randomBytes(32).toString('hex'),
   jwtsecret: crypto.randomBytes(32).toString('hex'),
   expiresIn: 2592000,
@@ -90,10 +93,10 @@ const setConfig = (newConfig, writeConfigToFile = !process.env.FREEZE_CONFIG_FIL
   newConfig.jwtsecret = config.jwtsecret;
 
   // Merge config
-  config = Object.assign(config, newConfig);
   if (writeConfigToFile) {
-    fs.writeFileSync(configPath, JSON.stringify(config, null, "\t"));
+    fs.writeFileSync(configPath, JSON.stringify({ ...config, ...newConfig }, null, "\t"));
   }
+  Object.assign(config, newConfig);
 }
 
 // Get or use default value

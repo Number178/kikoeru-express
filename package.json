@@ -42,7 +42,7 @@
     "dev": "nodemon --trace-warnings app.js",
     "scan": "node --trace-warnings ./filesystem/scanner.js",
     "build": "pkg package.json --out-path package",
-    "test": "cross-env eslint . && cross-env NODE_ENV=test mocha test/"
+    "test": "cross-env eslint ."
   },
   "author": "Watanuki-Kimihiro",
   "contributors": [

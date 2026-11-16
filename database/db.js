@@ -2,7 +2,7 @@ const fs = require('fs');
 const path = require('path');
 const { config } = require('../config');
 const { AILyricTaskStatus } = require('../common');
-const { formatID } = require('../filesystem/utils');
+const { formatID, getLyricFileStatus } = require('../filesystem/utils');
 
 const databaseExist = fs.existsSync(path.join(config.databaseFolderDir, 'db.sqlite3'));
 
@@ -159,17 +159,21 @@ async function updateWorkLocalLyricStatus(isContainLocalLyric, currentStatus, wo
 }
 
 async function updateWorkAILyricStatus(isContainAILyric, currentStatus, workId) {
-  let toStatus = currentStatus;
-  if (isContainAILyric && !currentStatus.includes("ai")) {
-    toStatus = currentStatus.includes("local") ? "ai_local" : "ai";
-  } else if (!isContainAILyric && currentStatus.includes("ai")) {
-    toStatus = currentStatus.includes("local") ? "local" : "";
-  }
-  if (toStatus !== currentStatus) {
-    await updateWorkLyricStatus(workId, toStatus);
-    return true;
-  }
-  return false;
+  const toStatus = knex.raw("CASE WHEN instr(lyric_status, 'local') > 0 THEN ? ELSE ? END",
+    isContainAILyric ? ['ai_local', 'ai'] : ['local', '']);
+  const updated = await knex('t_work').where('id', workId)
+    .whereNot('lyric_status', toStatus).update({ lyric_status: toStatus });
+  return updated > 0;
+}
+
+async function updateWorkFileLyricStatus(workId, memo) {
+  // Native translation tasks and Kikoeta sidecars are both AI lyric sources.
+  const toStatus = knex.raw(
+    'CASE WHEN (? OR EXISTS (SELECT 1 FROM t_translate_task WHERE work_id = t_work.id)) THEN ? ELSE ? END',
+    [Boolean(memo.isContainAILyric), memo.isContainLyric ? 'ai_local' : 'ai', memo.isContainLyric ? 'local' : '']);
+  const updated = await knex('t_work').where('id', workId)
+    .whereNot('lyric_status', toStatus).update({ lyric_status: toStatus });
+  return updated > 0;
 }
 
 /**
@@ -696,6 +700,14 @@ async function markWorkAILyricStatus(work_id, username, hasLyric) {
   const workList = await getWorkMetadata(work_id, username);
   const work = workList[0];
 
+  if (!hasLyric) {
+    const location = await knex('t_work').select('root_folder', 'dir').where('id', work_id).first();
+    const root = location && config.rootFolders.find(folder => folder.name === location.root_folder);
+    if (root) {
+      const files = await getLyricFileStatus(path.join(root.path, location.dir));
+      hasLyric = files.isContainAILyric;
+    }
+  }
   await updateWorkAILyricStatus(hasLyric, work.lyric_status, work.id);
 }
 
@@ -720,6 +732,7 @@ module.exports = {
   knex, insertWorkMetadata, getWorkMetadata, removeWork, getWorksBy, getWorksByKeyWord, updateWorkMetadata,
   updateWorkLyricStatus,
   updateWorkLocalLyricStatus, updateWorkAILyricStatus,
+  updateWorkFileLyricStatus,
   getLabels, getMetadata,
   createUser, updateUserPassword, resetUserPassword, deleteUser,
   getWorksWithReviews, updateUserReview, deleteUserReview,

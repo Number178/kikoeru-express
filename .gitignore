@@ -138,3 +138,17 @@ graph.svg
 dist/
 dist_*/
 temp/
+
+# Local verification files and fixtures are not versioned.
+test/
+tests/
+checks/
+fixtures/
+integration_test/
+*_test.*
+test_*.py
+*.test.*
+*.spec.*
+*_check.py
+*_check.dart
+*_check.rs

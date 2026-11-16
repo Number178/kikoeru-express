@@ -7,7 +7,7 @@ const { scrapeWorkMetadataFromDLsite, scrapeWorkMetadataFromDLsiteJson, scrapeDy
 const { scrapeWorkMetadataFromAsmrOne } = require('../scraper/asmrOne');
 const db = require('../database/db');
 const { createSchema } = require('../database/schema');
-const { isContainLyric, getFolderList, deleteCoverImageFromDisk, saveCoverImageToDisk, scrapeWorkMemo } = require('./utils');
+const { getFolderList, deleteCoverImageFromDisk, saveCoverImageToDisk, scrapeWorkMemo } = require('./utils');
 const { md5 } = require('../auth/utils');
 const { nameToUUID } = require('../scraper/utils');
 
@@ -343,10 +343,6 @@ async function processFolder(folder) {
     LOG.task.add(rjcode);
     LOG.task.info(rjcode, `发现新文件夹: "${folder.absolutePath}"`)
 
-    // 检查本地字幕
-    const hasLyric = await isContainLyric(folder.id, folder.absolutePath);
-    LOG.task.info(rjcode, `作品中是否有字幕：${hasLyric}`);
-
     LOG.task.info(rjcode, `扫描音频文件时长`);
     const memo = await scrapeWorkMemo(
       folder.id,
@@ -354,7 +350,7 @@ async function processFolder(folder) {
       { /* 首次添加的作品肯定没有memo，这里设置一个空object作为初始memo */}
     );
     
-    const result = await getMetadata(folder.id, folder.rootFolderName, folder.relativePath, config.tagLanguage, hasLyric); // 获取元数据
+    const result = await getMetadata(folder.id, folder.rootFolderName, folder.relativePath, config.tagLanguage, memo.isContainLyric); // 获取元数据
 
     // 如果获取元数据失败，跳过封面图片下载
     if (result === 'failed') {
@@ -362,6 +358,7 @@ async function processFolder(folder) {
     }
 
     await db.setWorkMemo(folder.id, memo);
+    await db.updateWorkFileLyricStatus(folder.id, memo);
     
     // 不要在乎图片是否下载成功，dlsite上一些老作品已经没有图片了，会下载失败
     // 只要元数据插入成功就行
@@ -699,13 +696,7 @@ async function scanWorkFile(work, index, total) {
     const rootFolder = config.rootFolders.find(rootFolder => rootFolder.name === work.root_folder);
     if (!rootFolder) return "skipped";
 
-    // lyric status
     const absoluteWorkDir = path.join(rootFolder.path, work.dir);
-    const hasLocalLyric = await isContainLyric(work.id, absoluteWorkDir);
-    if (await db.updateWorkLocalLyricStatus(hasLocalLyric, work.lyric_status, work.id)) {
-      LOG.main.info(`[RJ${rjcode}] 歌词状态发生改变`)
-    }
-
     // work memo, for instance, memorize all audio durations
     const memo = await scrapeWorkMemo(
       work.id,
@@ -717,6 +708,9 @@ async function scanWorkFile(work, index, total) {
     // console.log('work: ', absoluteWorkDir);
     // console.log('memo: ', memo);
     await db.setWorkMemo(work.id, memo);
+    if (await db.updateWorkFileLyricStatus(work.id, memo)) {
+      LOG.main.info(`[RJ${rjcode}] 歌词状态发生改变`);
+    }
 
     return "updated";
   } catch(error) {

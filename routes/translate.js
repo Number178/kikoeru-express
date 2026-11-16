@@ -144,8 +144,6 @@ router.delete('/translate/:id',
       if (fs.existsSync(lyric_path)) {
         fs.unlinkSync(lyric_path);
       }
-      res.send({ counts });
-
       // 检查该作品还有没有其他翻译任务，如果没有的话，就将当前作品的ai歌词状态清空
       const remainTask = await db.knex('t_translate_task')
             .select('id')
@@ -154,8 +152,9 @@ router.delete('/translate/:id',
       if (!remainTask) {
         const username = config.auth ? req.user.name : 'admin';
         await db.markWorkAILyricStatus(work_id, username, false);
-        console.log(`work[${work_id}] has no translate task no, clear its ai lyric status`);
+        console.log(`work[${work_id}] has no translation tasks, refreshed its ai lyric status`);
       }
+      res.send({ counts });
     } catch (err) {
       res.status(500).send({error: "删除翻译任务失败：" + err.message})
     }

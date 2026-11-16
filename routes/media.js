@@ -1,4 +1,5 @@
 const express = require('express');
+const { getWritebackConfig, matchesWritebackKey } = require('../auth/kikoetaWriteback');
 const router = express.Router();
 const { config } = require('../config');
 const db = require('../database/db');
@@ -6,7 +7,8 @@ const { param } = require('express-validator');
 const fs = require('fs');
 const path = require('path');
 const jschardet = require('jschardet');
-const { getTrackList } = require('../filesystem/utils');
+const { getTrackList, supportedMediaExtList } = require('../filesystem/utils');
+const { KIKOETA_LYRIC_SUFFIX, trackPathParts, writeTrackLyric } = require('../filesystem/kikoetaLyrics');
 const { joinFragments } = require('./utils/url')
 const { isValidRequest } = require('./utils/validate')
 const jimp = require("jimp")
@@ -113,6 +115,64 @@ router.get('/download/:id/:index',
       });
 });
 
+function writebackError(res, status, code) {
+  return res.set('X-Kikoeru-Writeback-Error', code).status(status).send({ code });
+}
+
+function allowKikoetaLyrics(req, res, next) {
+  const { enabled, keyHash, authMode } = getWritebackConfig(config);
+  if (!enabled) return writebackError(res, 404, 'writeback_disabled');
+  if (config.auth) {
+    if (!req.user) return writebackError(res, 401, 'login_required');
+    if (!['user', 'administrator'].includes(req.user.group)) return writebackError(res, 403, 'role_forbidden');
+    if (authMode === 'account_and_key') {
+      if (!keyHash) return writebackError(res, 503, 'writeback_unconfigured');
+      if (!matchesWritebackKey(req.get('X-Kikoeru-Writeback-Key'), keyHash)) {
+        return writebackError(res, 403, 'key_invalid');
+      }
+    }
+  }
+  next();
+}
+
+router.get('/kikoeta-lyrics/capabilities', (req, res) => {
+  const { enabled, authMode } = getWritebackConfig(config);
+  res.set('Cache-Control', 'no-store').send({
+    version: 3, enabled, authentication: config.auth ? authMode : 'none',
+  });
+});
+
+router.head('/kikoeta-lyrics', allowKikoetaLyrics, (req, res) =>
+  res.set('X-Kikoeru-Lyrics-Writeback', '2').sendStatus(204));
+
+router.put('/kikoeta-lyrics/:id',
+  allowKikoetaLyrics,
+  param('id').isInt({ min: 1, max: Number.MAX_SAFE_INTEGER }),
+  express.text({ limit: '8mb' }),
+  async (req, res, next) => {
+    if (!isValidRequest(req, res)) return;
+    const parts = trackPathParts(req.query.trackPath);
+    if (!parts || !supportedMediaExtList.includes(path.extname(parts[parts.length - 1]).toLowerCase())
+        || typeof req.body !== 'string' || !req.body.trim()) {
+      return res.status(400).send({ code: 'invalid_request' });
+    }
+    try {
+      const work = await db.knex('t_work').select('root_folder', 'dir').where('id', req.params.id).first();
+      const root = work && config.rootFolders.find(folder => folder.name === work.root_folder);
+      if (!root || !await writeTrackLyric(root.path, work.dir, parts, req.body)) return res.status(404).send({ code: 'source_unavailable' });
+      await db.updateWorkAILyricStatus(true, '', req.params.id);
+      return res.sendStatus(204);
+    } catch (err) {
+      if (err.code === 'EEXIST') return res.status(409).send({ code: 'lyrics_conflict' });
+      if (err.code === 'ENOENT' || err.code === 'ENOTDIR') return res.status(404).send({ code: 'source_unavailable' });
+      if (['EACCES', 'EPERM', 'EROFS', 'ENOSPC', 'ENOTSUP', 'EOPNOTSUPP', 'EXDEV'].includes(err.code)) {
+        return res.status(503).send({ code: 'directory_unwritable' });
+      }
+      return next(err);
+    }
+  }
+);
+
 router.get('/check-lrc/:id/:index',
   param('id').isInt(),
   param('index').isInt(),
@@ -159,6 +219,10 @@ router.get('/check-lrc/:id/:index',
                 }
               }
 
+              if (!foundLyricFileName && fs.existsSync(path.join(fileDir, trackTitle + KIKOETA_LYRIC_SUFFIX))) {
+                foundLyricFileName = trackTitle + KIKOETA_LYRIC_SUFFIX;
+                foundLyricExtension = '.lrc';
+              }
 
               if (foundLyricFileName != "") {
                 console.log('找到歌词文件');

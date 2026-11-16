@@ -299,7 +299,7 @@ router.post('/work/scan/:id',
       }
       const memo = await scrapeWorkMemo(work_id, path.join(rootFolder.path, work.dir), JSON.parse(work.memo));
       await db.setWorkMemo(work_id, memo);
-      await db.updateWorkLocalLyricStatus(memo.isContainLyric, work.lyric_status, work_id); // 尝试更新歌词状态
+      await db.updateWorkFileLyricStatus(work_id, memo);
       res.send({ memo });
     } catch (err) {
       console.error(err);

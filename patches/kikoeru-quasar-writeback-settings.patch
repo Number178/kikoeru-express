@@ -1,0 +1,162 @@
+diff --git a/src/pages/Dashboard/Advanced.vue b/src/pages/Dashboard/Advanced.vue
+index 560d84e..52fb851 100644
+--- a/src/pages/Dashboard/Advanced.vue
++++ b/src/pages/Dashboard/Advanced.vue
+@@ -355,6 +355,83 @@
+       </q-list>
+     </q-card>
+ 
++    <q-card v-if="kikoetaWritebackStatus !== undefined" class="q-ma-md">
++      <q-toolbar>
++        <q-toolbar-title>Kikoeta Transl 歌词写回</q-toolbar-title>
++      </q-toolbar>
++
++      <q-list v-if="kikoetaWritebackStatus">
++        <q-item>
++          <q-item-section>
++            <q-item-label>保存到音轨目录</q-item-label>
++            <q-item-label caption>允许 Kikoeta 将翻译完成的歌词保存到音轨旁</q-item-label>
++          </q-item-section>
++
++          <q-item-section avatar>
++            <q-toggle v-model="writebackEnabled" dense :disable="loading" />
++          </q-item-section>
++        </q-item>
++
++        <q-item v-if="config.auth">
++          <q-item-section>
++            <q-item-label>密钥验证</q-item-label>
++            <q-item-label caption>登录后仍需提供写回密钥</q-item-label>
++          </q-item-section>
++
++          <q-item-section avatar>
++            <q-toggle
++              v-model="writebackAuthMode"
++              true-value="account_and_key"
++              false-value="account"
++              dense
++              :disable="loading"
++            />
++          </q-item-section>
++        </q-item>
++
++        <q-item v-if="config.auth && writebackAuthMode === 'account_and_key'">
++          <q-item-section>
++            <q-item-label>写回密钥</q-item-label>
++            <q-item-label caption>16 位英文字母或数字，保存前请复制到 Kikoeta 自建站设置</q-item-label>
++            <q-input
++              v-model="writebackKey"
++              :type="showWritebackKey ? 'text' : 'password'"
++              autocomplete="new-password"
++              autocapitalize="off"
++              spellcheck="false"
++              maxlength="16"
++              :disable="loading"
++              :placeholder="kikoetaWritebackStatus.hasKey ? '已设置，留空保持' : '输入写回密钥'"
++            >
++              <template v-slot:append>
++                <q-btn
++                  type="button"
++                  flat dense round
++                  :icon="showWritebackKey ? 'visibility_off' : 'visibility'"
++                  :aria-label="showWritebackKey ? '隐藏密钥' : '显示密钥'"
++                  :disable="loading"
++                  @click="showWritebackKey = !showWritebackKey"
++                />
++                <q-btn
++                  type="button"
++                  flat dense
++                  label="生成"
++                  :disable="loading"
++                  @click="generateWritebackKey"
++                />
++              </template>
++            </q-input>
++          </q-item-section>
++        </q-item>
++        <q-item v-if="!config.auth">
++          <q-item-section>
++            <q-item-label caption>用户验证已关闭，写回时直接接受上传。</q-item-label>
++          </q-item-section>
++        </q-item>
++      </q-list>
++      <div v-else class="q-pa-md text-grey-7">请使用 admin 账号登录后修改写回设置。</div>
++    </q-card>
++
+     <q-card class="q-ma-md">
+       <q-toolbar>
+         <q-toolbar-title>其它设置</q-toolbar-title>
+@@ -428,6 +505,11 @@ export default {
+       loading: false,
+       rewindSeekTime: '5',
+       forwardSeekTime: '30',
++      kikoetaWritebackStatus: undefined,
++      writebackEnabled: false,
++      writebackAuthMode: 'account',
++      writebackKey: '',
++      showWritebackKey: false,
+       
+     }
+   },
+@@ -441,10 +523,36 @@ export default {
+   },
+ 
+   methods: {
++    generateWritebackKey () {
++      const alphabet = 'ABCDEFGHIJKLMNOPQRSTUVWXYZabcdefghijklmnopqrstuvwxyz0123456789'
++      const bytes = new Uint8Array(16)
++      const limit = 256 - (256 % alphabet.length)
++      let key = ''
++      while (key.length < bytes.length) {
++        window.crypto.getRandomValues(bytes)
++        for (const byte of bytes) {
++          if (byte >= limit) continue
++          key += alphabet[byte % alphabet.length]
++          if (key.length === bytes.length) break
++        }
++      }
++      this.writebackKey = key
++      this.showWritebackKey = true
++    },
++
++    applyWritebackStatus (status) {
++      this.kikoetaWritebackStatus = status
++      this.writebackEnabled = Boolean(status && status.enabled)
++      this.writebackAuthMode = status && (status.authMode || (status.hasKey ? 'account_and_key' : 'account')) || 'account'
++      this.writebackKey = ''
++      this.showWritebackKey = false
++    },
++
+     requestConfig () {
+       this.$axios.get('/api/config/admin')
+         .then((response) => {
+           this.config = response.data.config;
++          this.applyWritebackStatus(response.data.kikoetaWriteback)
+           // Integer => String
+           this.rewindSeekTime = this.config.rewindSeekTime.toString()
+           this.forwardSeekTime = this.config.forwardSeekTime.toString()
+@@ -466,12 +574,21 @@ export default {
+       this.config.rewindSeekTime = parseInt(this.rewindSeekTime)
+       this.config.forwardSeekTime = parseInt(this.forwardSeekTime)
+ 
++      const payload = { config: this.config }
++      const status = this.kikoetaWritebackStatus
++      if (status) {
++        payload.kikoetaWriteback = {
++          enabled: this.writebackEnabled,
++          authMode: this.writebackAuthMode,
++          key: this.config.auth && this.writebackAuthMode === 'account_and_key' ? this.writebackKey : ''
++        }
++      }
++
+       this.loading = true
+-      this.$axios.put('/api/config/admin', {
+-        config: this.config
+-      })
++      this.$axios.put('/api/config/admin', payload)
+         .then((response) => {
+           this.loading = false
++          this.applyWritebackStatus(response.data.kikoetaWriteback)
+           this.showSuccNotif(response.data.message)
+         })
+         .catch((error) => {

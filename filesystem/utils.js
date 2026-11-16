@@ -4,6 +4,7 @@ const recursiveReaddir = require('recursive-readdir');
 const { orderBy } = require('natural-orderby');
 const { joinFragments } = require('../routes/utils/url');
 const { config } = require('../config');
+const { KIKOETA_LYRIC_SUFFIX } = require('./kikoetaLyrics');
 
 const supportedMediaExtList = ['.mp3', '.ogg', '.opus', '.wav', '.aac', '.flac', '.webm', '.mp4', '.m4a', '.mka'];
 const supportedSubtitleExtList = ['.lrc', '.srt', '.ass', ".vtt"]; // '.ass' only support show on file list, not for play lyric
@@ -35,6 +36,24 @@ async function getAudioFileDuration(filePath) {
   return NaN;
 }
 const getAudioFileDurationLimited = (filePath) => limitP.call(getAudioFileDuration, filePath);
+
+function lyricFileStatus(files) {
+  let isContainLyric = false;
+  let isContainAILyric = false;
+  for (const file of files) {
+    if (!supportedSubtitleExtList.includes(path.extname(file).toLowerCase())) continue;
+    if (file.toLowerCase().endsWith(KIKOETA_LYRIC_SUFFIX)) {
+      isContainAILyric = true;
+    } else {
+      isContainLyric = true;
+    }
+  }
+  return { isContainLyric, isContainAILyric };
+}
+
+async function getLyricFileStatus(dir) {
+  return lyricFileStatus(await recursiveReaddir(dir));
+}
 
 // 是否包含字幕
 // @param {Number} id Work identifier. Currently, RJ/RE code.
@@ -68,13 +87,10 @@ async function scrapeWorkMemo(work_id, dir, oldMemo) {
   // Filter out any files not matching these extensions
   const oldMemoMtime = oldMemo.mtime || {};
   const oldMemoDuration = oldMemo.duration || {};
-  const memo = { duration: {}, isContainLyric: false, mtime: {} };
+  const memo = { duration: {}, ...lyricFileStatus(files), mtime: {} };
   await Promise.all(files
     .filter((file) => {
       const ext = path.extname(file).toLowerCase();
-      if (supportedSubtitleExtList.includes(ext)) {
-        memo.isContainLyric = true;
-      }
       return supportedMediaExtList.includes(ext);
     }) // filter
     .map((file) => ({
@@ -130,7 +146,7 @@ const getTrackList = async function (id, dir, readMemo) {
       );
     });
 
-    // Sort by folder and title
+    // Sort by folder and title, keeping generated lyrics after existing media indices.
     const sortedFiles = orderBy(filteredFiles.map((file) => {
       const shortFilePath = file.replace(path.join(dir, '/'), '');
       const dirName = path.dirname(shortFilePath);
@@ -142,7 +158,7 @@ const getTrackList = async function (id, dir, readMemo) {
         fullPath: file, // 给后面获取音频时长提供文件的全路径
         shortFilePath,
       };
-    }), [v => v.subtitle, v => v.title, v => v.ext]);
+    }), [v => Number(v.title.endsWith(KIKOETA_LYRIC_SUFFIX)), v => v.subtitle, v => v.title, v => v.ext]);
 
     // Add hash to each file
     const sortedHashedFiles = sortedFiles.map(
@@ -368,6 +384,7 @@ function formatID(id) {
 
 module.exports = {
   isContainLyric,
+  getLyricFileStatus,
   getTrackList,
   toTree,
   getFolderList,
@@ -375,4 +392,5 @@ module.exports = {
   saveCoverImageToDisk,
   formatID,
   scrapeWorkMemo,
+  supportedMediaExtList,
 };
